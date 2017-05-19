@@ -68,7 +68,7 @@ void input::set_c(double in_c_tri, double in_c_quad)
 {
   c_tri = in_c_tri;
   c_quad = in_c_quad;
-  
+
   double a_k = eval_gamma(2*order+1)/( pow(2.,order)*pow(eval_gamma(order+1),2) );
   eta_quad=in_c_quad*0.5*(2.*order+1.)*a_k*eval_gamma(order+1)*a_k*eval_gamma(order+1);
 }
@@ -233,6 +233,10 @@ void input::read_input_file(string fileName, int rank)
   opts.getScalarValue("Re_free_stream",Re_free_stream);
   opts.getScalarValue("L_free_stream",L_free_stream);
   opts.getScalarValue("T_free_stream",T_free_stream);
+  opts.getScalarValue("P_Total_Nozzle",P_Total_Nozzle,0.);
+  opts.getScalarValue("T_Total_Nozzle",T_Total_Nozzle,0.);
+  opts.getScalarValue("P_Free_Nozzle",P_Free_Nozzle,0.);
+
 
   opts.getScalarValue("rho_bound",rho_bound);
   opts.getScalarValue("u_bound",v_bound(0));
@@ -347,18 +351,18 @@ void input::setup_params(int rank)
   // --------------------
   // ERROR CHECKING
   // --------------------
-  
+
   if (monitor_res_freq == 0) monitor_res_freq = INFINITY;
   if (monitor_cp_freq == 0) monitor_cp_freq = INFINITY;
   if (monitor_integrals_freq == 0) monitor_integrals_freq = INFINITY;
-  
+
   if (!mesh_file.compare(mesh_file.size()-3,3,"neu"))
     mesh_format=0;
   else if (!mesh_file.compare(mesh_file.size()-3,3,"msh"))
     mesh_format=1;
   else
     FatalError("Mesh format not recognized");
-  
+
   if (equation==0)
   {
     if (riemann_solve_type==1)
@@ -379,41 +383,41 @@ void input::setup_params(int rank)
     if (riemann_solve_type==2)
       FatalError("Roe flux not supported with RANS equation");
   }
-  
-  
+
+
   if (rank==0)
     cout << endl << "---------------------- Non-dimensionalization ---------------------" << endl;
-  
-  
+
+
   if(viscous) {
-    
+
     // If we have chosen an isentropic vortex case as the initial condition
-    
+
     if(ic_form == 0 || artif_only || ic_form == 8)   {
-      
+
       fix_vis  = 1.;
       R_ref     = 1.;
       c_sth     = 1.;
       rt_inf    = 1.;
       mu_inf    = 0.1;
-    
+
     } else { // Any other type of initial condition
-      
+
       // Dimensional reference quantities for temperature and length
-      
+
       T_ref = T_free_stream;
       L_ref = L_free_stream;
-      
+
       // Compute the freestream velocity from the Mach number and direction
-      
-      uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream);
+
+      uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream); //maybe set to outlet velocity
 
       u_free_stream   = uvw_ref*nx_free_stream;
       v_free_stream   = uvw_ref*ny_free_stream;
       w_free_stream   = uvw_ref*nz_free_stream;
-      
+
       // Set either a fixed value for the viscosity or a value from Sutherland's law
-      
+
       if(fix_vis)
       {
         mu_free_stream = mu_gas;
@@ -422,40 +426,62 @@ void input::setup_params(int rank)
       {
         mu_free_stream = mu_gas*pow(T_free_stream/T_gas, 1.5)*( (T_gas + S_gas)/(T_free_stream + S_gas));
       }
-      
+
       // Compute the corresponding density from the definition of the Reynolds number
       // Re and the Re length are specified in the input file.
-      
-      rho_free_stream   = (mu_free_stream*Re_free_stream)/(uvw_ref*L_free_stream);
-      
+
+      if(P_Free_Nozzle)
+      {
+        rho_free_stream = P_Free_Nozzle/(R_gas*T_free_stream);
+      }
+      else
+      {
+        rho_free_stream = (mu_free_stream*Re_free_stream)/(uvw_ref*L_free_stream);
+      }
       // Compute the freestream pressure from the gas law
-      
-      p_free_stream = rho_free_stream*R_gas*T_free_stream;
-      
+
+      if(P_Free_Nozzle)
+      {
+          p_free_stream = P_Free_Nozzle;
+      }
+      else{
+        p_free_stream = rho_free_stream*R_gas*T_free_stream;
+      }
+
+
       // Choose the following consistent reference quantities for other variables
-      
-      rho_ref   = rho_free_stream;
+
+      rho_ref   = rho_free_stream;//rho free set to be rho total in nozzle case;
       p_ref     = rho_ref*uvw_ref*uvw_ref;
       mu_ref    = rho_ref*uvw_ref*L_ref;
       time_ref  = L_ref/uvw_ref;
       R_ref     = (R_gas*T_ref)/(uvw_ref*uvw_ref);
-      
+
       // ?
       c_sth     = S_gas/T_gas;
-      
+
       mu_inf    = mu_gas/mu_ref;
       rt_inf    = T_gas*R_gas/(uvw_ref*uvw_ref);
-      
+
       // Set up the dimensionless conditions @ free-stream boundaries
-      
+
       rho_bound = 1.; // Note that we have chosen our non-dim. such that rho_ref = rho_free_stream
       v_bound(0) = u_free_stream/uvw_ref;
       v_bound(1) = v_free_stream/uvw_ref;
       v_bound(2) = w_free_stream/uvw_ref;
       p_bound = p_free_stream/p_ref;
-      T_total_bound = (T_free_stream/T_ref)*(1.0 + 0.5*(gamma-1.0)*Mach_free_stream*Mach_free_stream);
+     if(T_Total_Nozzle && P_Total_Nozzle)
+     {
+         T_total_bound = T_Total_Nozzle/T_ref;
+         p_total_bound = P_Total_Nozzle/p_ref;
+     }
+     else
+        {
+        T_total_bound = (T_free_stream/T_ref)*(1.0 + 0.5*(gamma-1.0)*Mach_free_stream*Mach_free_stream);
       p_total_bound = p_bound*pow(1.0 + 0.5*(gamma-1.0)*Mach_free_stream*Mach_free_stream, gamma/(gamma-1.0));
-      
+     }
+
+
       // Set up the dimensionless conditions @ moving boundaries
 
       uvw_wall  = Mach_wall*sqrt(gamma*R_gas*T_wall);
@@ -463,7 +489,7 @@ void input::setup_params(int rank)
       v_wall(1) = (uvw_wall*ny_wall)/uvw_ref;
       v_wall(2) = (uvw_wall*nz_wall)/uvw_ref;
       T_wall    = T_wall/T_ref;
-      
+
       // Set up the dimensionless initial conditions (repeat process above for freestream)
 
       uvw_c_ic  = Mach_c_ic*sqrt(gamma*R_gas*T_c_ic);
@@ -475,13 +501,22 @@ void input::setup_params(int rank)
       } else {
         mu_c_ic = mu_gas*pow(T_c_ic/T_gas, 1.5)*( (T_gas + S_gas)/(T_c_ic + S_gas));
       }
-      rho_c_ic = (mu_c_ic*Re_c_ic)/(uvw_c_ic*L_ref);
+
+      if (P_Free_Nozzle)
+      {
+          rho_c_ic = rho_free_stream;
+      }
+      else
+        {
+        rho_c_ic = (mu_c_ic*Re_c_ic)/(uvw_c_ic*L_ref);
+      }
+
       p_c_ic   = rho_c_ic*R_gas*T_c_ic;
       mu_c_ic  = mu_c_ic/mu_ref;
       rho_c_ic = rho_c_ic/rho_ref;
       p_c_ic   = p_c_ic/p_ref;
       T_c_ic   = T_c_ic/T_ref;
-      
+
       // SA turblence model parameters
       prandtl_t = 0.9;
       if (turb_model == 1)

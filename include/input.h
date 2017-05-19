@@ -32,7 +32,7 @@
 #include "array.h"
 
 class input
-{	
+{
 public:
 
   // #### constructors ####
@@ -216,6 +216,10 @@ public:
   double v_free_stream;
   double w_free_stream;
   double mu_free_stream;
+  double P_Total_Nozzle;
+  double T_Total_Nozzle;
+  double P_Free_Nozzle;
+  //double rho_Free_Nozzle;
 
   double T_ref;
   double L_ref;
@@ -225,7 +229,7 @@ public:
   double p_ref;
   double mu_ref;
   double time_ref;
-  
+
   double Mach_wall;
   double nx_wall;
   double ny_wall;
@@ -234,7 +238,7 @@ public:
   array<double> v_wall;
   double uvw_wall;
   double T_wall;
-  
+
   double Mach_c_ic;
   double nx_c_ic;
   double ny_c_ic;
