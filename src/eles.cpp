@@ -1639,7 +1639,7 @@ void eles::calculate_corrected_divergence(int in_div_tconf_upts_to)
         {
           if (isnan(div_tconf_upts(in_div_tconf_upts_to)(j,i,k)))
           {
-            printf("Residual is NaN at element No.&6d, field No.&2d, position: \n",i,k);
+            printf("Residual is NaN at element No.%6d, field No.%2d, position: \n",i,k);
             for (int intd=0;intd<n_dims;intd++)
             printf("%5.3f, ",pos_upts(i,j,intd));
             printf("\n");
