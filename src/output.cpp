@@ -1107,7 +1107,7 @@ void write_restart(int in_file_num, struct solution* FlowSol)
 }
 
 void CalcForces(int in_file_num, struct solution* FlowSol) {
-  
+
   char file_name_s[256], *file_name;
   char forcedir_s[256], *forcedir;
   struct stat st = {0};
@@ -1150,7 +1150,7 @@ void CalcForces(int in_file_num, struct solution* FlowSol) {
     {
       sprintf(file_name_s,"force_files/cp_%.09d_p%.04d.dat",in_file_num,my_rank);
       file_name = &file_name_s[0];
-    
+
       // open files for writing
       coeff_file.open(file_name);
     }
@@ -1169,20 +1169,20 @@ void CalcForces(int in_file_num, struct solution* FlowSol) {
     {
       sprintf(file_name_s,"force_files/cp_%.09d_p%.04d.dat",in_file_num,0);
       file_name = &file_name_s[0];
-    
+
       // open file for writing
       coeff_file.open(file_name);
     }
 
 #endif
-  
+
   // zero the forces and coeffs
   for (int m=0;m<FlowSol->n_dims;m++)
     {
       FlowSol->inv_force(m) = 0.;
       FlowSol->vis_force(m) = 0.;
     }
-  
+
   FlowSol->coeff_lift = 0.0;
   FlowSol->coeff_drag = 0.0;
 
@@ -1222,13 +1222,13 @@ void CalcForces(int in_file_num, struct solution* FlowSol) {
 
   MPI_Reduce(&FlowSol->coeff_lift,&coeff_lift_global,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
   MPI_Reduce(&FlowSol->coeff_drag,&coeff_drag_global,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
-  
+
   for (int m=0;m<FlowSol->n_dims;m++)
     {
       FlowSol->inv_force(m) = inv_force_global(m);
       FlowSol->vis_force(m) = vis_force_global(m);
     }
-  
+
   FlowSol->coeff_lift = coeff_lift_global;
   FlowSol->coeff_drag = coeff_drag_global;
 
@@ -1266,7 +1266,7 @@ void CalcIntegralQuantities(int in_file_num, struct solution* FlowSol) {
       FlowSol->integral_quantities(j) = integral_quantities_global(j);
     }
 #endif
-  
+
 }
 
 // Calculate time averaged diagnostic quantities
@@ -1450,10 +1450,10 @@ void compute_error(int in_file_num, struct solution* FlowSol)
 }
 
 void CalcNormResidual(struct solution* FlowSol) {
-  
+
   int i, j, n_upts = 0, n_fields;
   double sum[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}, norm[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-  
+
   if (FlowSol->n_dims==2) n_fields = 4;
   else n_fields = 5;
 
@@ -1486,7 +1486,7 @@ void CalcNormResidual(struct solution* FlowSol) {
       }
     }
   }
-  
+
 #ifdef _MPI
   double sum_global[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   if (run_input.res_norm_type == 0) {
@@ -1503,18 +1503,18 @@ void CalcNormResidual(struct solution* FlowSol) {
   }
 
   for(i=0; i<n_fields; i++) sum[i] = sum_global[i];
-  
+
 #endif
-  
+
   if (FlowSol->rank == 0) {
-    
+
     // Compute the norm
     for(i=0; i<n_fields; i++) {
       if (run_input.res_norm_type==0) { FlowSol->norm_residual(i) = sum[i]; } // Infinity Norm
       else if (run_input.res_norm_type==1) { FlowSol->norm_residual(i) = sum[i] / n_upts; } // L1 norm
       else if (run_input.res_norm_type==2) { FlowSol->norm_residual(i) = sqrt(sum[i]) / n_upts; } // L2 norm
       else FatalError("norm_type not recognized");
-      
+
       if (isnan(FlowSol->norm_residual(i))) {
         FatalError("NaN residual encountered. Exiting");
       }
@@ -1523,21 +1523,21 @@ void CalcNormResidual(struct solution* FlowSol) {
 }
 
 void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct solution* FlowSol) {
-  
+
   int i, n_fields;
   clock_t final;
   // TODO: write heads when starting from a restart file
   bool open_hist, write_heads;
   int n_diags = run_input.n_integral_quantities;
   double in_time = FlowSol->time;
-  
+
   if (FlowSol->n_dims==2) n_fields = 4;
   else n_fields = 5;
 
   if (run_input.turb_model==1) {
     n_fields++;
   }
-  
+
   // set write flag
   if (run_input.restart_flag==0) {
     open_hist = (in_file_num == 1);
@@ -1549,30 +1549,51 @@ void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct s
   }
 
   if (FlowSol->rank == 0) {
-    
+
     // Open history file
     if (open_hist) {
 
       write_hist->open("history.plt", ios::out);
       write_hist->precision(15);
       write_hist[0] << "TITLE = \"HiFiLES simulation\"" << endl;
-      
+
       write_hist[0] << "VARIABLES = \"Iteration\"";
-      
+
       // Add residual and variables
-      if (FlowSol->n_dims==2) write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
-      else write_hist[0] <<  ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>z</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
-      
+      if (FlowSol->n_dims==2) {write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
+      if(run_input.turb_model)
+      {
+          write_hist[0] <<",\"mu<greek>tilde<greek>\"";
+          write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+
+      }
+      else
+        write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+      }
+      else {
+       write_hist[0] <<  ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>z</sub>])\"";
+
+       if(run_input.turb_model)
+      {
+          write_hist[0] <<",\"mu<greek>tilde<greek>\"";
+          write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+
+      }
+      else
+        write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+      }
+
+
       // Add integral diagnostics
       for(i=0; i<n_diags; i++)
         write_hist[0] << ",\"Diagnostics[" << i << "]\"";
 
       // Add physical and computational time
       write_hist[0] << ",\"Time<sub>Physical</sub>\",\"Time<sub>Comp</sub>(m)\"" << endl;
-      
+
       write_hist[0] << "ZONE T= \"Convergence history\"" << endl;
     }
-    
+
     // Write the header
     if (write_heads) {
       if (FlowSol->n_dims==2) {
@@ -1584,7 +1605,7 @@ void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct s
         else cout <<  "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]   Res[RhoVelz]      Res[RhoE]   Res[MuTilde]       Fx_Total       Fy_Total       Fz_Total" << endl;
       }
     }
-    
+
     // Output residuals
     cout.precision(8);
     cout.setf(ios::fixed, ios::floatfield);
@@ -1594,23 +1615,23 @@ void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct s
       cout.width(15); cout << FlowSol->norm_residual(i);
       write_hist[0] << ", " << log10(FlowSol->norm_residual(i));
     }
-    
+
     // Output forces
     for(i=0; i< FlowSol->n_dims; i++) {
       cout.width(15); cout << FlowSol->inv_force(i) + FlowSol->vis_force(i);
       write_hist[0] << ", " << FlowSol->inv_force(i) + FlowSol->vis_force(i);
     }
-    
+
     // Output lift and drag coeffs
     write_hist[0] << ", " << FlowSol->coeff_lift  << ", " << FlowSol->coeff_drag;
-    
+
     // Output integral diagnostic quantities
     for(i=0; i<n_diags; i++)
       write_hist[0] << ", " << FlowSol->integral_quantities(i);
 
     // Output physical time
     write_hist[0] << ", " << in_time;
-    
+
     // Compute execution time
     final = clock()-init;
     write_hist[0] << ", " << (double) final/(((double) CLOCKS_PER_SEC) * 60.0) << endl;
