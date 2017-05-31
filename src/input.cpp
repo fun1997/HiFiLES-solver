@@ -567,11 +567,10 @@ void input::setup_params(int rank)
             cout << "Pressure Ramp Rate =" << P_Ramp_Coeff << endl;
             cout << "Temperature Ramp Rate =" << T_Ramp_Coeff << endl;
         }
+      }
         }
       }
     }
-  }
-}
 
 fileReader::fileReader()
 {
