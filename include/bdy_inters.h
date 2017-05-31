@@ -80,8 +80,8 @@ protected:
   // #### members ####
 
   int max_bdy_params;
-
   array<int> boundary_type;
   array<double> bdy_params;
+
 
 };

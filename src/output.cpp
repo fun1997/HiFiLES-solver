@@ -1563,7 +1563,7 @@ void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct s
       if (FlowSol->n_dims==2) {write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
       if(run_input.turb_model)
       {
-          write_hist[0] <<",\"mu<greek>tilde<greek>\"";
+          write_hist[0] <<",\"mu_tilde\"";
           write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
 
       }

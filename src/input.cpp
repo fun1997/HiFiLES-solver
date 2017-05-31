@@ -236,6 +236,15 @@ void input::read_input_file(string fileName, int rank)
   opts.getScalarValue("P_Total_Nozzle",P_Total_Nozzle,0.);
   opts.getScalarValue("T_Total_Nozzle",T_Total_Nozzle,0.);
   opts.getScalarValue("P_Free_Nozzle",P_Free_Nozzle,0.);
+  opts.getScalarValue("Pressure_Ramp",Pressure_Ramp,0);
+
+  if (Pressure_Ramp)
+  {
+      opts.getScalarValue("P_Ramp_Coeff",P_Ramp_Coeff,0.);
+      opts.getScalarValue("T_Ramp_Coeff",T_Ramp_Coeff,0.);
+      opts.getScalarValue("P_Total_Old",P_Total_Old,P_Free_Nozzle);
+      opts.getScalarValue("T_Total_Old",T_Total_Old,T_free_stream);
+  }
 
 
   opts.getScalarValue("rho_bound",rho_bound);
@@ -337,6 +346,7 @@ void input::read_input_file(string fileName, int rank)
 void input::setup(char* fileNameC, int rank)
 {
   string fileNameS;
+  ramp_counter=1;
   fileNameS.assign(fileNameC);
 
   /* ---- Read necessary parameters from the input file ---- */
@@ -444,9 +454,10 @@ void input::setup_params(int rank)
       {
           p_free_stream = P_Free_Nozzle;
       }
-      else{
+      else
+        {
         p_free_stream = rho_free_stream*R_gas*T_free_stream;
-      }
+        }
 
 
       // Choose the following consistent reference quantities for other variables
@@ -481,7 +492,11 @@ void input::setup_params(int rank)
       p_total_bound = p_bound*pow(1.0 + 0.5*(gamma-1.0)*Mach_free_stream*Mach_free_stream, gamma/(gamma-1.0));
      }
 
-
+     if (Pressure_Ramp)
+  {
+      P_Total_Old_Bound=P_Total_Old/p_ref;
+      T_Total_Old_Bound=T_Total_Old/T_ref;
+  }
       // Set up the dimensionless conditions @ moving boundaries
 
       uvw_wall  = Mach_wall*sqrt(gamma*R_gas*T_wall);

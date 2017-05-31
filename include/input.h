@@ -148,7 +148,8 @@ public:
   double p_bound;
   double p_total_bound;
   double T_total_bound;
-
+  double P_Total_Old_Bound;
+  double T_Total_Old_Bound;
   int mesh_format;
   string mesh_file;
 
@@ -219,6 +220,12 @@ public:
   double P_Total_Nozzle;
   double T_Total_Nozzle;
   double P_Free_Nozzle;
+  int Pressure_Ramp;
+  double P_Ramp_Coeff;
+  double T_Ramp_Coeff;
+  double P_Total_Old;
+  double T_Total_Old;
+  int ramp_counter;
   //double rho_Free_Nozzle;
 
   double T_ref;
