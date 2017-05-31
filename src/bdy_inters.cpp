@@ -491,33 +491,33 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
           double p_total_bound ;
           double T_total_bound;
           //Pressure/Temperature Ramp
-          if (run_input.Pressure_Ramp)
-          {
+        if (run_input.Pressure_Ramp)
+        {
             if(bdy_params[15])
             {
                 p_total_bound = bdy_params[17] + (bdy_params[9]-bdy_params[17]) * bdy_params[15] * run_input.ramp_counter;
                 if(p_total_bound >= bdy_params[9])
-                p_total_bound = bdy_params[9];
+                    p_total_bound = bdy_params[9];
             }
             else
-            p_total_bound = bdy_params[9];
+                p_total_bound = bdy_params[9];
 
 
             if (bdy_params[16]>0)
            {
-            T_total_bound = bdy_params[18] + (bdy_params[10]-bdy_params[18]) * bdy_params[16] * run_input.ramp_counter;
-            if(T_total_bound >= bdy_params[10]) //>0 Temperature Ramp
-            T_total_bound = bdy_params[10];
+                T_total_bound = bdy_params[18] + (bdy_params[10]-bdy_params[18]) * bdy_params[16] * run_input.ramp_counter;
+                if(T_total_bound >= bdy_params[10]) //>0 Temperature Ramp
+                    T_total_bound = bdy_params[10];
            }
             else if (bdy_params[16]<0) //-1 isentropic relation
-             T_total_bound = pow(p_total_bound/p_bound, (gamma-1.0)/gamma);
+                T_total_bound = pow(p_total_bound/p_bound, (gamma-1.0)/gamma);
             else
-            T_total_bound = bdy_params[10];
+                T_total_bound = bdy_params[10];
         }
         else
         {
-             p_total_bound = bdy_params[9];
-             T_total_bound = bdy_params[10];
+            p_total_bound = bdy_params[9];
+            T_total_bound = bdy_params[10];
         }
           // Specify Inlet conditions
 
