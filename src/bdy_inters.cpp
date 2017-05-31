@@ -511,9 +511,9 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
            }
             else if (bdy_params[16]<0) //-1 isentropic relation
              T_total_bound = pow(p_total_bound/p_bound, (gamma-1.0)/gamma);
-          }
-          else
+            else
             T_total_bound = bdy_params[10];
+        }
         else
         {
              p_total_bound = bdy_params[9];
