@@ -562,10 +562,17 @@ void input::setup_params(int rank)
         if(Pressure_Ramp)
         {
             cout << "Pressure Ramp On" << endl;
-            cout << "Pressure Ramping From " << P_Total_Old << P_Total_Old_Bound << endl;
-            cout << "Temperature Ramping From " << T_Total_Old << T_Total_Old_Bound << endl;
-            cout << "Pressure Ramp Rate =" << P_Ramp_Coeff << endl;
-            cout << "Temperature Ramp Rate =" << T_Ramp_Coeff << endl;
+            cout << "Pressure Ramping From " << P_Total_Old <<" "<< P_Total_Old_Bound << endl;
+            cout << "Pressure Ramp Rate=" << P_Ramp_Coeff << endl;
+            if (T_Ramp_Coeff==-1)
+            {
+                cout<<"Isentropic Temperature"<<endl;
+            }
+            else
+            {
+                cout << "Temperature Ramping From " << T_Total_Old <<" "<< T_Total_Old_Bound << endl;
+                cout << "Temperature Ramp Rate=" << T_Ramp_Coeff << endl;
+            }
         }
       }
         }
