@@ -463,12 +463,8 @@ void input::setup_params(int rank)
       L_ref = L_free_stream;
 
       // Compute the freestream velocity from the Mach number and direction
-      if (Far_Field)
-      {
-          uvw_ref = Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream);
-      }
-      else
-          uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream); //set to 1
+
+      uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream); //set to 1
 
       //u_free_stream   = uvw_ref*nx_free_stream;
       //v_free_stream   = uvw_ref*ny_free_stream;
@@ -536,6 +532,7 @@ void input::setup_params(int rank)
 
      if (Sub_Out)
         p_bound_Sub_Out=P_Sub_Out/p_ref;
+        p_bound = p_bound_Sub_Out;
      if (Sup_In)
       {
             rho_bound_Sup_In=Rho_Sup_In/rho_ref;
@@ -549,6 +546,7 @@ void input::setup_params(int rank)
      {
          rho_bound_Far_Field=Rho_Far_Field/rho_ref;
          p_bound_Far_Field=P_Far_Field/p_ref;
+         p_bound = p_bound_Far_Field;
          v_bound_Far_Field(0)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
          v_bound_Far_Field(1)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
          v_bound_Far_Field(2)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
@@ -603,6 +601,8 @@ void input::setup_params(int rank)
       {
         cout << "uvw_ref: " << uvw_ref <<" m/s"<< endl;
         cout << "rho_ref: " << rho_ref << endl;
+        cout << "p_ref: " << p_ref << endl;
+        cout << "T_ref: " << T_ref << endl;
         cout << "rho_c_ic=" << rho_c_ic << endl;
         cout << "u_c_ic=" << u_c_ic << endl;
         cout << "v_c_ic=" << v_c_ic << endl;
