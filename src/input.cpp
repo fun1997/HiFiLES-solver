@@ -91,6 +91,9 @@ void input::read_input_file(string fileName, int rank)
   fileReader opts(fileName);
 
   v_bound.setup(3);
+  v_bound_Sub_In_Simp.setup(3);
+  v_bound_Sup_In.setup(3);
+  v_bound_Far_Field.setup(3);
   wave_speed.setup(3);
   v_wall.setup(3);
 
@@ -226,33 +229,69 @@ void input::read_input_file(string fileName, int rank)
   opts.getScalarValue("dy_cyclic",dy_cyclic,(double)INFINITY);
   opts.getScalarValue("dz_cyclic",dz_cyclic,(double)INFINITY);
 
-  opts.getScalarValue("Mach_free_stream",Mach_free_stream);
   opts.getScalarValue("nx_free_stream",nx_free_stream);
   opts.getScalarValue("ny_free_stream",ny_free_stream);
   opts.getScalarValue("nz_free_stream",nz_free_stream);
-  opts.getScalarValue("Re_free_stream",Re_free_stream);
-  opts.getScalarValue("L_free_stream",L_free_stream);
-  opts.getScalarValue("T_free_stream",T_free_stream);
-  opts.getScalarValue("P_Total_Nozzle",P_Total_Nozzle,0.);
-  opts.getScalarValue("T_Total_Nozzle",T_Total_Nozzle,0.);
-  opts.getScalarValue("P_Free_Nozzle",P_Free_Nozzle,0.);
-  opts.getScalarValue("Pressure_Ramp",Pressure_Ramp,0);
-
-  if (Pressure_Ramp)
+  //Sub_In_Simp
+  opts.getScalarValue("Sub_In_Simp",Sub_In_Simp,0);
+  if (Sub_In_Simp)
   {
+      opts.getScalarValue("Mach_Sub_In_Simp",Mach_Sub_In_Simp);
+      opts.getScalarValue("Rho_Sub_In_Simp",Rho_Sub_In_Simp);
+  }
+  //Sub_In_Char
+  opts.getScalarValue("Sub_In_Char", Sub_In_char,0);
+  if(Sub_In_char)
+  {
+      opts.getScalarValue("P_Total_Nozzle",P_Total_Nozzle,0.);
+      opts.getScalarValue("T_Total_Nozzle",T_Total_Nozzle,0.);
+      opts.getScalarValue("Pressure_Ramp",Pressure_Ramp,0);
+  if (Pressure_Ramp)
+   {
       opts.getScalarValue("P_Ramp_Coeff",P_Ramp_Coeff,0.);
       opts.getScalarValue("T_Ramp_Coeff",T_Ramp_Coeff,0.);
-      opts.getScalarValue("P_Total_Old",P_Total_Old,P_Free_Nozzle);
+      opts.getScalarValue("P_Total_Old",P_Total_Old);
       opts.getScalarValue("T_Total_Old",T_Total_Old,T_free_stream);
+   }
+  }
+  //Sub_Out
+  opts.getScalarValue("Sub_Out",Sub_Out,0);
+  if (Sub_Out)
+  {
+      opts.getScalarValue("P_Sub_Out",P_Sub_Out);
+  }
+  //Sup_In
+  opts.getScalarValue("Sup_In",Sup_In,0);
+  if (Sup_In)
+  {
+      opts.getScalarValue("P_Sup_In",P_Sup_In);
+      opts.getScalarValue("Mach_Sup_In",Mach_Sup_In);
+  }
+//Far_Field
+  opts.getScalarValue("Far_Field",Far_Field,0);
+  if (Far_Field)
+  {
+      opts.getScalarValue("P_Far_Field",P_Far_Field);
+      opts.getScalarValue("Mach_Far_Field",Mach_Far_Field);
+  }
+
+  opts.getScalarValue("Mach_free_stream",Mach_free_stream,1.);
+  //opts.getScalarValue("Re_free_stream",Re_free_stream);
+  opts.getScalarValue("L_free_stream",L_free_stream,1.);
+  opts.getScalarValue("T_free_stream",T_free_stream);
+
+  //Invis
+  if(!viscous)
+  {
+       opts.getScalarValue("rho_bound",rho_bound);
+       opts.getScalarValue("u_bound",v_bound(0));
+       opts.getScalarValue("v_bound",v_bound(1));
+       opts.getScalarValue("w_bound",v_bound(2));
+       opts.getScalarValue("p_bound",p_bound);
   }
 
 
-  opts.getScalarValue("rho_bound",rho_bound);
-  opts.getScalarValue("u_bound",v_bound(0));
-  opts.getScalarValue("v_bound",v_bound(1));
-  opts.getScalarValue("w_bound",v_bound(2));
-  opts.getScalarValue("p_bound",p_bound);
-
+  //Wall
   opts.getScalarValue("Mach_wall",Mach_wall,0.);
   opts.getScalarValue("nx_wall",nx_wall,0.);
   opts.getScalarValue("ny_wall",ny_wall,0.);
@@ -265,18 +304,23 @@ void input::read_input_file(string fileName, int rank)
 
   /* ---- Initial Conditions (use BC's by default) ---- */
 
-  opts.getScalarValue("Mach_c_ic",Mach_c_ic,Mach_free_stream);
+  opts.getScalarValue("Mach_c_ic",Mach_c_ic);
   opts.getScalarValue("nx_c_ic",nx_c_ic,nx_free_stream);
   opts.getScalarValue("ny_c_ic",ny_c_ic,ny_free_stream);
   opts.getScalarValue("nz_c_ic",nz_c_ic,nz_free_stream);
-  opts.getScalarValue("Re_c_ic",Re_c_ic,Re_free_stream);
+  //opts.getScalarValue("Re_c_ic",Re_c_ic,Re_free_stream);
   opts.getScalarValue("T_c_ic",T_c_ic,T_free_stream);
+  opts.getScalarValue("rho_c_ic",rho_c_ic);
 
-  opts.getScalarValue("rho_c_ic",rho_c_ic,rho_bound);
-  opts.getScalarValue("u_c_ic",u_c_ic,v_bound(0));
-  opts.getScalarValue("v_c_ic",v_c_ic,v_bound(1));
-  opts.getScalarValue("w_c_ic",w_c_ic,v_bound(2));
-  opts.getScalarValue("p_c_ic",p_c_ic,p_bound);
+  //Invis
+  if (!viscous)
+  {
+       opts.getScalarValue("u_c_ic",u_c_ic);
+       opts.getScalarValue("v_c_ic",v_c_ic);
+       opts.getScalarValue("w_c_ic",w_c_ic);
+       opts.getScalarValue("p_c_ic",p_c_ic);
+  }
+
 
   /* ---- Shock Capturing / Filtering ---- */
 
@@ -419,12 +463,16 @@ void input::setup_params(int rank)
       L_ref = L_free_stream;
 
       // Compute the freestream velocity from the Mach number and direction
+      if (Far_Field)
+      {
+          uvw_ref = Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream);
+      }
+      else
+          uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream); //set to 1
 
-      uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream); //maybe set to outlet velocity
-
-      u_free_stream   = uvw_ref*nx_free_stream;
-      v_free_stream   = uvw_ref*ny_free_stream;
-      w_free_stream   = uvw_ref*nz_free_stream;
+      //u_free_stream   = uvw_ref*nx_free_stream;
+      //v_free_stream   = uvw_ref*ny_free_stream;
+      //w_free_stream   = uvw_ref*nz_free_stream;
 
       // Set either a fixed value for the viscosity or a value from Sutherland's law
 
@@ -439,30 +487,21 @@ void input::setup_params(int rank)
 
       // Compute the corresponding density from the definition of the Reynolds number
       // Re and the Re length are specified in the input file.
-
-      if(P_Free_Nozzle)
+      if (Far_Field)
       {
-        rho_free_stream = P_Free_Nozzle/(R_gas*T_free_stream);
+        Rho_Far_Field = P_Far_Field/(R_gas*T_free_stream);
+        rho_ref   = Rho_Far_Field;//rho free set;
       }
-      else
+      if (Sup_In)
       {
-        rho_free_stream = (mu_free_stream*Re_free_stream)/(uvw_ref*L_free_stream);
+        Rho_Sup_In = P_Sup_In/(R_gas*T_free_stream);
+        rho_ref = Rho_Sup_In;
       }
-      // Compute the freestream pressure from the gas law
-
-      if(P_Free_Nozzle)
-      {
-          p_free_stream = P_Free_Nozzle;
-      }
-      else
-        {
-        p_free_stream = rho_free_stream*R_gas*T_free_stream;
-        }
-
-
+      if(Sub_Out)
+        rho_ref=P_Sub_Out/(R_gas*T_free_stream);
       // Choose the following consistent reference quantities for other variables
 
-      rho_ref   = rho_free_stream;//rho free set to be rho total in nozzle case;
+
       p_ref     = rho_ref*uvw_ref*uvw_ref;
       mu_ref    = rho_ref*uvw_ref*L_ref;
       time_ref  = L_ref/uvw_ref;
@@ -474,29 +513,47 @@ void input::setup_params(int rank)
       mu_inf    = mu_gas/mu_ref;
       rt_inf    = T_gas*R_gas/(uvw_ref*uvw_ref);
 
-      // Set up the dimensionless conditions @ free-stream boundaries
+      // Set up the dimensionless conditions @ boundaries
 
-      rho_bound = 1.; // Note that we have chosen our non-dim. such that rho_ref = rho_free_stream
-      v_bound(0) = u_free_stream/uvw_ref;
-      v_bound(1) = v_free_stream/uvw_ref;
-      v_bound(2) = w_free_stream/uvw_ref;
-      p_bound = p_free_stream/p_ref;
-     if(T_Total_Nozzle && P_Total_Nozzle)
-     {
+      if(Sub_In_Simp)
+      {
+        rho_bound_Sub_In_Simp = Rho_Sub_In_Simp/rho_ref;
+        v_bound_Sub_In_Simp(0) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
+        v_bound_Sub_In_Simp(1) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
+        v_bound_Sub_In_Simp(2) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
+      }
+
+      if(Sub_In_char)
+      {
          T_total_bound = T_Total_Nozzle/T_ref;
          p_total_bound = P_Total_Nozzle/p_ref;
-     }
-     else
+         if (Pressure_Ramp)
         {
-        T_total_bound = (T_free_stream/T_ref)*(1.0 + 0.5*(gamma-1.0)*Mach_free_stream*Mach_free_stream);
-      p_total_bound = p_bound*pow(1.0 + 0.5*(gamma-1.0)*Mach_free_stream*Mach_free_stream, gamma/(gamma-1.0));
+           P_Total_Old_Bound=P_Total_Old/p_ref;
+           T_Total_Old_Bound=T_Total_Old/T_ref;
+        }
+      }
+
+     if (Sub_Out)
+        p_bound_Sub_Out=P_Sub_Out/p_ref;
+     if (Sup_In)
+      {
+            rho_bound_Sup_In=Rho_Sup_In/rho_ref;
+            p_bound_Sup_In=P_Sup_In/p_ref;
+            v_bound_Sup_In(0)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
+            v_bound_Sup_In(1)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
+            v_bound_Sup_In(2)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
+      }
+
+     if (Far_Field)
+     {
+         rho_bound_Far_Field=Rho_Far_Field/rho_ref;
+         p_bound_Far_Field=P_Far_Field/p_ref;
+         v_bound_Far_Field(0)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
+         v_bound_Far_Field(1)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
+         v_bound_Far_Field(2)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
      }
 
-     if (Pressure_Ramp)
-  {
-      P_Total_Old_Bound=P_Total_Old/p_ref;
-      T_Total_Old_Bound=T_Total_Old/T_ref;
-  }
       // Set up the dimensionless conditions @ moving boundaries
 
       uvw_wall  = Mach_wall*sqrt(gamma*R_gas*T_wall);
@@ -505,7 +562,7 @@ void input::setup_params(int rank)
       v_wall(2) = (uvw_wall*nz_wall)/uvw_ref;
       T_wall    = T_wall/T_ref;
 
-      // Set up the dimensionless initial conditions (repeat process above for freestream)
+      // Set up the dimensionless initial conditions
 
       uvw_c_ic  = Mach_c_ic*sqrt(gamma*R_gas*T_c_ic);
       u_c_ic   = (uvw_c_ic*nx_c_ic)/uvw_ref;
@@ -517,14 +574,6 @@ void input::setup_params(int rank)
         mu_c_ic = mu_gas*pow(T_c_ic/T_gas, 1.5)*( (T_gas + S_gas)/(T_c_ic + S_gas));
       }
 
-      if (P_Free_Nozzle)
-      {
-          rho_c_ic = rho_free_stream;
-      }
-      else
-        {
-        rho_c_ic = (mu_c_ic*Re_c_ic)/(uvw_c_ic*L_ref);
-      }
 
       p_c_ic   = rho_c_ic*R_gas*T_c_ic;
       mu_c_ic  = mu_c_ic/mu_ref;
@@ -552,13 +601,15 @@ void input::setup_params(int rank)
       // Master node outputs information about the I.C.s to the console
       if (rank==0)
       {
-        cout << "uvw_ref: " << uvw_ref << endl;
-        cout << "rho_free_stream: " << rho_free_stream << endl;
+        cout << "uvw_ref: " << uvw_ref <<" m/s"<< endl;
+        cout << "rho_ref: " << rho_ref << endl;
         cout << "rho_c_ic=" << rho_c_ic << endl;
         cout << "u_c_ic=" << u_c_ic << endl;
         cout << "v_c_ic=" << v_c_ic << endl;
         cout << "w_c_ic=" << w_c_ic << endl;
         cout << "mu_c_ic=" << mu_c_ic << endl;
+        cout << "Boundary Conditions: " << "Sub_In_Simp: " << Sub_In_Simp << " ; Sub_In_Char: " << Sub_In_char <<" ; Sub_Out: " << Sub_Out << " ; Sup_In: " << Sup_In << " ; Far_Field: " << Far_Field <<endl;
+
         if(Pressure_Ramp)
         {
             cout << "Pressure Ramp On" << endl;

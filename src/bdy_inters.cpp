@@ -78,14 +78,19 @@ void bdy_inters::setup(int in_n_inters, int in_inters_type)
 
 void bdy_inters::set_bdy_params()
 {
-  max_bdy_params=30;
+  max_bdy_params=40;
   bdy_params.setup(max_bdy_params);
-  bdy_params(0) = run_input.rho_bound;
-  bdy_params(1) = run_input.v_bound(0);
-  bdy_params(2) = run_input.v_bound(1);
-  bdy_params(3) = run_input.v_bound(2);
-  bdy_params(4) = run_input.p_bound;
-
+  bdy_params(11) = run_input.nx_free_stream;
+  bdy_params(12) = run_input.ny_free_stream;
+  bdy_params(13) = run_input.nz_free_stream;
+  if(!viscous)
+  {
+      bdy_params(0) = run_input.rho_bound;
+      bdy_params(1) = run_input.v_bound(0);
+      bdy_params(2) = run_input.v_bound(1);
+      bdy_params(3) = run_input.v_bound(2);
+      bdy_params(4) = run_input.p_bound;
+  }
   if(viscous)
     {
       bdy_params(5) = run_input.v_wall(0);
@@ -95,18 +100,50 @@ void bdy_inters::set_bdy_params()
     }
 
   // Boundary parameters for Characteristic Subsonic Inflow
-  bdy_params(9) = run_input.p_total_bound;
-  bdy_params(10) = run_input.T_total_bound;
-  bdy_params(11) = run_input.nx_free_stream;
-  bdy_params(12) = run_input.ny_free_stream;
-  bdy_params(13) = run_input.nz_free_stream;
-  //Pressure Ramp
-  if (run_input.Pressure_Ramp)
+  if (run_input.Sub_In_char)
   {
-      bdy_params(15) = run_input.P_Ramp_Coeff;
-      bdy_params(16) = run_input.T_Ramp_Coeff;
-      bdy_params(17) = run_input.P_Total_Old_Bound;
-      bdy_params(18) = run_input.T_Total_Old_Bound;
+      bdy_params(9) = run_input.p_total_bound;
+      bdy_params(10) = run_input.T_total_bound;
+      //Pressure Ramp
+      if (run_input.Pressure_Ramp)
+      {
+          bdy_params(15) = run_input.P_Ramp_Coeff;
+          bdy_params(16) = run_input.T_Ramp_Coeff;
+          bdy_params(17) = run_input.P_Total_Old_Bound;
+          bdy_params(18) = run_input.T_Total_Old_Bound;
+      }
+  }
+
+  //Boundary parameters for Simple Subsonic Inflow
+  if (run_input.Sub_In_Simp)
+  {
+      bdy_params(19) = run_input.rho_bound_Sub_In_Simp;
+      bdy_params(20) = run_input.v_bound_Sub_In_Simp(0);
+      bdy_params(21) = run_input.v_bound_Sub_In_Simp(1);
+      bdy_params(22) = run_input.v_bound_Sub_In_Simp(2);
+  }
+  //Boundary parameters for Subsonic Outflow
+  if (run_input.Sub_Out)
+  {
+      bdy_params(23) = run_input.p_bound_Sub_Out;
+  }
+  //Boundary parameters for Supersonic Inflow
+  if (run_input.Sup_In)
+  {
+      bdy_params(24) = run_input.rho_bound_Sup_In;
+      bdy_params(25) = run_input.v_bound_Sup_In(0);
+      bdy_params(26) = run_input.v_bound_Sup_In(1);
+      bdy_params(27) = run_input.v_bound_Sup_In(2);
+      bdy_params(28) = run_input.p_bound_Sup_In;
+  }
+  //Boundary Parameters for Far Field
+   if (run_input.Far_Field)
+  {
+      bdy_params(29) = run_input.rho_bound_Far_Field;
+      bdy_params(30) = run_input.v_bound_Far_Field(0);
+      bdy_params(31) = run_input.v_bound_Far_Field(1);
+      bdy_params(32) = run_input.v_bound_Far_Field(2);
+      bdy_params(33) = run_input.p_bound_Far_Field;
   }
   // Boundary parameters for turbulence models
   if (run_input.turb_model == 1)
@@ -410,6 +447,20 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
   double* v_wall = &bdy_params[5];
   double T_wall = bdy_params[8];
 
+  //Boundary parameters for Simple Subsonic Inflow
+      double rho_bound_Sub_In_Simp = bdy_params[19];
+      double* v_bound_Sub_In_Simp = &bdy_params[20];
+  //Boundary parameters for Subsonic Outflow
+      double p_bound_Sub_Out= bdy_params[23];
+  //Boundary parameters for Supersonic Inflow
+      double rho_bound_Sup_In = bdy_params[24];
+      double* v_bound_Sup_In = &bdy_params[25];
+      double p_bound_Sup_In = bdy_params[28];
+  //Boundary Parameters for Far Field
+      double rho_bound_Far_Field = bdy_params[29];
+      double* v_bound_Far_Field = &bdy_params[30];
+      double p_bound_Far_Field = bdy_params[33];
+
   // Navier-Stokes Boundary Conditions
   if(equation==0)
     {
@@ -425,13 +476,15 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
         v_sq += (v_l[i]*v_l[i]);
       p_l = (gamma-1.0)*(e_l - 0.5*rho_l*v_sq);
 
-      // Subsonic inflow simple (free pressure) //CONSIDER DELETING
+      // Subsonic inflow simple (free pressure)
       if(bdy_type == 1)
         {
+          if(!run_input.Sub_In_Simp)
+                FatalError("No boundary Parameters given");
           // fix density and velocity
-          rho_r = rho_bound;
+          rho_r = rho_bound_Sub_In_Simp;
           for (int i=0; i<n_dims; i++)
-            v_r[i] = v_bound[i];
+            v_r[i] = v_bound_Sub_In_Simp[i];
 
           // extrapolate pressure
           p_r = p_l;
@@ -454,13 +507,15 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
       // Subsonic outflow simple (fixed pressure) //CONSIDER DELETING
       else if(bdy_type == 2)
         {
+            if(!run_input.Sub_Out)
+                FatalError("No boundary Parameters given");
           // extrapolate density and velocity
           rho_r = rho_l;
           for (int i=0; i<n_dims; i++)
             v_r[i] = v_l[i];
 
           // fix pressure
-          p_r = p_bound;
+          p_r = p_bound_Sub_Out;
 
           // compute energy
           v_sq = 0.;
@@ -483,6 +538,8 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
       // SU2.
       else if(bdy_type == 3)
         {
+            if(!run_input.Sub_In_char)
+                FatalError("No boundary Parameters given");
           double V_r;
           double c_l, c_r_sq, c_total_sq;
           double R_plus, h_total;
@@ -605,6 +662,8 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
       // are extrapolated. Adapted from an implementation in SU2.
       else if(bdy_type == 4)
         {
+        if(!run_input.Sub_Out)
+            FatalError("No boundary Parameters given");
           double c_l, c_r;
           double R_plus, s;
           double vn_r;
@@ -624,7 +683,7 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
           s = p_l/pow(rho_l,gamma);
 
           // fix pressure on the right side
-          p_r = p_bound;
+          p_r = p_bound_Sub_Out;
 
           // Compute density
           rho_r = pow(p_r/s, 1.0/gamma);
@@ -655,13 +714,15 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
       // Supersonic inflow
       else if(bdy_type == 5)
         {
+            if(!run_input.Sup_In)
+                FatalError("No boundary Parameters given");
           // fix density and velocity
-          rho_r = rho_bound;
+          rho_r = rho_bound_Sup_In;
           for (int i=0; i<n_dims; i++)
-            v_r[i] = v_bound[i];
+            v_r[i] = v_bound_Sup_In[i];
 
           // fix pressure
-          p_r = p_bound;
+          p_r = p_bound_Sup_In;
 
           // compute energy
           v_sq = 0.;
@@ -807,6 +868,8 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
       // Characteristic
       else if (bdy_type == 15)
         {
+            if(!run_input.Far_Field)
+                FatalError("No boundary Parameters given");
           double c_star;
           double vn_star;
           double vn_bound;
@@ -822,10 +885,10 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
 
           vn_bound = 0;
           for (int i=0; i<n_dims; i++)
-            vn_bound += v_bound[i]*norm[i];
+            vn_bound += v_bound_Far_Field[i]*norm[i];
 
           r_plus  = vn_l + 2./(gamma-1.)*sqrt(gamma*p_l/rho_l);
-          r_minus = vn_bound - 2./(gamma-1.)*sqrt(gamma*p_bound/rho_bound);
+          r_minus = vn_bound - 2./(gamma-1.)*sqrt(gamma*p_bound_Far_Field/rho_bound_Far_Field);
 
           c_star = 0.25*(gamma-1.)*(r_plus-r_minus);
           vn_star = 0.5*(r_plus+r_minus);
@@ -834,19 +897,19 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
           if (vn_l<0)
             {
               // HACK
-              one_over_s = pow(rho_bound,gamma)/p_bound;
+              one_over_s = pow(rho_bound_Far_Field,gamma)/p_bound_Far_Field;
 
               // freestream total enthalpy
               v_sq = 0.;
               for (int i=0;i<n_dims;i++)
-                v_sq += v_bound[i]*v_bound[i];
-              h_free_stream = gamma/(gamma-1.)*p_bound/rho_bound + 0.5*v_sq;
+                v_sq += v_bound_Far_Field[i]*v_bound_Far_Field[i];
+              h_free_stream = gamma/(gamma-1.)*p_bound_Far_Field/rho_bound_Far_Field + 0.5*v_sq;
 
               rho_r = pow(1./gamma*(one_over_s*c_star*c_star),1./(gamma-1.));
 
               // Compute velocity on the right side
               for (int i=0; i<n_dims; i++)
-                v_r[i] = vn_star*norm[i] + (v_bound[i] - vn_bound*norm[i]);
+                v_r[i] = vn_star*norm[i] + (v_bound_Far_Field[i] - vn_bound*norm[i]);
 
               p_r = rho_r/gamma*c_star*c_star;
               e_r = rho_r*h_free_stream - p_r;

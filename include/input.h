@@ -143,13 +143,12 @@ public:
   /* -------------------------------- */
 
   // boundary_conditions
-  double rho_bound;
-  array<double> v_bound;
-  double p_bound;
-  double p_total_bound;
-  double T_total_bound;
-  double P_Total_Old_Bound;
-  double T_Total_Old_Bound;
+  double rho_bound;//inviscid
+  array<double> v_bound;//inviscid
+  array<double> v_bound_Sub_In_Simp;
+  array<double> v_bound_Sup_In;
+  array<double> v_bound_Far_Field;
+  double p_bound;//inviscid
   int mesh_format;
   string mesh_file;
 
@@ -204,29 +203,62 @@ public:
   double mu_inf;
   double rt_inf;
 
-  double Mach_free_stream;
+//boundary conditions
+
+//Sub_In_Simp
+  int Sub_In_Simp;
+  double Mach_Sub_In_Simp;
+  double Rho_Sub_In_Simp;
+  double rho_bound_Sub_In_Simp;
+//Sub_In_Char
+  int Sub_In_char;
+  double P_Total_Nozzle;
+  double T_Total_Nozzle;
+  double p_total_bound;
+  double T_total_bound;
   double nx_free_stream;
   double ny_free_stream;
   double nz_free_stream;
-  double Re_free_stream;
-  double L_free_stream;
-  double rho_free_stream;
-  double p_free_stream;
-  double T_free_stream;
-  double u_free_stream;
-  double v_free_stream;
-  double w_free_stream;
-  double mu_free_stream;
-  double P_Total_Nozzle;
-  double T_Total_Nozzle;
-  double P_Free_Nozzle;
+  //double P_Free_Nozzle;
   int Pressure_Ramp;
   double P_Ramp_Coeff;
   double T_Ramp_Coeff;
   double P_Total_Old;
   double T_Total_Old;
+  double P_Total_Old_Bound;
+  double T_Total_Old_Bound;
   int ramp_counter;
-  //double rho_Free_Nozzle;
+//Sub_Out
+  int Sub_Out;
+  double P_Sub_Out;
+  double p_bound_Sub_Out;
+//Sup_In
+  int Sup_In;
+  double Rho_Sup_In;
+  double P_Sup_In;
+  double Mach_Sup_In;
+  double rho_bound_Sup_In;
+  double p_bound_Sup_In;
+
+//Far_Field
+  int Far_Field;
+  double Rho_Far_Field;
+  double P_Far_Field;
+  double Mach_Far_Field;
+  double rho_bound_Far_Field;
+  double p_bound_Far_Field;
+
+  double Mach_free_stream;
+  //double Re_free_stream;
+  double L_free_stream;
+  //double rho_free_stream;
+  //double p_free_stream;
+  double T_free_stream;
+  double u_free_stream;
+  double v_free_stream;
+  double w_free_stream;
+  double mu_free_stream;
+
 
   double T_ref;
   double L_ref;
@@ -246,6 +278,7 @@ public:
   double uvw_wall;
   double T_wall;
 
+//Initial Conditions
   double Mach_c_ic;
   double nx_c_ic;
   double ny_c_ic;
