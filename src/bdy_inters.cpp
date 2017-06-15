@@ -83,13 +83,13 @@ void bdy_inters::set_bdy_params()
   bdy_params(11) = run_input.nx_free_stream;
   bdy_params(12) = run_input.ny_free_stream;
   bdy_params(13) = run_input.nz_free_stream;
+  bdy_params(4) = run_input.p_bound;
   if(!viscous)
   {
       bdy_params(0) = run_input.rho_bound;
       bdy_params(1) = run_input.v_bound(0);
       bdy_params(2) = run_input.v_bound(1);
       bdy_params(3) = run_input.v_bound(2);
-      bdy_params(4) = run_input.p_bound;
   }
   if(viscous)
     {

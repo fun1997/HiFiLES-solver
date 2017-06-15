@@ -531,8 +531,10 @@ void input::setup_params(int rank)
       }
 
      if (Sub_Out)
-        p_bound_Sub_Out=P_Sub_Out/p_ref;
-        p_bound = p_bound_Sub_Out;
+        {
+            p_bound_Sub_Out=P_Sub_Out/p_ref;
+            p_bound = p_bound_Sub_Out;
+        }
      if (Sup_In)
       {
             rho_bound_Sup_In=Rho_Sup_In/rho_ref;
