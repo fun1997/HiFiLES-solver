@@ -464,7 +464,7 @@ void input::setup_params(int rank)
 
       // Compute the freestream velocity from the Mach number and direction
 
-      uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream); //set to 1
+      uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream); //set to Mach 1
 
       //u_free_stream   = uvw_ref*nx_free_stream;
       //v_free_stream   = uvw_ref*ny_free_stream;
@@ -483,15 +483,16 @@ void input::setup_params(int rank)
 
       // Compute the corresponding density from the definition of the Reynolds number
       // Re and the Re length are specified in the input file.
-      if (Far_Field)
-      {
-        Rho_Far_Field = P_Far_Field/(R_gas*T_free_stream);
-        rho_ref   = Rho_Far_Field;//rho free set;
-      }
+      rho_ref = rho_c_ic; //for cases have no sub sonic outlet, no Supersonic inlet
       if (Sup_In)
       {
         Rho_Sup_In = P_Sup_In/(R_gas*T_free_stream);
         rho_ref = Rho_Sup_In;
+      }
+      if (Far_Field)
+      {
+        Rho_Far_Field = P_Far_Field/(R_gas*T_free_stream);
+        rho_ref   = Rho_Far_Field;//rho free set;
       }
       if(Sub_Out)
         rho_ref=P_Sub_Out/(R_gas*T_free_stream);
@@ -528,6 +529,7 @@ void input::setup_params(int rank)
            P_Total_Old_Bound=P_Total_Old/p_ref;
            T_Total_Old_Bound=T_Total_Old/T_ref;
         }
+        p_bound = rho_c_ic*R_gas*T_free_stream;
       }
 
      if (Sub_Out)
@@ -611,7 +613,7 @@ void input::setup_params(int rank)
         cout << "w_c_ic=" << w_c_ic << endl;
         cout << "mu_c_ic=" << mu_c_ic << endl;
         cout << "Boundary Conditions: " << "Sub_In_Simp: " << Sub_In_Simp << " ; Sub_In_Char: " << Sub_In_char <<" ; Sub_Out: " << Sub_Out << " ; Sup_In: " << Sup_In << " ; Far_Field: " << Far_Field <<endl;
-
+        cout << "p_bound: " << p_bound <<endl;
         if(Pressure_Ramp)
         {
             cout << "Pressure Ramp On" << endl;

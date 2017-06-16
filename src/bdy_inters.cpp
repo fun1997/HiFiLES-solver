@@ -102,15 +102,32 @@ void bdy_inters::set_bdy_params()
   // Boundary parameters for Characteristic Subsonic Inflow
   if (run_input.Sub_In_char)
   {
-      bdy_params(9) = run_input.p_total_bound;
-      bdy_params(10) = run_input.T_total_bound;
+      if (viscous)
+      {
+          bdy_params(9) = run_input.p_total_bound;
+          bdy_params(10) = run_input.T_total_bound;
+      }
+     else
+     {
+         bdy_params(9) = run_input.P_Total_Nozzle;
+         bdy_params(10) = run_input.T_Total_Nozzle;
+     }
       //Pressure Ramp
       if (run_input.Pressure_Ramp)
       {
           bdy_params(15) = run_input.P_Ramp_Coeff;
           bdy_params(16) = run_input.T_Ramp_Coeff;
-          bdy_params(17) = run_input.P_Total_Old_Bound;
-          bdy_params(18) = run_input.T_Total_Old_Bound;
+          if (viscous)
+          {
+            bdy_params(17) = run_input.P_Total_Old_Bound;
+            bdy_params(18) = run_input.T_Total_Old_Bound;
+          }
+          else
+          {
+            bdy_params(17) = run_input.P_Total_Old;
+            bdy_params(18) = run_input.T_Total_Old;
+          }
+
       }
   }
 
@@ -481,10 +498,16 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
         {
           if(!run_input.Sub_In_Simp)
                 FatalError("No boundary Parameters given");
+                if (!viscous)
+                {
+                    rho_bound_Sub_In_Simp=rho_bound;
+                    v_bound_Sub_In_Simp=v_bound;
+                }
+
           // fix density and velocity
-          rho_r = rho_bound_Sub_In_Simp;
+            rho_r = rho_bound_Sub_In_Simp;
           for (int i=0; i<n_dims; i++)
-            v_r[i] = v_bound_Sub_In_Simp[i];
+              v_r[i] = v_bound_Sub_In_Simp[i];
 
           // extrapolate pressure
           p_r = p_l;
@@ -509,13 +532,15 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
         {
             if(!run_input.Sub_Out)
                 FatalError("No boundary Parameters given");
+                if (!viscous)
+                    p_bound_Sub_Out=p_bound;
           // extrapolate density and velocity
           rho_r = rho_l;
           for (int i=0; i<n_dims; i++)
             v_r[i] = v_l[i];
 
           // fix pressure
-          p_r = p_bound_Sub_Out;
+            p_r = p_bound_Sub_Out;
 
           // compute energy
           v_sq = 0.;
@@ -667,6 +692,8 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
           double c_l, c_r;
           double R_plus, s;
           double vn_r;
+          if (!viscous)
+            p_bound_Sub_Out=p_bound;
 
           // Compute normal velocity on left side
           vn_l = 0.;
@@ -683,7 +710,7 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
           s = p_l/pow(rho_l,gamma);
 
           // fix pressure on the right side
-          p_r = p_bound_Sub_Out;
+            p_r = p_bound_Sub_Out;
 
           // Compute density
           rho_r = pow(p_r/s, 1.0/gamma);
@@ -716,13 +743,20 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
         {
             if(!run_input.Sup_In)
                 FatalError("No boundary Parameters given");
+                if(!viscous)
+                {
+                    rho_bound_Sup_In=rho_bound;
+                    v_bound_Sup_In=v_bound;
+                    p_bound_Sup_In=p_bound;
+                }
           // fix density and velocity
-          rho_r = rho_bound_Sup_In;
+            rho_r = rho_bound_Sup_In;
+
           for (int i=0; i<n_dims; i++)
             v_r[i] = v_bound_Sup_In[i];
 
           // fix pressure
-          p_r = p_bound_Sup_In;
+            p_r = p_bound_Sup_In;
 
           // compute energy
           v_sq = 0.;
@@ -878,6 +912,12 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
           double one_over_s;
           double h_free_stream;
 
+          if(!viscous)
+          {
+              rho_bound_Far_Field=rho_bound;
+              v_bound_Far_Field=v_bound;
+              p_bound_Far_Field=p_bound;
+          }
           // Compute normal velocity on left side
           vn_l = 0.;
           for (int i=0; i<n_dims; i++)
