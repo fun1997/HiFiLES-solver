@@ -138,6 +138,8 @@ int get_bc_number(string& bcname) {
   else if (!bcname.compare("adiabat_move")) bcflag = 14;  // Adiabatic, no-slip moving wall //
   else if (!bcname.compare("char")) bcflag = 15;          // Characteristic //
   else if (!bcname.compare("slip_wall_dual")) bcflag = 16;// Dual consistent BC //
+  else if (!bcname.compare("sub_in_simp2")) bcflag = 17;  // Second sub_in_simp BC //
+  else if (!bcname.compare("sup_in2")) bcflag = 18;       // Second sup_in BC //
   else if (!bcname.compare("ad_wall")) bcflag = 50;       // Advection, Advection-Diffusion Boundary Conditions //
   else
   {
@@ -1454,7 +1456,7 @@ void read_boundary_gmsh(string& in_file_name, int &in_n_cells, array<int>& in_ic
         mesh_file >> vlist_bound(0) >> vlist_bound(2) >> vlist_bound(8) >> vlist_bound(6);
         mesh_file >> vlist_bound(1) >> vlist_bound(5) >> vlist_bound(7) >> vlist_bound(3) >> vlist_bound(4);
       }
-      else 
+      else
       {
         cout << "Gmsh boundary element type: " << elmtype << endl;
         FatalError("Boundary elmtype not recognized");
@@ -1889,7 +1891,7 @@ void read_connectivity_gmsh(string& in_file_name, int &out_n_cells, array<int> &
   ifstream mesh_file;
 
   string str;
-  
+
   mesh_file.open(&in_file_name[0]);
   if (!mesh_file)
     FatalError("Unable to open mesh file");
@@ -2067,7 +2069,7 @@ void read_connectivity_gmsh(string& in_file_name, int &out_n_cells, array<int> &
                 }
                 else if (elmtype==11) // Quadratic tet
                 {
-                  out_c2n_v(i) = 10;                  
+                  out_c2n_v(i) = 10;
                   //mesh_file >> out_c2v(i,0) >> out_c2v(i,8) >> out_c2v(i,5) >> out_c2v(i,2) >> out_c2v(i,3);
                   //mesh_file >> out_c2v(i,6) >> out_c2v(i,7) >> out_c2v(i,4) >> out_c2v(i,9) >> out_c2v(i,1);
                   mesh_file >> out_c2v(i,0) >> out_c2v(i,5) >> out_c2v(i,4) >> out_c2v(i,2) >> out_c2v(i,8);

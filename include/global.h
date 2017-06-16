@@ -59,6 +59,8 @@ enum BCFLAG {
   ADIABAT_MOVE  = 14,
   CHAR          = 15,
   SLIP_WALL_DUAL= 16,
+  SUB_IN_SIMP2  = 17,
+  SUP_IN2       = 18,
   AD_WALL       = 50
 };
 

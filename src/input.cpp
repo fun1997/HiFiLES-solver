@@ -239,6 +239,22 @@ void input::read_input_file(string fileName, int rank)
       opts.getScalarValue("Mach_Sub_In_Simp",Mach_Sub_In_Simp);
       opts.getScalarValue("Rho_Sub_In_Simp",Rho_Sub_In_Simp);
   }
+  //Sub_In_Simp2
+  opts.getScalarValue("Sub_In_Simp2",Sub_In_Simp2,0);
+  if (Sub_In_Simp2)
+  {
+      if (Sub_In_Simp)
+      {
+        opts.getScalarValue("Mach_Sub_In_Simp2",Mach_Sub_In_Simp2);
+        opts.getScalarValue("Rho_Sub_In_Simp2",Rho_Sub_In_Simp2);
+      }
+      else
+      {
+        FatalError("Sub_In_Simp has to be set");
+
+      }
+
+  }
   //Sub_In_Char
   opts.getScalarValue("Sub_In_Char", Sub_In_char,0);
   if(Sub_In_char)
@@ -266,6 +282,20 @@ void input::read_input_file(string fileName, int rank)
   {
       opts.getScalarValue("P_Sup_In",P_Sup_In);
       opts.getScalarValue("Mach_Sup_In",Mach_Sup_In);
+  }
+  //Sup_In2
+  opts.getScalarValue("Sup_In2",Sup_In2,0);
+  if (Sup_In2)
+  {
+      if (Sup_In)
+      {
+        opts.getScalarValue("P_Sup_In2",P_Sup_In2);
+        opts.getScalarValue("Mach_Sup_In2",Mach_Sup_In2);
+      }
+      else
+      {
+        FatalError("Sup_In has to be set");
+      }
   }
 //Far_Field
   opts.getScalarValue("Far_Field",Far_Field,0);
@@ -483,11 +513,15 @@ void input::setup_params(int rank)
 
       // Compute the corresponding density from the definition of the Reynolds number
       // Re and the Re length are specified in the input file.
-      rho_ref = rho_c_ic; //for cases have no sub sonic outlet, no Supersonic inlet
+      rho_ref = rho_c_ic; //for cases have no sub sonic or far field outlet, no Supersonic inlet
       if (Sup_In)
       {
         Rho_Sup_In = P_Sup_In/(R_gas*T_free_stream);
         rho_ref = Rho_Sup_In;
+      }
+      if (Sup_In2)
+      {
+          Rho_Sup_In2 = P_Sup_In2/(R_gas*T_free_stream);
       }
       if (Far_Field)
       {
@@ -520,6 +554,14 @@ void input::setup_params(int rank)
         v_bound_Sub_In_Simp(2) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
       }
 
+      if(Sub_In_Simp2)
+      {
+        rho_bound_Sub_In_Simp2 = Rho_Sub_In_Simp2/rho_ref;
+        v_bound_Sub_In_Simp2(0) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
+        v_bound_Sub_In_Simp2(1) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
+        v_bound_Sub_In_Simp2(2) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
+      }
+
       if(Sub_In_char)
       {
          T_total_bound = T_Total_Nozzle/T_ref;
@@ -544,6 +586,15 @@ void input::setup_params(int rank)
             v_bound_Sup_In(0)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
             v_bound_Sup_In(1)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
             v_bound_Sup_In(2)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
+      }
+
+          if (Sup_In2)
+      {
+            rho_bound_Sup_In2=Rho_Sup_In2/rho_ref;
+            p_bound_Sup_In2=P_Sup_In2/p_ref;
+            v_bound_Sup_In2(0)=Mach_Sup_In2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
+            v_bound_Sup_In2(1)=Mach_Sup_In2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
+            v_bound_Sup_In2(2)=Mach_Sup_In2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
       }
 
      if (Far_Field)
@@ -612,7 +663,7 @@ void input::setup_params(int rank)
         cout << "v_c_ic=" << v_c_ic << endl;
         cout << "w_c_ic=" << w_c_ic << endl;
         cout << "mu_c_ic=" << mu_c_ic << endl;
-        cout << "Boundary Conditions: " << "Sub_In_Simp: " << Sub_In_Simp << " ; Sub_In_Char: " << Sub_In_char <<" ; Sub_Out: " << Sub_Out << " ; Sup_In: " << Sup_In << " ; Far_Field: " << Far_Field <<endl;
+        cout << "Boundary Conditions: " << "Sub_In_Simp: " << Sub_In_Simp << Sub_In_Simp2 << " ; Sub_In_Char: " << Sub_In_char <<" ; Sub_Out: " << Sub_Out << " ; Sup_In: " << Sup_In << Sup_In2 << " ; Far_Field: " << Far_Field <<endl;
         cout << "p_bound: " << p_bound <<endl;
         if(Pressure_Ramp)
         {

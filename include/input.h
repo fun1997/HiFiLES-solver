@@ -147,6 +147,8 @@ public:
   array<double> v_bound;//inviscid
   array<double> v_bound_Sub_In_Simp;
   array<double> v_bound_Sup_In;
+  array<double> v_bound_Sub_In_Simp2;
+  array<double> v_bound_Sup_In2;
   array<double> v_bound_Far_Field;
   double p_bound;//inviscid
   int mesh_format;
@@ -210,6 +212,11 @@ public:
   double Mach_Sub_In_Simp;
   double Rho_Sub_In_Simp;
   double rho_bound_Sub_In_Simp;
+//Sub_In_Simp2
+  int Sub_In_Simp2;
+  double Mach_Sub_In_Simp2;
+  double Rho_Sub_In_Simp2;
+  double rho_bound_Sub_In_Simp2;
 //Sub_In_Char
   int Sub_In_char;
   double P_Total_Nozzle;
@@ -239,7 +246,13 @@ public:
   double Mach_Sup_In;
   double rho_bound_Sup_In;
   double p_bound_Sup_In;
-
+//Sup_In2
+  int Sup_In2;
+  double Rho_Sup_In2;
+  double P_Sup_In2;
+  double Mach_Sup_In2;
+  double rho_bound_Sup_In2;
+  double p_bound_Sup_In2;
 //Far_Field
   int Far_Field;
   double Rho_Far_Field;
