@@ -35,7 +35,7 @@
 #include "../include/solver.h"
 #include "../include/output.h"
 #include "../include/solution.h"
-
+#include "../include/probe_input.h"
 #ifdef _MPI
 #include "mpi.h"
 #endif
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
   int i_steps = 0;                    /*!< Iteration index */
   int RKSteps;                        /*!< Number of RK steps */
   ifstream run_input_file;            /*!< Config input file */
-  clock_t init_time, final_time;                /*!< To control the time */
+  clock_t init_time, final_time;      /*!< To control the time */
   struct solution FlowSol;            /*!< Main structure with the flow solution and geometry */
   ofstream write_hist;                /*!< Output files (forces, statistics, and history) */
   mesh Mesh;                          /*!< Store mesh details & perform mesh motion */
@@ -89,7 +89,6 @@ int main(int argc, char *argv[]) {
   /*! Read the config file and store the information in run_input. */
 
   run_input.setup(argv[1], rank);
-
   /*! Set the input values in the FlowSol structure. */
 
   SetInput(&FlowSol);
@@ -101,7 +100,13 @@ int main(int argc, char *argv[]) {
   InitSolution(&FlowSol);
 
   init_time = clock();
+  /*! Read the probe file if needed and store the information in run_probe. */
 
+  if(run_input.probe)//for no motion only
+      {
+          run_probe.setup(run_input.probe_file_name,FlowSol.n_dims,rank);
+          run_probe.set_probe_connection(&FlowSol,rank);
+      }
   /////////////////////////////////////////////////
   /// Pre-processing
   /////////////////////////////////////////////////
@@ -235,6 +240,13 @@ int main(int argc, char *argv[]) {
       if(FlowSol.write_type == 0) write_vtu(FlowSol.ini_iter+i_steps, &FlowSol);
       else if(FlowSol.write_type == 1) write_tec(FlowSol.ini_iter+i_steps, &FlowSol);
       else FatalError("ERROR: Trying to write unrecognized file format ... ");
+    }
+
+    /*! Write probe file. */
+
+    if((i_steps%run_probe.prob_freq==0||i_steps==1)&&run_input.probe)
+    {
+        write_probe(&FlowSol);
     }
 
     /*! Dump restart file. */

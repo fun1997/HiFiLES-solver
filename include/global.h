@@ -26,10 +26,10 @@
 #pragma once
 
 #include "input.h"
-
+#include "probe_input.h"
 /*! input 'run_input' has global scope */
 extern input run_input;
-
+extern probe_input run_probe;
 /*! double 'pi' has global scope */
 extern const double pi;
 

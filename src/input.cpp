@@ -132,7 +132,11 @@ void input::read_input_file(string fileName, int rank)
   opts.getScalarValue("write_type",write_type,1);
   opts.getScalarValue("inters_cub_order",inters_cub_order,3);
   opts.getScalarValue("volume_cub_order", volume_cub_order,3);
-
+  opts.getScalarValue("probe",probe,0);
+  if(probe==1)
+   {
+     opts.getScalarValue("probe_file_name",probe_file_name);
+   }
   opts.getVectorValueOptional("integral_quantities",integral_quantities);
   opts.getVectorValueOptional("diagnostic_fields",diagnostic_fields);
   opts.getVectorValueOptional("average_fields",average_fields);

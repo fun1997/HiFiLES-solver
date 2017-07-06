@@ -1054,6 +1054,140 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
 #endif
 }
 
+/*! Method to write out a probe file.
+Used in run mode.
+input: in_file_num																						current timestep
+input: FlowSol																								solution structure
+output: probe_<probe_index>.dat																probe data file
+*/
+
+void write_probe(struct solution* FlowSol)
+{
+    /*! Current rank*/
+    int myrank=FlowSol->rank;
+    /*! No. of solution fields */
+    int n_fields;
+    /*! No. of optional diagnostic fields */
+    int n_probe_fields;
+    /*! No. of dimensions */
+    int n_dims;
+    /*! No. of elements */
+    int n_eles;
+    /*! reference location of probe points */
+    array<double> loc_probe_point_temp;
+    /*! solution data at probe points */
+    array<double> disu_probe_point_temp;
+    /*! solution gradient data at probe points */
+    array<double> grad_disu_probe_point_temp;
+    /*! file name */
+    char probe_data[256];
+    char* data;
+
+    /*! output files*/
+    ofstream write_probe;
+
+    /*! get diagnostic fields*/
+    n_probe_fields=run_probe.n_probe_fields;
+
+    /*! set file name*/
+    char folder[]="Probes";
+    /*! master node create a directory to store .dat*/
+    if(myrank==0)
+    {
+        struct stat st = {0};
+        if(stat(folder,&st)==-1)
+        {
+            mkdir(folder,0755);
+        }
+    }
+    /*! every node write .dat*/
+    if(myrank ==0) cout<<"writing probe point data...";
+    for (int i=0; i<run_probe.n_probe; i++) //loop over every probe point i
+    {
+        if(run_probe.p2c(i)!=-1)//if probe point belongs to this processor
+        {
+            n_dims=FlowSol->mesh_eles(run_probe.p2t(i))->get_n_dims();
+            n_fields=FlowSol->mesh_eles(run_probe.p2t(i))->get_n_fields();//number of computing fields
+            loc_probe_point_temp.setup(n_dims);
+            disu_probe_point_temp.setup(n_fields);
+            //cout<<run_probe.p2c(i)<<endl;
+            int exist=0;
+            sprintf(probe_data,"Probes/probe_%.03d.dat",i);
+            data=&probe_data[0];
+            struct stat st= {0};
+            if (stat(data,&st)==-1) exist = -1;//check if the file exists
+            write_probe.open(data,ios_base::out|ios_base::app);//open file
+            if(exist==-1)
+            {
+                if(run_probe.p2t(i)==0)//tri
+                    write_probe<<"Probe location:"<<setw(10)<<setprecision(5)<<run_probe.probe_x(i)<<setw(10)<<setprecision(5)<<run_probe.probe_y(i)<<endl;
+                else if (run_probe.p2t(i)==1)//quad
+                {
+                    array<double>temp_pos(2);
+                    FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp);
+                    FlowSol->mesh_eles(run_probe.p2t(i))->calc_pos(loc_probe_point_temp,run_probe.p2c(i),temp_pos);
+                    write_probe<<"Probe location:"<<setw(10)<<setprecision(5)<<temp_pos(0)<<setw(10)<<setprecision(5)<<temp_pos(1)<<endl;
+                }
+                else FatalError("3D not implemented yet!");
+                for(int j=0; j<n_probe_fields; j++)
+                    write_probe<<setw(20)<<run_probe.probe_fields(j);
+                write_probe<<endl;
+            }
+            if(n_probe_fields>0)
+            {
+                grad_disu_probe_point_temp.setup(n_fields,n_dims);
+            }
+            else
+                cout<<"Warning: no fields to be recorded!"<<endl;
+            FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp);//calculate reference location
+            FlowSol->mesh_eles(run_probe.p2t(i))->set_opp_probe(loc_probe_point_temp);//calculate solution on upts to probe points matrix
+            //cout<<"calc_loc"<<endl;
+            FlowSol->mesh_eles(run_probe.p2t(i))->calc_disu_probepoints(run_probe.p2c(i),disu_probe_point_temp);//calculate solution on the reference probe point
+            //cout<<"calc_disu"<<endl;
+            for (int j=0; j<n_probe_fields; j++)
+            {
+
+                if (run_probe.probe_fields(j)=="rho")
+                    write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(0);
+                if (run_probe.probe_fields(j)=="u")
+                    write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(1)/disu_probe_point_temp(0);
+                if (run_probe.probe_fields(j)=="v")
+                    write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(2)/disu_probe_point_temp(0);
+                if (run_probe.probe_fields(j)=="w")
+                {
+                    if(n_dims==3)
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
+                    else FatalError("2 dimensional elements don't have z velocity");
+                }
+
+
+                if (run_probe.probe_fields(j)== "energy")
+                {
+                    if(n_dims==2)
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
+                    else
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(4)/disu_probe_point_temp(0);
+                }
+
+                if (run_probe.probe_fields(j)=="pressure")
+                {
+                    double v_sq = 0.; double pressure;
+                    for (int m=0; m<n_dims; m++)
+                        v_sq += (disu_probe_point_temp(m+1)*disu_probe_point_temp(m+1));
+                    v_sq /= disu_probe_point_temp(0)*disu_probe_point_temp(0);
+                   // cout<<disu_probe_point_temp(0);
+                    // Compute pressure
+                    pressure = (run_input.gamma-1.0)*( disu_probe_point_temp(n_dims+1) - 0.5*disu_probe_point_temp(0)*v_sq);
+                    write_probe<<setw(20)<<setprecision(10)<<pressure;
+                }
+            }
+            write_probe<<endl;
+        }
+        write_probe.close();//close file
+    }
+    cout<<"done."<<endl;
+}
+
 void write_restart(int in_file_num, struct solution* FlowSol)
 {
 
@@ -1575,7 +1709,7 @@ void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct s
 
        if(run_input.turb_model)
       {
-          write_hist[0] <<",\"mu<greek>tilde<greek>\"";
+          write_hist[0] <<",\"<greek>mu</greek><sub>tilde</sub>\"";
           write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
 
       }

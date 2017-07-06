@@ -1,0 +1,186 @@
+/*!
+ * \file probe_input.cpp
+ * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
+ *                          Peter Vincent, David Williams (alphabetical by surname).
+  *         - Current development: Weiqi Shen
+                                  University of Florida
+ * \version 0.1.0
+ *
+ * High Fidelity Large Eddy Simulation (HiFiLES) Code.
+ *
+ * HiFiLES is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HiFiLES is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with HiFiLES.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../include/probe_input.h"
+#include "../include/array.h"
+#include "../include/input.h"
+#include <iostream>
+#include <fstream>
+#include <cstdlib>
+#include <sstream>
+#include <algorithm>
+using namespace std;
+probe_input::probe_input()
+{
+    //ctor
+}
+
+probe_input::~probe_input()
+{
+    //dtor
+}
+void probe_input::setup(string filenameS,int in_dim, int rank)
+{
+    n_dims=in_dim;
+    read_probe_input(filenameS,rank);
+
+}
+void probe_input::read_probe_input(string filename, int rank)
+
+{
+        fileReader probf(filename);
+    if (rank==0)
+        cout << endl << "---------------------- Setting up probes ---------------------" << endl;
+
+    /*!----------read probe input parameters ------------*/
+    if (n_dims >=2)
+    {
+        probf.getVectorValueOptional("probe_fields",probe_fields);//name of probe fields
+        n_probe_fields=probe_fields.get_dim(0);
+        for (int i=0; i<n_probe_fields; i++)
+        {
+            std::transform(probe_fields(i).begin(), probe_fields(i).end(),
+            probe_fields(i).begin(), ::tolower);
+        }
+        probf.getScalarValue("prob_freq",prob_freq);
+        probf.getVectorValueOptional("probe_x",probe_x);
+        probf.getVectorValueOptional("probe_y",probe_y);
+        n_probe=probe_x.get_dim(0);
+        cout<<"n_probe: "<<n_probe<<endl;
+        if (n_probe!=probe_y.get_dim(0))
+            FatalError("Probe coordinate data don't agree!\n");
+        if(n_dims==2)
+        {
+            probe_z.setup(n_probe);
+            probe_z.initialize_to_zero();
+        }
+        if(rank==0)
+        {
+            cout <<"probe_x: ";
+            for(int i=0; i<n_probe; i++)
+                cout<<probe_x(i)<<" ";
+            cout<<endl;
+            cout <<"probe_y: ";
+            for(int i=0; i<n_probe; i++)
+                cout<<probe_y(i)<<" ";
+            cout<<endl;
+        }
+        if(n_dims==3)
+        {
+            probf.getVectorValueOptional("probe_z",probe_z);
+            if (n_probe!=probe_z.get_dim(0))
+                FatalError("Probe coordinate data don't agree!\n");
+            if(rank==0)
+            {
+                cout <<"probe_y: ";
+                for(int i=0; i<n_probe; i++)
+                    cout<<probe_z(i)<<" ";
+                cout<<endl;
+            }
+        }
+    }
+    else
+    {
+        FatalError("Dimension must be greater than 1\n");
+    }
+
+}
+void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
+{
+    array<double> v1;
+    array<double> v2;
+    p2c.setup(n_probe);
+    p2t.setup(n_probe);
+    p2c.initialize_to_value(-1);
+    p2t.initialize_to_value(-1);
+    array<int> indicator(n_probe);
+    int s2v[2][4]= {{0,1,2,0},{0,1,3,2}};
+    if(rank ==0)
+        cout<<"setting probe points connection.."<<endl;
+    if(n_dims==2)
+    {
+        v1.setup(2);
+        v2.setup(2);
+        for(int i=0; i<2; i++)//element type i(0 is tri,1 is quad)
+        {
+            if (FlowSol->mesh_eles(i)->get_n_eles()!=0)//if have ele
+            {
+                for (int j=0; j<FlowSol->mesh_eles(i)->get_n_eles(); j++) //element j
+                {
+                    indicator.initialize_to_value(1);
+                    //indicator.print();
+                    //cout<<"element "<<j<<endl;
+                    int n_spts_per_ele=FlowSol->mesh_eles(i)->get_n_spts_per_ele(j);//get number of shape points in element
+                    if (n_spts_per_ele>4) FatalError("quadrilateral elements no implemented!")//if is simple shape
+                        for(int k=0; k<n_spts_per_ele; k++) //shape point k
+                        {
+                            v2(0)=FlowSol->mesh_eles(i)->get_shape(0,(k+1)<n_spts_per_ele?s2v[i][k+1]:s2v[i][0],j)-FlowSol->mesh_eles(i)->get_shape(0,s2v[i][k],j);//A in AXB
+                            v2(1)=FlowSol->mesh_eles(i)->get_shape(1,(k+1)<n_spts_per_ele?s2v[i][k+1]:s2v[i][0],j)-FlowSol->mesh_eles(i)->get_shape(1,s2v[i][k],j);
+                            for(int l=0; l<n_probe; l++)
+                            {
+                                v1(0)=probe_x(l) - FlowSol->mesh_eles(i)->get_shape(0,s2v[i][k],j);//B in AXB
+                                v1(1)=probe_y(l) - FlowSol->mesh_eles(i)->get_shape(1,s2v[i][k],j);
+                                double vv=0;
+                                vv=v2(0)*v1(1)-v1(0)*v2(1);
+                                //cout<<"v1"<<endl;
+                                //v1.print();cout<<"v2"<<endl;v2.print();
+                                //cout<<"vv"<<setprecision(5)<<vv<<endl;
+                                if(vv<0)
+                                    indicator(l)=-1;
+                            }
+                        }
+                    for (int l=0; l<n_probe; l++)
+                    {
+                        if(indicator(l)==1)
+                        {
+                            p2c(l)=j;
+                            p2t(l)=i;
+                            cout<<"probe "<<l<<" is found in "<<"local element No."<<j<<", element type: ";
+                            switch(i)
+                            {
+                            case 0:
+                                cout<<"Tri";
+                            case 1:
+                                cout<<"Quad";
+                            }
+                            cout<<", rank: "<<rank<<endl;
+                            //for(int k=0;k<n_spts_per_ele;k++)
+                            //{
+                            // cout<<"x: "<<setprecision(5)<<FlowSol->mesh_eles(i)->get_shape(0,s2v[i][k],j)<<" y: "<<setprecision(5)<<FlowSol->mesh_eles(i)->get_shape(1,s2v[i][k],j)<<endl;
+                            //}
+                        }
+
+                    }
+                }
+
+            }
+
+        }
+    }
+    else if(n_dims==3)
+    {
+        FatalError("3D not implemented yet!");
+    }
+    if(rank ==0)
+        cout<<"Done."<<endl;
+}

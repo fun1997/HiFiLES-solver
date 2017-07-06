@@ -53,6 +53,9 @@ void write_tec(int in_file_num, struct solution* FlowSol);
 /*! write an output file in VTK ASCII format */
 void write_vtu(int in_file_num, struct solution* FlowSol);
 
+/*! write an probe data file */
+void write_probe(struct solution* FlowSol);
+
 /*! writing a restart file */
 void write_restart(int in_file_num, struct solution* FlowSol);
 

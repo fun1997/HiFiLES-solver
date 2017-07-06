@@ -30,6 +30,7 @@
 using namespace std;
 
 input run_input;
+probe_input run_probe;
 const double pi=4*atan(1);
 
 const char* HIFILES_DIR = getenv("HIFILES_HOME");

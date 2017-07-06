@@ -1643,6 +1643,17 @@ void eles::calculate_corrected_divergence(int in_div_tconf_upts_to)
             for (int intd=0;intd<n_dims;intd++)
             printf("%5.5f, ",pos_upts(i,j,intd));
             printf("\n");
+            printf("solution value");
+            for(int l=0;l<n_fields;l++)
+            disu_upts(in_div_tconf_upts_to)(i,j,l);
+            printf("\n");
+//error indicator
+            cout << "Transformed divergence at solution points" << endl;
+               for (int i=0;i<n_upts_per_ele;i++)
+                  {for (int k=0;k<n_fields;k++)
+                      cout << scientific << setw(7) << setprecision(4) << div_tconf_upts(in_div_tconf_upts_to)(j,i,k) << " ";
+                      cout << endl;
+                  }
             FatalError("NaN in residual, exiting.");
           }
         }
@@ -3562,6 +3573,14 @@ int eles::get_n_upts_per_ele(void)
   return n_upts_per_ele;
 }
 
+// get number of shape points per element
+
+int eles::get_n_spts_per_ele(int in_ele)
+{
+  return n_spts_per_ele(in_ele);
+}
+
+
 // set the shape array
 void eles::set_shape(int in_max_n_spts_per_ele)
 {
@@ -3581,6 +3600,13 @@ void eles::set_shape_node(int in_spt, int in_ele, array<double>& in_pos)
     for (int j=0; j<5; j++)
       shape_dyn(i,in_spt,in_ele,j)=in_pos(i);
   }
+}
+
+// get shape point coordinates
+
+double eles::get_shape(int in_dim, int in_spt, int in_ele)
+{
+    return shape(in_dim,in_spt,in_ele);
 }
 
 void eles::set_dynamic_shape_node(int in_spt, int in_ele, array<double> &in_pos)
@@ -4087,6 +4113,19 @@ void eles::set_opp_p(void)
 
 }
 
+// set opp_probe (solution at solution points to solution at probe points)
+
+void eles::set_opp_probe(array<double>& in_loc)
+{
+    int i;
+    opp_probe.setup(n_upts_per_ele);
+    for(i=0; i<n_upts_per_ele; i++)
+    {
+        opp_probe(i)=eval_nodal_basis(i,in_loc);
+    }
+
+}
+
 void eles::set_opp_inters_cubpts(void)
 {
 
@@ -4190,7 +4229,47 @@ void eles::calc_pos_ppts(int in_ele, array<double>& out_pos_ppts)
     }
   }
 }
+// calculate solution at the probe points
+void eles::calc_disu_probepoints(int in_ele, array<double>& out_disu_probepoints)
+{
+ if (n_eles!=0)
+  {
+    array<double> disu_upts_probe(n_upts_per_ele,n_fields);
 
+    for(int i=0;i<n_fields;i++)
+    {
+      for(int j=0;j<n_upts_per_ele;j++)
+      {
+        if (motion) {
+          disu_upts_probe(j,i)=disu_upts(0)(j,in_ele,i)/J_dyn_upts(j,in_ele);
+          //disu_upts_plot(j,i)=1/J_dyn_upts(j,in_ele);
+          //cout << in_ele << "," << j << "," << i << ": " << disu_upts(0)(j,in_ele,i) << ", " << J_dyn_upts(j,in_ele) << endl;
+        }else{
+          disu_upts_probe(j,i)=disu_upts(0)(j,in_ele,i);
+        }
+      }
+    }
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+
+        cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,1,n_fields,n_upts_per_ele,1.0,opp_probe.get_ptr_cpu(),1,disu_upts_probe.get_ptr_cpu(),n_upts_per_ele,0.0,out_disu_probepoints.get_ptr_cpu(),1);
+
+#elif defined _NO_BLAS
+        dgemm(1,n_fields,n_upts_per_ele,1.0,0.0,opp_probe.get_ptr_cpu(),disu_upts_probe.get_ptr_cpu(),out_disu_probepoints.get_ptr_cpu());
+
+#else
+        for(int k=0; k<n_fields; k++)
+        {
+            out_disu_probepoints(k) = 0.;
+
+            for(int j=0; j<n_upts_per_ele; j++)
+            {
+                out_disu_probepoints(k) += opp_probe(j)*disu_upts_probe(j,k);
+            }
+        }
+#endif
+
+    }
+}
 // calculate solution at the plot points
 void eles::calc_disu_ppts(int in_ele, array<double>& out_disu_ppts)
 {
@@ -4561,6 +4640,18 @@ void eles::calc_pos_upt(int in_upt, int in_ele, array<double>& out_pos)
 double eles::get_loc_upt(int in_upt, int in_dim)
 {
   return loc_upts(in_dim,in_upt);
+}
+
+//get reference position of a probe point
+void eles::calc_loc_probepoints(int in_probe_i, int in_ele,int in_type, array<double>& out_loc)
+  {
+    if(in_type==1)
+    {
+        out_loc(0)=0.;
+        out_loc(1)=0.;
+    }
+    else
+        FatalError("other element types not implemnted yet!");
 }
 
 // set transforms
