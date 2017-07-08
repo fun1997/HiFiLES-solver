@@ -1079,6 +1079,8 @@ void write_probe(struct solution* FlowSol)
     array<double> disu_probe_point_temp;
     /*! solution gradient data at probe points */
     array<double> grad_disu_probe_point_temp;
+    /*! time reference data at probe points*/
+    array<double> disu_average_probe_points_temp;
     /*! file name */
     char probe_data[256];
     char* data;
@@ -1109,77 +1111,137 @@ void write_probe(struct solution* FlowSol)
             n_dims=FlowSol->mesh_eles(run_probe.p2t(i))->get_n_dims();
             n_fields=FlowSol->mesh_eles(run_probe.p2t(i))->get_n_fields();//number of computing fields
             loc_probe_point_temp.setup(n_dims);
+            grad_disu_probe_point_temp.setup(n_fields,n_dims);
             disu_probe_point_temp.setup(n_fields);
+            if(run_input.n_average_fields > 0)//Temporary array of time averaged fields at the plot points
+                disu_average_probe_points_temp.setup(run_input.n_average_fields);
             //cout<<run_probe.p2c(i)<<endl;
             int exist=0;
-            sprintf(probe_data,"Probes/probe_%.03d.dat",i);
+            if(run_probe.probe_layout==0)//generate file name
+                sprintf(probe_data,"Probes/probe_%.03d.dat",i);
+            else
+            {
+                int indx,indy,indz;
+                indx=i/(run_probe.probe_dim_y*run_probe.probe_dim_z);
+                indy=(i/run_probe.probe_dim_z)%run_probe.probe_dim_y;//
+                if(n_dims==2)
+                    indz=0;
+                else
+                    indz=i%run_probe.probe_dim_y;
+                sprintf(probe_data,"Probes/probe_%.03d_%.03d_%.03d.dat",indx,indy,indz);
+            }
             data=&probe_data[0];
             struct stat st= {0};
             if (stat(data,&st)==-1) exist = -1;//check if the file exists
             write_probe.open(data,ios_base::out|ios_base::app);//open file
-            if(exist==-1)
+            if(exist==-1)//if doesn't exist write headers
             {
+
                 if(run_probe.p2t(i)==0)//tri
-                    write_probe<<"Probe location:"<<setw(10)<<setprecision(5)<<run_probe.probe_x(i)<<setw(10)<<setprecision(5)<<run_probe.probe_y(i)<<endl;
+                    write_probe<<"Probe location:"<<setw(10)<<setprecision(5)<<run_probe.probe_pos(0,i)<<setw(10)<<setprecision(5)<<run_probe.probe_pos(1,i)<<endl;
                 else if (run_probe.p2t(i)==1)//quad
                 {
                     array<double>temp_pos(2);
-                    FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp);
+                    FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp);//calculate reference location for quad
                     FlowSol->mesh_eles(run_probe.p2t(i))->calc_pos(loc_probe_point_temp,run_probe.p2c(i),temp_pos);
                     write_probe<<"Probe location:"<<setw(10)<<setprecision(5)<<temp_pos(0)<<setw(10)<<setprecision(5)<<temp_pos(1)<<endl;
                 }
                 else FatalError("3D not implemented yet!");
+
+                /*! write field titles*/
+                write_probe<<setw(17)<<"time";
                 for(int j=0; j<n_probe_fields; j++)
-                    write_probe<<setw(20)<<run_probe.probe_fields(j);
+                    write_probe<<setw(17)<<run_probe.probe_fields(j);
+                for(int j=0; j<run_input.n_average_fields; j++)
+                    write_probe<<setw(17)<<run_input.average_fields(j);
                 write_probe<<endl;
             }
-            if(n_probe_fields>0)
-            {
-                grad_disu_probe_point_temp.setup(n_fields,n_dims);
-            }
-            else
-                cout<<"Warning: no fields to be recorded!"<<endl;
             FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp);//calculate reference location
             FlowSol->mesh_eles(run_probe.p2t(i))->set_opp_probe(loc_probe_point_temp);//calculate solution on upts to probe points matrix
             //cout<<"calc_loc"<<endl;
             FlowSol->mesh_eles(run_probe.p2t(i))->calc_disu_probepoints(run_probe.p2c(i),disu_probe_point_temp);//calculate solution on the reference probe point
+            FlowSol->mesh_eles(run_probe.p2t(i))->calc_time_average_probepoints(run_probe.p2c(i),disu_average_probe_points_temp);
             //cout<<"calc_disu"<<endl;
-            for (int j=0; j<n_probe_fields; j++)
+            /*! Start writing data*/
+            write_probe<<setw(17)<<setprecision(10)<<FlowSol->time;
+            for (int j=0; j<n_probe_fields; j++)//write transient fields
             {
 
                 if (run_probe.probe_fields(j)=="rho")
-                    write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(0);
-                if (run_probe.probe_fields(j)=="u")
-                    write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(1)/disu_probe_point_temp(0);
-                if (run_probe.probe_fields(j)=="v")
-                    write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(2)/disu_probe_point_temp(0);
-                if (run_probe.probe_fields(j)=="w")
+                    write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(0);
+                else if (run_probe.probe_fields(j)=="u")
+                    write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(1)/disu_probe_point_temp(0);
+                else if (run_probe.probe_fields(j)=="v")
+                    write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(2)/disu_probe_point_temp(0);
+                else if (run_probe.probe_fields(j)=="w")
                 {
                     if(n_dims==3)
-                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
+                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
                     else FatalError("2 dimensional elements don't have z velocity");
                 }
-
-
-                if (run_probe.probe_fields(j)== "energy")
+                else if (run_probe.probe_fields(j)== "energy")
                 {
                     if(n_dims==2)
-                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
+                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
                     else
-                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(4)/disu_probe_point_temp(0);
+                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(4)/disu_probe_point_temp(0);
                 }
-
-                if (run_probe.probe_fields(j)=="pressure")
+                else if (run_probe.probe_fields(j)=="pressure")
                 {
-                    double v_sq = 0.; double pressure;
+                    double v_sq = 0.;
+                    double pressure;
                     for (int m=0; m<n_dims; m++)
                         v_sq += (disu_probe_point_temp(m+1)*disu_probe_point_temp(m+1));
                     v_sq /= disu_probe_point_temp(0)*disu_probe_point_temp(0);
-                   // cout<<disu_probe_point_temp(0);
+                    // cout<<disu_probe_point_temp(0);
                     // Compute pressure
                     pressure = (run_input.gamma-1.0)*( disu_probe_point_temp(n_dims+1) - 0.5*disu_probe_point_temp(0)*v_sq);
-                    write_probe<<setw(20)<<setprecision(10)<<pressure;
+                    write_probe<<setw(17)<<setprecision(10)<<pressure;
                 }
+                else FatalError("Probe field not implemented yet!");
+            }
+            for(int j=0; j<run_input.n_average_fields;j++)//write average fields
+            {
+                if(run_input.average_fields(j)=="rho_average")
+                    write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(0);
+                else if(run_input.average_fields(j)=="u_average")
+                        write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(1);
+                else if(run_input.average_fields(j)=="v_average")
+                        write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(2);
+                else if(run_input.average_fields(j)=="w_average")
+                {
+                    if(n_dims==3)
+                            write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(3);
+                    else FatalError("2 dimensional elements don't have z velocity");
+                }
+                else if(run_input.average_fields(j)=="e_average")
+                {
+                        if(n_dims==2)
+                            write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(3);
+                        else
+                            write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(4);
+                }
+                else if(run_input.average_fields(j)=="p_average")
+                {
+                    int valid_counter=0;
+                    for(int k=0; k<run_input.n_average_fields; k++)
+                    {
+                        if(run_input.average_fields(k)=="u_average"||run_input.average_fields(k)=="v_average"||run_input.average_fields(k)=="w_average"||run_input.average_fields(k)=="e_average")
+                            valid_counter++;
+                    }
+                    if(valid_counter==(n_dims+1))
+                    {
+                        double v_average_sq = 0.;
+                        double pressure_average;
+                        for (int m=0; m<n_dims; m++)
+                            v_average_sq += (disu_average_probe_points_temp(m+1)*disu_average_probe_points_temp(m+1));
+                        // Compute pressure
+                        pressure_average = (run_input.gamma-1.0)*( disu_average_probe_points_temp(n_dims+1)*disu_average_probe_points_temp(0) - 0.5*disu_average_probe_points_temp(0)*v_average_sq);
+                        write_probe<<setw(17)<<setprecision(10)<<pressure_average;
+                    }
+                    else FatalError("Some average values must be an average field to get p average");
+                }
+                else FatalError("Average field not implemented yet!");
             }
             write_probe<<endl;
         }

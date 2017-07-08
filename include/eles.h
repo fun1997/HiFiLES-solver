@@ -308,6 +308,9 @@ public:
   /*! calculate solution at the probe points */
   void calc_disu_probepoints(int in_ele, array<double>& out_disu_probepoints);
 
+  /*! calculate time-averaged at the probe points */
+  void calc_time_average_probepoints(int in_ele, array<double>& out_disu_average_probepoints);
+
   /*! calculate solution at the plot points */
   void calc_disu_ppts(int in_ele, array<double>& out_disu_ppts);
 

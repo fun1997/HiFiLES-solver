@@ -4270,6 +4270,42 @@ void eles::calc_disu_probepoints(int in_ele, array<double>& out_disu_probepoints
 
     }
 }
+
+// calculate time-averaged values at the probe points
+void eles::calc_time_average_probepoints(int in_ele, array<double>& out_disu_average_probepoints)
+{
+ if (n_eles!=0)
+  {
+    array<double> disu_average_upts_probe(n_upts_per_ele,n_average_fields);
+
+    for(int i=0;i<n_average_fields;i++)
+    {
+      for(int j=0;j<n_upts_per_ele;j++)
+      {
+          disu_average_upts_probe(j,i)=disu_average_upts(j,in_ele,i);
+      }
+    }
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+
+        cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,1,n_average_fields,n_upts_per_ele,1.0,opp_probe.get_ptr_cpu(),1,disu_average_upts_probe.get_ptr_cpu(),n_upts_per_ele,0.0,out_disu_average_probepoints.get_ptr_cpu(),1);
+
+#elif defined _NO_BLAS
+        dgemm(1,n_average_fields,n_upts_per_ele,1.0,0.0,opp_probe.get_ptr_cpu(),disu_average_upts_probe.get_ptr_cpu(),out_disu_average_probepoints.get_ptr_cpu());
+
+#else
+        for(int k=0; k<n_average_fields; k++)
+        {
+            out_disu_average_probepoints(k) = 0.;
+
+            for(int j=0; j<n_upts_per_ele; j++)
+            {
+                out_disu_average_probepoints(k) += opp_probe(j)*disu_average_upts_probe(j,k);
+            }
+        }
+#endif
+
+    }
+}
 // calculate solution at the plot points
 void eles::calc_disu_ppts(int in_ele, array<double>& out_disu_ppts)
 {

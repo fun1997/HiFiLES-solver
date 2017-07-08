@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <algorithm>
+#include <math.h>
 using namespace std;
 probe_input::probe_input()
 {
@@ -48,7 +49,7 @@ void probe_input::setup(string filenameS,int in_dim, int rank)
 void probe_input::read_probe_input(string filename, int rank)
 
 {
-        fileReader probf(filename);
+    fileReader probf(filename);
     if (rank==0)
         cout << endl << "---------------------- Setting up probes ---------------------" << endl;
 
@@ -56,6 +57,7 @@ void probe_input::read_probe_input(string filename, int rank)
     if (n_dims >=2)
     {
         probf.getVectorValueOptional("probe_fields",probe_fields);//name of probe fields
+        probf.getScalarValue("probe_layout",probe_layout,0);
         n_probe_fields=probe_fields.get_dim(0);
         for (int i=0; i<n_probe_fields; i++)
         {
@@ -63,39 +65,61 @@ void probe_input::read_probe_input(string filename, int rank)
             probe_fields(i).begin(), ::tolower);
         }
         probf.getScalarValue("prob_freq",prob_freq);
-        probf.getVectorValueOptional("probe_x",probe_x);
-        probf.getVectorValueOptional("probe_y",probe_y);
-        n_probe=probe_x.get_dim(0);
-        cout<<"n_probe: "<<n_probe<<endl;
-        if (n_probe!=probe_y.get_dim(0))
-            FatalError("Probe coordinate data don't agree!\n");
-        if(n_dims==2)
+        if(probe_layout==0)//manual points input
         {
-            probe_z.setup(n_probe);
-            probe_z.initialize_to_zero();
-        }
-        if(rank==0)
-        {
-            cout <<"probe_x: ";
-            for(int i=0; i<n_probe; i++)
-                cout<<probe_x(i)<<" ";
-            cout<<endl;
-            cout <<"probe_y: ";
-            for(int i=0; i<n_probe; i++)
-                cout<<probe_y(i)<<" ";
-            cout<<endl;
-        }
-        if(n_dims==3)
-        {
-            probf.getVectorValueOptional("probe_z",probe_z);
-            if (n_probe!=probe_z.get_dim(0))
+            probf.getVectorValueOptional("probe_x",probe_x);
+            probf.getVectorValueOptional("probe_y",probe_y);
+            n_probe=probe_x.get_dim(0);
+            cout<<"n_probe: "<<n_probe<<endl;
+            if (n_probe!=probe_y.get_dim(0))
                 FatalError("Probe coordinate data don't agree!\n");
-            if(rank==0)
+            probe_pos.setup(n_dims,n_probe);
+            for(int i=0; i<n_probe; i++)
             {
-                cout <<"probe_y: ";
+                probe_pos(0,i)=probe_x(i);
+                probe_pos(1,i)=probe_y(i);
+            }
+            if(n_dims==3)
+            {
+                probf.getVectorValueOptional("probe_z",probe_z);
+                if (n_probe!=probe_z.get_dim(0))
+                    FatalError("Probe coordinate data don't agree!\n");
                 for(int i=0; i<n_probe; i++)
-                    cout<<probe_z(i)<<" ";
-                cout<<endl;
+                {
+                    probe_pos(2,i)=probe_z(i);
+                }
+            }
+        }
+        else if(probe_layout==1)//formatted input
+        {
+            probf.getVectorValueOptional("probe_init_cord",probe_init_cord);
+            probf.getVectorValueOptional("growth_rate",growth_rate);
+            probf.getVectorValueOptional("init_incre",init_incre);
+            if (probe_init_cord.get_dim(0)!=n_dims||growth_rate.get_dim(0)!=n_dims||init_incre.get_dim(0)!=n_dims)
+                FatalError("input error!");
+            probf.getScalarValue("probe_dim_x",probe_dim_x);
+            probf.getScalarValue("probe_dim_y",probe_dim_y);
+            probf.getScalarValue("probe_dim_z",probe_dim_z,1);
+            n_probe=probe_dim_x*probe_dim_y*probe_dim_z;
+            probe_pos.setup(n_dims,n_probe);
+            array<int> counter(3);
+            for(counter(0)=0; counter(0)<probe_dim_x; counter(0)++)
+            {
+                for(counter(1)=0; counter(1)<probe_dim_y; counter(1)++)
+                {
+                    for(counter(2)=0; counter(2)<probe_dim_z; counter(2)++)
+                    {
+                        int index;
+                        index=counter(2)+counter(1)*probe_dim_z+counter(0)*probe_dim_y*probe_dim_z;
+                        for(int l=0; l<n_dims; l++)
+                        {
+                            if(growth_rate(l)!=1)
+                                probe_pos(l,index)=probe_init_cord(l)+init_incre(l)*(pow(growth_rate(l),((double)counter(l)))-1.)/(growth_rate(l)-1.);
+                            else
+                                probe_pos(l,index)=probe_init_cord(l)+((double)counter(l))*init_incre(l);
+                        }
+                    }
+                }
             }
         }
     }
@@ -103,7 +127,7 @@ void probe_input::read_probe_input(string filename, int rank)
     {
         FatalError("Dimension must be greater than 1\n");
     }
-
+    probe_pos.print();
 }
 void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
 {
@@ -138,8 +162,8 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
                             v2(1)=FlowSol->mesh_eles(i)->get_shape(1,(k+1)<n_spts_per_ele?s2v[i][k+1]:s2v[i][0],j)-FlowSol->mesh_eles(i)->get_shape(1,s2v[i][k],j);
                             for(int l=0; l<n_probe; l++)
                             {
-                                v1(0)=probe_x(l) - FlowSol->mesh_eles(i)->get_shape(0,s2v[i][k],j);//B in AXB
-                                v1(1)=probe_y(l) - FlowSol->mesh_eles(i)->get_shape(1,s2v[i][k],j);
+                                v1(0)=probe_pos(0,l) - FlowSol->mesh_eles(i)->get_shape(0,s2v[i][k],j);//B in AXB
+                                v1(1)=probe_pos(1,l) - FlowSol->mesh_eles(i)->get_shape(1,s2v[i][k],j);
                                 double vv=0;
                                 vv=v2(0)*v1(1)-v1(0)*v2(1);
                                 //cout<<"v1"<<endl;

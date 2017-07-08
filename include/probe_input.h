@@ -36,10 +36,18 @@ public:
     probe_input();
     ~probe_input();
     array<string> probe_fields;
+    int probe_layout;
+    array<double> probe_init_cord;
+    array<double> growth_rate;
+    array<double> init_incre;
+    int probe_dim_x;
+    int probe_dim_y;
+    int probe_dim_z;
     int n_probe_fields;
     array<double> probe_x;
     array<double> probe_y;
     array<double> probe_z;
+    array<double> probe_pos;
     int n_probe;
     int prob_freq;
     array<int> p2c;
