@@ -212,7 +212,7 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
 #ifdef _MPI
     MPI_Barrier(MPI_COMM_WORLD);
     array<int> p2cglobe(nproc,n_probe);
-    MPI_Allgather(p2c.get_ptr_cpu(),n_probe,MPI_INT,p2cglobe.get_ptr_cpu(),nproc*n_probe,MPI_INT,MPI_COMM_WORLD);
+    MPI_Allgather(p2c.get_ptr_cpu(),n_probe,MPI_INT,p2cglobe.get_ptr_cpu(),n_probe,MPI_INT,MPI_COMM_WORLD);
     //MPI_Barrier(MPI_COMM_WORLD);
     for (int i=0; i<n_probe; i++)
     {
