@@ -127,8 +127,6 @@ void probe_input::read_probe_input(string filename, int rank)
     {
         FatalError("Dimension must be greater than 1\n");
     }
-    if(rank==0)
-    probe_pos.print();
 }
 
 void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
@@ -180,10 +178,11 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
                                 //cout<<"vv"<<setprecision(5)<<vv<<endl;
                                 if(vv<0)//RHS of the edge vector
                                     indicator(l)=-1;
-                                else if(vv==0)//on edge of the cell
+                                else if(vv==0&&indicator(l)!=-1)//on edge of the cell
                                     indicator(l)=k+1;
                             }
                         }
+                        //cout<<indicator(0)<<indicator(1)<<endl;
                     for (int l=0; l<n_probe; l++)
                     {
                         if(indicator(l)>=0)//in the cell or on the cell
@@ -213,7 +212,7 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
     MPI_Barrier(MPI_COMM_WORLD);
     array<int> p2cglobe(nproc,n_probe);
     MPI_Allgather(p2c.get_ptr_cpu(),n_probe,MPI_INT,p2cglobe.get_ptr_cpu(),n_probe,MPI_INT,MPI_COMM_WORLD);
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
     for (int i=0; i<n_probe; i++)
     {
         for(int j=0; j<rank; j++)
@@ -227,18 +226,23 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
                 }
         }
     }
+p2c.print();
 #endif
 
     for(int i=0; i<n_probe; i++)
     {
-        cout<<"probe "<<i<<" is found in "<<"local element No."<<p2c(i)<<", element type: ";
-        switch(p2t(i))
+        if(p2c(i)!=-1)
         {
-        case 0:
-            cout<<"Tri";
-        case 1:
-            cout<<"Quad";
+            cout<<"probe "<<i<<" is found in "<<"local element No."<<p2c(i)<<", element type: ";
+            //cout<<p2e(i)<<endl;
+            switch(p2t(i))
+            {
+            case 0:
+                cout<<"Tri";
+            case 1:
+                cout<<"Quad";
+            }
+            cout<<", rank: "<<rank<<endl;
         }
-        cout<<", rank: "<<rank<<endl;
     }
 }
