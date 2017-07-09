@@ -1138,11 +1138,14 @@ void write_probe(struct solution* FlowSol)
             {
 
                 if(run_probe.p2t(i)==0)//tri
+                {
+                    FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp);//calculate reference location
                     write_probe<<"Probe location:"<<setw(10)<<setprecision(5)<<run_probe.probe_pos(0,i)<<setw(10)<<setprecision(5)<<run_probe.probe_pos(1,i)<<endl;
+                }
                 else if (run_probe.p2t(i)==1)//quad
                 {
                     array<double>temp_pos(2);
-                    FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp);//calculate reference location for quad
+                    FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp);//calculate reference location for quad set as 0,0
                     FlowSol->mesh_eles(run_probe.p2t(i))->calc_pos(loc_probe_point_temp,run_probe.p2c(i),temp_pos);
                     write_probe<<"Probe location:"<<setw(10)<<setprecision(5)<<temp_pos(0)<<setw(10)<<setprecision(5)<<temp_pos(1)<<endl;
                 }
@@ -1156,7 +1159,6 @@ void write_probe(struct solution* FlowSol)
                     write_probe<<setw(17)<<run_input.average_fields(j);
                 write_probe<<endl;
             }
-            FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp);//calculate reference location
             FlowSol->mesh_eles(run_probe.p2t(i))->set_opp_probe(loc_probe_point_temp);//calculate solution on upts to probe points matrix
             //cout<<"calc_loc"<<endl;
             FlowSol->mesh_eles(run_probe.p2t(i))->calc_disu_probepoints(run_probe.p2c(i),disu_probe_point_temp);//calculate solution on the reference probe point

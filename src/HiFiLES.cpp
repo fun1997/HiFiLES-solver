@@ -232,8 +232,8 @@ int main(int argc, char *argv[]) {
       HistoryOutput(FlowSol.ini_iter+i_steps, init_time, &write_hist, &FlowSol);
 
       if (FlowSol.rank == 0) cout << endl;
-    }
 
+    }
     /*! Dump Paraview or Tecplot file. */
 
     if(i_steps%FlowSol.plot_freq == 0) {
@@ -244,10 +244,11 @@ int main(int argc, char *argv[]) {
 
     /*! Write probe file. */
 
-    if((i_steps%run_probe.prob_freq==0||i_steps==1)&&run_input.probe)
-    {
-        write_probe(&FlowSol);
-    }
+        if(run_input.probe!=0)
+        {
+            if((i_steps%run_probe.prob_freq==0||i_steps==1))
+                write_probe(&FlowSol);
+        }
 
     /*! Dump restart file. */
 

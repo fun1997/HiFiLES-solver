@@ -130,18 +130,26 @@ void probe_input::read_probe_input(string filename, int rank)
     if(rank==0)
     probe_pos.print();
 }
+
 void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
 {
     array<double> v1;
     array<double> v2;
     p2c.setup(n_probe);
     p2t.setup(n_probe);
+    p2e.setup(n_probe);
+    array<int> indicator(n_probe);
     p2c.initialize_to_value(-1);
     p2t.initialize_to_value(-1);
-    array<int> indicator(n_probe);
+    p2e.initialize_to_value(-1);
     int s2v[2][4]= {{0,1,2,0},{0,1,3,2}};
     if(rank ==0)
         cout<<"setting probe points connection.."<<endl;
+#ifdef _MPI
+    int nproc;
+    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+#endif
+
     if(n_dims==2)
     {
         v1.setup(2);
@@ -152,7 +160,7 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
             {
                 for (int j=0; j<FlowSol->mesh_eles(i)->get_n_eles(); j++) //element j
                 {
-                    indicator.initialize_to_value(1);
+                    indicator.initialize_to_zero();
                     //indicator.print();
                     //cout<<"element "<<j<<endl;
                     int n_spts_per_ele=FlowSol->mesh_eles(i)->get_n_spts_per_ele(j);//get number of shape points in element
@@ -170,25 +178,20 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
                                 //cout<<"v1"<<endl;
                                 //v1.print();cout<<"v2"<<endl;v2.print();
                                 //cout<<"vv"<<setprecision(5)<<vv<<endl;
-                                if(vv<0)
+                                if(vv<0)//RHS of the edge vector
                                     indicator(l)=-1;
+                                else if(vv==0)//on edge of the cell
+                                    indicator(l)=k+1;
                             }
                         }
                     for (int l=0; l<n_probe; l++)
                     {
-                        if(indicator(l)==1)
+                        if(indicator(l)>=0)//in the cell or on the cell
                         {
                             p2c(l)=j;
                             p2t(l)=i;
-                            cout<<"probe "<<l<<" is found in "<<"local element No."<<j<<", element type: ";
-                            switch(i)
-                            {
-                            case 0:
-                                cout<<"Tri";
-                            case 1:
-                                cout<<"Quad";
-                            }
-                            cout<<", rank: "<<rank<<endl;
+                            p2e(l)=indicator(l);
+                            // cout<<"p2e"<<p2e(l)<<endl;
                             //for(int k=0;k<n_spts_per_ele;k++)
                             //{
                             // cout<<"x: "<<setprecision(5)<<FlowSol->mesh_eles(i)->get_shape(0,s2v[i][k],j)<<" y: "<<setprecision(5)<<FlowSol->mesh_eles(i)->get_shape(1,s2v[i][k],j)<<endl;
@@ -206,6 +209,36 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
     {
         FatalError("3D not implemented yet!");
     }
-    if(rank ==0)
-        cout<<"Done."<<endl;
+#ifdef _MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+    array<int> p2cglobe(nproc,n_probe);
+    MPI_Allgather(p2c.get_ptr_cpu(),n_probe,MPI_INT,p2cglobe.get_ptr_cpu(),nproc*n_probe,MPI_INT,MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    for (int i=0; i<n_probe; i++)
+    {
+        for(int j=0; j<rank; j++)
+        {
+                if(p2c(i)!=-1&&p2cglobe(j,i)!=-1)//there's a conflict
+                {
+                    p2c(i)=-1;
+                    p2t(i)=-1;
+                    p2e(i)=-1;
+                    break;
+                }
+        }
+    }
+#endif
+
+    for(int i=0; i<n_probe; i++)
+    {
+        cout<<"probe "<<i<<" is found in "<<"local element No."<<p2c(i)<<", element type: ";
+        switch(p2t(i))
+        {
+        case 0:
+            cout<<"Tri";
+        case 1:
+            cout<<"Quad";
+        }
+        cout<<", rank: "<<rank<<endl;
+    }
 }
