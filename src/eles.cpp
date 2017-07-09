@@ -4698,7 +4698,7 @@ void eles::calc_loc_probepoints(int in_probe_i, int in_ele,int in_type, array<do
             ratio_e=sqrt(pow((run_probe.probe_pos(0,in_probe_i)-get_shape(0,s2v[run_probe.p2e(in_probe_i)-1],in_ele)),2)+pow((run_probe.probe_pos(1,in_probe_i)-get_shape(1,s2v[run_probe.p2e(in_probe_i)-1],in_ele)),2))/temp_length;
             out_loc(0)=temp_loc_X[run_probe.p2e(in_probe_i)-1]+2*ratio_e*(temp_loc_X[run_probe.p2e(in_probe_i)]-temp_loc_X[run_probe.p2e(in_probe_i)-1]);
             out_loc(1)=temp_loc_y[run_probe.p2e(in_probe_i)-1]+2*ratio_e*(temp_loc_y[run_probe.p2e(in_probe_i)]-temp_loc_y[run_probe.p2e(in_probe_i)-1]);
-        cout<<out_loc(0)<<", "<<out_loc(1)<<endl;
+        //cout<<out_loc(0)<<", "<<out_loc(1)<<endl;
         }
         else FatalError("Location error!");
 
