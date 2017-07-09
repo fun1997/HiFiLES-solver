@@ -1247,7 +1247,7 @@ void write_probe(struct solution* FlowSol)
         }
         write_probe.close();//close file
     }
-    cout<<"done."<<endl;
+    if (myrank==0) cout<<"done."<<endl;
 }
 
 void write_restart(int in_file_num, struct solution* FlowSol)

@@ -127,6 +127,7 @@ void probe_input::read_probe_input(string filename, int rank)
     {
         FatalError("Dimension must be greater than 1\n");
     }
+    if(rank==0)
     probe_pos.print();
 }
 void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
