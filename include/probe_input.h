@@ -52,7 +52,6 @@ public:
     int prob_freq;
     array<int> p2c;
     array<int> p2t;
-    array<int> p2e;
     void setup(string filenameS,int in_dim, int rank);
     void read_probe_input(string filename, int rank);
     void set_probe_connection(struct solution* FlowSol,int rank);

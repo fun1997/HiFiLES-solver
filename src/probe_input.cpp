@@ -135,11 +135,9 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
     array<double> v2;
     p2c.setup(n_probe);
     p2t.setup(n_probe);
-    p2e.setup(n_probe);
     array<int> indicator(n_probe);
     p2c.initialize_to_value(-1);
     p2t.initialize_to_value(-1);
-    p2e.initialize_to_value(-1);
     int s2v[2][4]= {{0,1,2,0},{0,1,3,2}};
     if(rank ==0)
         cout<<"setting probe points connection.."<<endl;
@@ -154,15 +152,14 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
         v2.setup(2);
         for(int i=0; i<2; i++)//element type i(0 is tri,1 is quad)
         {
-            if (FlowSol->mesh_eles(i)->get_n_eles()!=0)//if have ele
+            if (FlowSol->mesh_eles(i)->get_n_eles()!=0)//if have eles
             {
                 for (int j=0; j<FlowSol->mesh_eles(i)->get_n_eles(); j++) //element j
                 {
-                    indicator.initialize_to_zero();
-                    //indicator.print();
+                    indicator.initialize_to_value(1);
                     //cout<<"element "<<j<<endl;
                     int n_spts_per_ele=FlowSol->mesh_eles(i)->get_n_spts_per_ele(j);//get number of shape points in element
-                    if (n_spts_per_ele>4) FatalError("quadrilateral elements no implemented!")//if is simple shape
+                    if (n_spts_per_ele>4) FatalError("Complex elements no implemented!")//if is simple shape
                         for(int k=0; k<n_spts_per_ele; k++) //shape point k
                         {
                             v2(0)=FlowSol->mesh_eles(i)->get_shape(0,(k+1)<n_spts_per_ele?s2v[i][k+1]:s2v[i][0],j)-FlowSol->mesh_eles(i)->get_shape(0,s2v[i][k],j);//A in AXB
@@ -178,18 +175,15 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
                                 //cout<<"vv"<<setprecision(5)<<vv<<endl;
                                 if(vv<0)//RHS of the edge vector
                                     indicator(l)=-1;
-                                else if(vv==0&&indicator(l)!=-1)//on edge of the cell
-                                    indicator(l)=k+1;
                             }
                         }
-                        //cout<<indicator(0)<<indicator(1)<<endl;
+                        indicator.print();
                     for (int l=0; l<n_probe; l++)
                     {
-                        if(indicator(l)>=0)//in the cell or on the cell
+                        if(indicator(l)!=-1)//in the cell or on the edge
                         {
                             p2c(l)=j;
                             p2t(l)=i;
-                            p2e(l)=indicator(l);
                             // cout<<"p2e"<<p2e(l)<<endl;
                             //for(int k=0;k<n_spts_per_ele;k++)
                             //{
@@ -210,23 +204,21 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
     }
 #ifdef _MPI
     MPI_Barrier(MPI_COMM_WORLD);
-    array<int> p2cglobe(nproc,n_probe);
+    array<int> p2cglobe(n_probe,nproc);
     MPI_Allgather(p2c.get_ptr_cpu(),n_probe,MPI_INT,p2cglobe.get_ptr_cpu(),n_probe,MPI_INT,MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
     for (int i=0; i<n_probe; i++)
     {
         for(int j=0; j<rank; j++)
         {
-                if(p2c(i)!=-1&&p2cglobe(j,i)!=-1)//there's a conflict
+                if(p2c(i)!=-1&&p2cglobe(i,j)!=-1)//there's a conflict
                 {
                     p2c(i)=-1;
                     p2t(i)=-1;
-                    p2e(i)=-1;
                     break;
                 }
         }
     }
-p2c.print();
 #endif
 
     for(int i=0; i<n_probe; i++)

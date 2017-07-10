@@ -234,6 +234,8 @@ array <double> inv_array(array <double>& input);
 /*! method to get transpose of a square array*/
 array <double> transpose_array(array <double>& in_array);
 
+array <double> square_to_quad(array<double>& temp_x,array<double>& temp_y);
+
 /*! END */
 
 

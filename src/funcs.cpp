@@ -310,14 +310,14 @@ double eval_d_ofr_1d(double in_r, int in_mode, int in_order)
 	}
 	else if(in_order == 6) { // P=6 not verified
 		loc_zeros_gL(1) = -0.932638621602718;
-		loc_zeros_gL(2) = -0.627949285295015; 
+		loc_zeros_gL(2) = -0.627949285295015;
 		loc_zeros_gL(3) = -0.196972255400472;
 		loc_zeros_gL(4) = 0.392803242695776;
 		loc_zeros_gL(5) = 0.481615260763104;
 		loc_zeros_gL(6) = 0.629467212278235;
 
 		loc_zeros_gR(6) = 0.932638621602718;
-		loc_zeros_gR(5) = 0.627949285295015; 
+		loc_zeros_gR(5) = 0.627949285295015;
 		loc_zeros_gR(4) = 0.196972255400472;
 		loc_zeros_gR(3) = -0.392803242695776;
 		loc_zeros_gR(2) = -0.481615260763104;
@@ -358,7 +358,7 @@ double eval_d_oesfr_1d(double in_r, int in_mode, int in_order)
 
 	aP = (1.0/pow(2.0,in_order)) *factorial(2*in_order)/(factorial(in_order)*factorial(in_order));
 	eta = cVal * (0.5*(2*in_order+1)) * (aP*factorial(in_order))*(aP*factorial(in_order));
-        
+
 	if(in_mode==0) // left correction function
 		dtemp_0=0.5*pow(-1.0,in_order)*(eval_d_legendre(in_r,in_order)-(((eta*eval_d_legendre(in_r,in_order-1))+eval_d_legendre(in_r,in_order+1))/(1.0+eta)));
 
@@ -2853,6 +2853,49 @@ array <double> inv_array(array <double>& in_array)
       cout << "ERROR: Array you are trying to invert has > 2 dimensions" << endl;
       exit(1);
     }
+}
+
+array <double> square_to_quad(array<double>& temp_x,array<double>& temp_y)
+{
+        array<double> A(3,3);
+        int s2v[5]= {0,1,3,2,0};
+        if(temp_x.get_dim(0)!=4||temp_y.get_dim(0)!=4)
+        {
+            FatalError("quad have 4 points");
+        }
+        double dx3 = temp_x(0) - temp_x(1) + temp_x(2) - temp_x(3);
+        double dy3 = temp_y(0) - temp_y(1) + temp_y(2) - temp_y(3);
+        if (dx3 == 0. && dy3 == 0.)
+        {
+            A(0,0)=temp_x(1) - temp_x(0);
+            A(1,0)=temp_x(2) - temp_x(1);
+            A(2,0)= temp_x(0);
+            A(0,1)=temp_y(1) - temp_y(0);
+            A(1,1)=temp_y(2) - temp_y(1);
+            A(2,1)=temp_y(0);
+            A(0,2)= 0;
+            A(1,2)=0;
+            A(2,2)=1;
+        }
+        else
+        {
+            double dx1 = temp_x(1) - temp_x(2);
+            double dx2 = temp_x(3) - temp_x(2);
+            double dy1 = temp_y(1) - temp_y(2);
+            double dy2 = temp_y(3) - temp_y(2);
+            double denominator = dx1 * dy2 - dx2 * dy1;
+            A(0,2) = (dx3 * dy2 - dx2 * dy3) / denominator;
+            A(1,2) = (dx1 * dy3 - dx3 * dy1) / denominator;
+            A(0,0)=temp_x(1) - temp_x(0) + A(0,2) *temp_x(1);
+            A(1,0)=  temp_x(3) -temp_x(0) + A(1,2) * temp_x(3);
+            A(2,0)= temp_x(0);
+            A(0,1)=temp_y(1) - temp_y(0) + A(0,2) * temp_y(1);
+            A(1,1)= temp_y(3) - temp_y(0) + A(1,2) * temp_y(3);
+            A(2,1)=temp_y(0);
+            A(2,2)=1.0;
+
+        }
+        return A;
 }
 
 /*! END */

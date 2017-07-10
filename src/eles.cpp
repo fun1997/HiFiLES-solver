@@ -4683,26 +4683,30 @@ void eles::calc_loc_probepoints(int in_probe_i, int in_ele,int in_type, array<do
 {
     if(in_type==1)//quad
     {
+        array<double> shape_x(4);//shape point x
+        array<double> shape_y(4);//shape point y
+        array<double> A,B;
       int s2v[5]= {0,1,3,2,0};
-      double temp_loc_X[5]={-1.,1.,1.,-1.,-1.};
-      double temp_loc_y[5]={-1.,-1.,1.,1.,-1.};
-        if(run_probe.p2e(in_probe_i)==0)
+        for (int i=0;i<4;i++)
         {
-            out_loc(0)=0.;
-            out_loc(1)=0.;
+            shape_x(i)=get_shape(0,s2v[i],in_ele);
+            shape_y(i)=get_shape(1,s2v[i],in_ele);
         }
-        else if(run_probe.p2e(in_probe_i)>0)
-        {
-            double ratio_e;
-            double temp_length = sqrt(pow(get_shape(0,s2v[run_probe.p2e(in_probe_i)],in_ele)-get_shape(0,s2v[run_probe.p2e(in_probe_i)-1],in_ele),2)+pow(get_shape(1,s2v[run_probe.p2e(in_probe_i)],in_ele)-get_shape(1,s2v[run_probe.p2e(in_probe_i)-1],in_ele),2));
-            ratio_e=sqrt(pow((run_probe.probe_pos(0,in_probe_i)-get_shape(0,s2v[run_probe.p2e(in_probe_i)-1],in_ele)),2)+pow((run_probe.probe_pos(1,in_probe_i)-get_shape(1,s2v[run_probe.p2e(in_probe_i)-1],in_ele)),2))/temp_length;
-            //cout<<ratio_e<<endl;
-            out_loc(0)=temp_loc_X[run_probe.p2e(in_probe_i)-1]+ratio_e*(temp_loc_X[run_probe.p2e(in_probe_i)]-temp_loc_X[run_probe.p2e(in_probe_i)-1]);
-            out_loc(1)=temp_loc_y[run_probe.p2e(in_probe_i)-1]+ratio_e*(temp_loc_y[run_probe.p2e(in_probe_i)]-temp_loc_y[run_probe.p2e(in_probe_i)-1]);
-         //cout<<out_loc(0)<<", "<<out_loc(1)<<endl;
-        }
-        else FatalError("Location error!");
-
+        A=square_to_quad(shape_x,shape_y);
+        A=inv_array(A);//quad to square
+      array<double> ref_loc_X(4);
+      array<double> ref_loc_y(4);
+        ref_loc_X(0)=-1;        ref_loc_X(1)=1;        ref_loc_X(2)=1;        ref_loc_X(3)=-1;
+        ref_loc_y(0)=-1;        ref_loc_y(1)=-1;        ref_loc_y(2)=1;        ref_loc_y(3)=1;
+        B=square_to_quad(ref_loc_X,ref_loc_y);//square to ref
+        B=mult_arrays(A,B);//quad to ref
+        array<double>temp_pos(1,3);
+        temp_pos(0)=run_probe.probe_pos(0,in_probe_i);
+        temp_pos(1)=run_probe.probe_pos(1,in_probe_i);
+        temp_pos(2)=1.;
+        temp_pos=mult_arrays(temp_pos,B);
+        out_loc(0)=temp_pos(0)/temp_pos(2);
+        out_loc(1)=temp_pos(1)/temp_pos(2);
     }
 else
     FatalError("other element types not implemnted yet!");
