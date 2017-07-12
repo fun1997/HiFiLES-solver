@@ -177,7 +177,6 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
                                     indicator(l)=-1;
                             }
                         }
-                        indicator.print();
                     for (int l=0; l<n_probe; l++)
                     {
                         if(indicator(l)!=-1)//in the cell or on the edge
