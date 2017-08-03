@@ -1102,6 +1102,9 @@ void write_probe(struct solution* FlowSol)
             mkdir(folder,0755);
         }
     }
+#ifdef _MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif // _MPI
     /*! every node write .dat*/
     if(myrank ==0) cout<<"writing probe point data...";
     for (int i=0; i<run_probe.n_probe; i++) //loop over every probe point i

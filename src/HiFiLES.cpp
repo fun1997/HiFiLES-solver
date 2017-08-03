@@ -246,7 +246,7 @@ int main(int argc, char *argv[]) {
 
         if(run_input.probe!=0)
         {
-            if((i_steps%run_probe.prob_freq==0||i_steps==1))
+            if((i_steps%run_probe.prob_freq==0))
                 write_probe(&FlowSol);
         }
 

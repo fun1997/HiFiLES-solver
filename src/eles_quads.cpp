@@ -58,7 +58,7 @@ using namespace std;
 // default constructor
 
 eles_quads::eles_quads()
-{	
+{
 
 }
 
@@ -722,7 +722,7 @@ int eles_quads::read_restart_info(ifstream& restart_file)
 }
 
 //
-void eles_quads::write_restart_info(ofstream& restart_file)        
+void eles_quads::write_restart_info(ofstream& restart_file)
 {
   restart_file << "QUADS" << endl;
 
@@ -1112,10 +1112,10 @@ double eles_quads::eval_div_vcjh_basis(int in_index, array<double>& loc)
   int scheme = run_input.vcjh_scheme_quad;
 
   if (scheme==0)
-    eta = run_input.eta_quad;    
+    eta = run_input.eta_quad;
   else if (scheme < 5)
     eta = compute_eta(run_input.vcjh_scheme_quad,order);
-  
+
   i=in_index/n_fpts_per_inter(0);
   j=in_index-(n_fpts_per_inter(0)*i);
 

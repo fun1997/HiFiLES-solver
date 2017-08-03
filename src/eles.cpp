@@ -379,15 +379,14 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
 
     if(run_input.ArtifOn)
     {
-      if(run_input.artif_type == 1)
         sensor.setup(n_eles);
+        sensor.initialize_to_zero();//mark
 
       if(run_input.artif_type == 0)
       {
           epsilon.setup(n_eles);
           epsilon_upts.setup(n_upts_per_ele,n_eles);
           epsilon_fpts.setup(n_fpts_per_ele,n_eles);
-          sensor.setup(n_eles);
           //dt_local.setup(n_eles);
           min_dt_local.setup(1);
       }
