@@ -306,6 +306,7 @@ public:
   double v_c_ic;
   double w_c_ic;
   double mu_c_ic;
+  double y_lim_ic;
 
   // SA turblence model parameters
   int turb_model;

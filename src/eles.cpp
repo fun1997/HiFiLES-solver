@@ -565,6 +565,66 @@ void eles::set_ics(double& time)
           ics(4)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));
         }
       }
+       else if(run_input.ic_form==9)
+      {
+        rho=run_input.rho_c_ic;
+                if(pos(1)>=run_input.y_lim_ic)
+                {
+                    if(run_input.Sub_In_Simp)
+                    {
+                        vx=run_input.v_bound_Sub_In_Simp(0);
+                        vy=run_input.v_bound_Sub_In_Simp(1);
+                        vz=run_input.v_bound_Sub_In_Simp(2);
+                    }
+
+                    else if(run_input.Sup_In)
+                    {
+                        vx=run_input.v_bound_Sup_In(0);
+                        vy=run_input.v_bound_Sup_In(1);
+                        vz=run_input.v_bound_Sup_In(2);
+                    }
+
+                    else
+                    {
+                        vx=run_input.u_c_ic;
+                        vy=run_input.v_c_ic;
+                        vz=run_input.w_c_ic;
+                    }
+                }
+                else
+                {
+                    vx=run_input.u_c_ic;
+                    vy=run_input.v_c_ic;
+                    vz=run_input.w_c_ic;
+                    p=run_input.p_c_ic;
+                }
+
+        ics(0)=rho;
+        ics(1)=rho*vx;
+        ics(2)=rho*vy;
+        if(n_dims==2)
+        {
+          ics(3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
+
+          if (run_input.turb_model==1) {
+            ics(4) = run_input.mu_tilde_c_ic;
+          }
+        }
+        else if(n_dims==3)
+        {
+          ics(3)=rho*vz;
+          ics(4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
+
+          if(run_input.turb_model==1) {
+            ics(5) = run_input.mu_tilde_c_ic;
+          }
+        }
+
+        else
+        {
+          cout << "ERROR: Invalid number of dimensions ... " << endl;
+        }
+      }
       else
       {
         cout << "ERROR: Invalid form of initial condition ... (File: " << __FILE__ << ", Line: " << __LINE__ << ")" << endl;

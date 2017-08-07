@@ -345,6 +345,8 @@ void input::read_input_file(string fileName, int rank)
   //opts.getScalarValue("Re_c_ic",Re_c_ic,Re_free_stream);
   opts.getScalarValue("T_c_ic",T_c_ic,T_free_stream);
   opts.getScalarValue("rho_c_ic",rho_c_ic);
+  if (ic_form==9)
+      opts.getScalarValue("y_lim_ic",y_lim_ic);
 
   //Invis
   if (!viscous)
