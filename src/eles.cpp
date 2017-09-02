@@ -1713,6 +1713,9 @@ void eles::calculate_corrected_divergence(int in_div_tconf_upts_to)
                       cout << scientific << setw(7) << setprecision(4) << div_tconf_upts(in_div_tconf_upts_to)(j,i,k) << " ";
                       cout << endl;
                   }
+                #ifdef _MPI
+                MPI_Abort(MPI_COMM_WORLD,1);
+                #endif // _MPI
             FatalError("NaN in residual, exiting.");
           }
         }
