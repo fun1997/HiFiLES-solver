@@ -584,33 +584,51 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
           }
         }
 
-      // Subsonic outflow simple (fixed pressure) //CONSIDER DELETING
-      else if(bdy_type == 2)
+      //outflow simple (fixed pressure)
+        else if(bdy_type == 2)
         {
             if(!run_input.Sub_Out)
                 FatalError("No boundary Parameters given");
-                if (!viscous)
-                    p_bound_Sub_Out=p_bound;
-          // extrapolate density and velocity
-          rho_r = rho_l;
-          for (int i=0; i<n_dims; i++)
-            v_r[i] = v_l[i];
+            if (!viscous)
+                p_bound_Sub_Out=p_bound;
+            //compute mach number
+            double mach;
+            v_sq = 0.;
+            for (int i=0; i<n_dims; i++)
+                v_sq += (v_r[i]*v_r[i]);
+                mach=sqrt( v_sq / (gamma*p_l/rho_l) );
 
-          // fix pressure
-            p_r = p_bound_Sub_Out;
 
-          // compute energy
-          v_sq = 0.;
-          for (int i=0; i<n_dims; i++)
-            v_sq += (v_r[i]*v_r[i]);
-          e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
+            if(mach>=1)//if mach >=1 extrpolate all
+            {
+                rho_r = rho_l;
+                for (int i=0; i<n_dims; i++)
+                    v_r[i] = v_l[i];
+                e_r = e_l;
+            }
+            else//subsonic
+            {
+                // extrapolate density and velocity
+                rho_r = rho_l;
+                for (int i=0; i<n_dims; i++)
+                    v_r[i] = v_l[i];
 
-          // SA model
-          if (run_input.turb_model == 1)
-          {
-            // extrapolate turbulent eddy viscosity
-            u_r[n_dims+2] = u_l[n_dims+2];
-          }
+                // fix pressure
+                p_r = p_bound_Sub_Out;
+
+                // compute energy
+                v_sq = 0.;
+                for (int i=0; i<n_dims; i++)
+                    v_sq += (v_r[i]*v_r[i]);
+                e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
+
+                // SA model
+                if (run_input.turb_model == 1)
+                {
+                    // extrapolate turbulent eddy viscosity
+                    u_r[n_dims+2] = u_l[n_dims+2];
+                }
+            }
         }
 
       // Subsonic inflow characteristic
