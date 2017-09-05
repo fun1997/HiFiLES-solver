@@ -593,13 +593,31 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                 p_bound_Sub_Out=p_bound;
             //compute mach number
             double mach;
+
             v_sq = 0.;
             for (int i=0; i<n_dims; i++)
-                v_sq += (v_r[i]*v_r[i]);
+                v_sq += (v_l[i]*v_l[i]);
                 mach=sqrt( v_sq / (gamma*p_l/rho_l) );
 
+          // Compute normal velocity on left side
+          vn_l = 0.;
+          for (int i=0; i<n_dims; i++)
+            vn_l += v_l[i]*norm[i];
 
-            if(mach>=1)//if mach >=1 extrpolate all
+            if(vn_l<0)
+            {
+                v_r[0]=0.4*vn_l*norm[0];
+                v_r[1]=0.4*vn_l*norm[1];
+                // fix pressure
+                p_r = p_bound_Sub_Out*pow((1+0.5*(gamma-1)*(pow(0.4*vn_l,2)/(gamma*run_input.R_gas*run_input.T_free_stream))),-gamma/(gamma-1));
+                rho_r=pow(p_r/p_bound_Sub_Out,1/gamma);
+                                // compute energy
+                v_sq = 0.;
+                for (int i=0; i<n_dims; i++)
+                    v_sq += (v_r[i]*v_r[i]);
+                e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
+            }
+            else if(mach>=1)//if mach >=1 extrpolate all
             {
                 rho_r = rho_l;
                 for (int i=0; i<n_dims; i++)
