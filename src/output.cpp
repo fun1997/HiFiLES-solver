@@ -1121,7 +1121,7 @@ void write_probe(struct solution* FlowSol)
             //cout<<run_probe.p2c(i)<<endl;
             int exist=0;
             if(run_probe.probe_layout==0)//generate file name
-                sprintf(probe_data,"Probes/probe_%.03d.dat",i);
+                sprintf(probe_data,"Probes/probe_%.04d.dat",i);
             else
             {
                 int indx,indy,indz;
@@ -1131,7 +1131,7 @@ void write_probe(struct solution* FlowSol)
                     indz=0;
                 else
                     indz=i%run_probe.probe_dim_y;
-                sprintf(probe_data,"Probes/probe_%.03d_%.03d_%.03d.dat",indx,indy,indz);
+                sprintf(probe_data,"Probes/probe_%.04d_%.04d_%.04d.dat",indx,indy,indz);
             }
             data=&probe_data[0];
             struct stat st= {0};
