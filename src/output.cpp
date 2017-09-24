@@ -1137,6 +1137,12 @@ void write_probe(struct solution* FlowSol)
             struct stat st= {0};
             if (stat(data,&st)==-1) exist = -1;//check if the file exists
             write_probe.open(data,ios_base::out|ios_base::app);//open file
+            if (!write_probe.is_open())
+            {
+                write_probe.open(data,ios_base::out|ios_base::app);
+                if (!write_probe.is_open())
+                    FatalError("Cannont open input file for reading.");
+            }
             if(exist==-1)//if doesn't exist write headers
             {
 

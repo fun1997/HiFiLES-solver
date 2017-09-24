@@ -612,7 +612,7 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                 v_sq = 0.;
                 for (int i=0; i<n_dims; i++)
                     v_sq += (v_r[i]*v_r[i]);
-                p_r = p_bound_Sub_Out*pow((1+0.5*(gamma-1)*(v_sq/(gamma*run_input.R_gas*run_input.T_free_stream))),-gamma/(gamma-1));
+                p_r = p_bound_Sub_Out*pow((1+0.5*(gamma-1)*(v_sq/(gamma*R_ref*1))),-gamma/(gamma-1));
                 rho_r=pow(p_r/p_bound_Sub_Out,1/gamma);
                 // compute energy
                 e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
