@@ -1814,17 +1814,17 @@ void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct s
     }
 
     // Output forces
-    for(i=0; i< FlowSol->n_dims; i++) {
-      cout.width(15); cout << FlowSol->inv_force(i) + FlowSol->vis_force(i);
-      write_hist[0] << ", " << FlowSol->inv_force(i) + FlowSol->vis_force(i);
-    }
-
+//    for(i=0; i< FlowSol->n_dims; i++) {
+   //   cout.width(15); cout << FlowSol->inv_force(i) + FlowSol->vis_force(i);
+   //   write_hist[0] << ", " << FlowSol->inv_force(i) + FlowSol->vis_force(i);
+//}
+//
     // Output lift and drag coeffs
-    write_hist[0] << ", " << FlowSol->coeff_lift  << ", " << FlowSol->coeff_drag;
+   // write_hist[0] << ", " << FlowSol->coeff_lift  << ", " << FlowSol->coeff_drag;
 
     // Output integral diagnostic quantities
-    for(i=0; i<n_diags; i++)
-      write_hist[0] << ", " << FlowSol->integral_quantities(i);
+   // for(i=0; i<n_diags; i++)
+   //   write_hist[0] << ", " << FlowSol->integral_quantities(i);
 
     // Output physical time
     write_hist[0] << ", " << in_time;
