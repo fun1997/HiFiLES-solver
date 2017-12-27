@@ -1267,7 +1267,7 @@ if (FlowSol->nproc>1)
 {
   sprintf(file_name_s,"Rest_%.09d/Rest_%.09d_p%.04d.dat",in_file_num,in_file_num,FlowSol->rank);
   sprintf(folder,"Rest_%.09d",in_file_num);
-      if(myrank==0)
+      if(FlowSol->rank==0)
     {
         struct stat st = {0};
         if(stat(folder,&st)==-1)
@@ -1774,14 +1774,15 @@ void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct s
       write_hist[0] << "VARIABLES = \"Iteration\"";
 
       // Add residual and variables
-      if (FlowSol->n_dims==2) {write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
+      if (FlowSol->n_dims==2)
+        {
+            write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
       if(run_input.turb_model)
       {
           write_hist[0] <<",\"mu_tilde\"";
-          write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
-
+          //write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
       }
-      else
+      if(run_input.calc_force)
         write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
       }
       else {
@@ -1790,10 +1791,10 @@ void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct s
        if(run_input.turb_model)
       {
           write_hist[0] <<",\"<greek>mu</greek><sub>tilde</sub>\"";
-          write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+          //write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
 
       }
-      else
+       if(run_input.calc_force)
         write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
       }
 
