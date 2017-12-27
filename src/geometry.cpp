@@ -158,6 +158,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   ReadMesh(run_input.mesh_file, xv, c2v, c2n_v, ctype, ic2icg, iv2ivg, FlowSol->num_eles, FlowSol->num_verts, Mesh.n_verts_global, FlowSol);
 
   // ** TODO: clean up duplicate/redundant data between Mesh and FlowSol **
+  if (run_input.motion!=STATIC_MESH)
   Mesh.setup(FlowSol,xv,c2v,c2n_v,iv2ivg,ctype);
 
   /////////////////////////////////////////////////
@@ -176,14 +177,15 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   f2nv.setup(max_inters);
   f2loc_f.setup(max_inters,2);
   c2f.setup(FlowSol->num_eles,MAX_F_PER_C); // one cell cannot have more than 8 faces
-  c2e.setup(FlowSol->num_eles,MAX_E_PER_C); // one cell cannot have more than 8 faces
+  c2e.setup(FlowSol->num_eles,MAX_E_PER_C); // one cell cannot have more than 12 edges
   rot_tag.setup(max_inters);
   unmatched_inters.setup(max_inters);
-
-  Mesh.v2e.setup(Mesh.n_verts);
-  Mesh.v2n_e.setup(Mesh.n_verts);
-  Mesh.v2n_e.initialize_to_zero();
-
+    if (run_input.motion!=STATIC_MESH)
+    {
+        Mesh.v2e.setup(Mesh.n_verts);
+        Mesh.v2n_e.setup(Mesh.n_verts);
+        Mesh.v2n_e.initialize_to_zero();
+    }
   // Initialize arrays to -1
   f2c.initialize_to_value(-1);
   f2loc_f.initialize_to_value(-1);
@@ -206,17 +208,20 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
             icvsta,icvert,iv2ivg,FlowSol->num_eles,FlowSol->num_verts,FlowSol);
 
   // ** TODO: clean up duplicate/redundant data **
-  Mesh.c2f = c2f;
-  Mesh.c2e = c2e;
-  Mesh.f2c = f2c;
-  Mesh.f2n_v = f2nv;
-  Mesh.n_faces = FlowSol->num_inters;
-  Mesh.n_bnds = Mesh.bc_list.get_dim(0);
-  Mesh.nBndPts.setup(Mesh.n_bnds);
-  for (int i=0; i<Mesh.n_bnds; i++) {
-      Mesh.nBndPts(i) = Mesh.boundPts(i).get_dim(0);
-  }
-
+    if (run_input.motion!=STATIC_MESH)
+    {
+        Mesh.c2f = c2f;
+        Mesh.c2e = c2e;
+        Mesh.f2c = f2c;
+        Mesh.f2n_v = f2nv;
+        Mesh.n_faces = FlowSol->num_inters;
+        Mesh.n_bnds = Mesh.bc_list.get_dim(0);
+        Mesh.nBndPts.setup(Mesh.n_bnds);
+        for (int i=0; i<Mesh.n_bnds; i++)
+        {
+            Mesh.nBndPts(i) = Mesh.boundPts(i).get_dim(0);
+        }
+    }
   /////////////////////////////////////////////////
   /// Initializing Elements
   /////////////////////////////////////////////////
@@ -448,17 +453,19 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   if (FlowSol->rank==0) cout << "done." << endl;
 
   // Set metrics at interface cubpts
-  if (FlowSol->rank==0) cout << "setting element transforms at interface cubpts ... ";
+  if (run_input.calc_force!=0 || run_input.forcing!=0){
+  if (FlowSol->rank==0) cout << "setting element transforms at interface cubpts ... "; //only calculated when need to calculate surface/body force
   for(int i=0;i<FlowSol->n_ele_types;i++) {
       if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
           FlowSol->mesh_eles(i)->set_transforms_inters_cubpts();
         }
     }
   if (FlowSol->rank==0) cout << "done." << endl;
+  }
 
   // Set metrics at volume cubpts. Only needed for computing error and integral diagnostic quantities.
-  if (run_input.test_case != 0 || run_input.monitor_integrals_freq!=0) {
-    if (FlowSol->rank==0) cout << "setting element transforms at volume cubpts ... " << endl;
+  if (run_input.test_case != 0 || run_input.n_integral_quantities!=0) {//|| run_input.monitor_integrals_freq!=0
+    if (FlowSol->rank==0) cout << "setting element transforms at volume cubpts ... " << endl;//TODO: something to do with integral quantities and calculating error
     for(int i=0;i<FlowSol->n_ele_types;i++) {
       if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
         FlowSol->mesh_eles(i)->store_nodal_s_basis_vol_cubpts();
@@ -485,7 +492,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
 
   int n_int_inters= 0;
   int n_bdy_inters= 0;
-  int n_cyc_loc = 0;
+  int n_cyc_loc = 0;//number of local paired cyclic interface
 
   // -------------------------------------------------------
   // Split the cyclic faces as being internal or mpi faces
@@ -508,35 +515,35 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   for(int i=0;i<FlowSol->num_inters;i++)
     {
       bctype_f = bctype_c( f2c(i,0),f2loc_f(i,0));
-      if (bctype_f==9) {
+      if (bctype_f==9) {//if cyclic interface
 
           for (int m=0;m<FlowSol->n_dims;m++)
             loc_center_inter_0(m) = 0.;
 
           for (int k=0;k<f2nv(i);k++)
             for (int m=0;m<FlowSol->n_dims;m++)
-              loc_center_inter_0(m) += xv(f2v(i,k),m)/f2nv(i);
+              loc_center_inter_0(m) += xv(f2v(i,k),m)/f2nv(i);//calculate position of center of each cyclic interface
 
           found = 0;
-          for (int j=0;j<n_unmatched_inters;j++) {
+          for (int j=0;j<n_unmatched_inters;j++) {//loop over all unmatched interfaces
 
-              int i2 = unmatched_inters(j);
+              int i2 = unmatched_inters(j);//index of unmatched interface
 
-              for (int m=0;m<FlowSol->n_dims;m++)
+              for (int m=0;m<FlowSol->n_dims;m++)//initialize the other interface for comparing
                 loc_center_inter_1(m) = 0.;
 
               for (int k=0;k<f2nv(i2);k++)
                 for (int m=0;m<FlowSol->n_dims;m++)
-                  loc_center_inter_1(m) += xv(f2v(i2,k),m)/f2nv(i2);
+                  loc_center_inter_1(m) += xv(f2v(i2,k),m)/f2nv(i2);//calculate center of the unmatched interface
 
-              if (check_cyclic(delta_cyclic,loc_center_inter_0,loc_center_inter_1,tol,FlowSol))
+              if (check_cyclic(delta_cyclic,loc_center_inter_0,loc_center_inter_1,tol,FlowSol))//if the unmatched interface is the corresponding cyclic face
                 {
 
                   found = 1;
-                  f2c(i,1) = f2c(i2,0);
+                  f2c(i,1) = f2c(i2,0);//couple up
                   bctype_c(f2c(i,0),f2loc_f(i,0)) = 0;
                   // Change the flag of matching cyclic inter so that it's not counted as interior inter
-                  bctype_c(f2c(i2,0),f2loc_f(i2,0)) = 99;
+                  bctype_c(f2c(i2,0),f2loc_f(i2,0)) = 99;//set the matched interface as coupled cyclic interface
 
                   f2loc_f(i,1) = f2loc_f(i2,0);
                   n_cyc_loc++;
@@ -551,15 +558,15 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
                     }
 
 
-                  compare_cyclic_faces(loc_vert_0,loc_vert_1,f2nv(i),rtag,delta_cyclic,tol,FlowSol);
+                  compare_cyclic_faces(loc_vert_0,loc_vert_1,f2nv(i),rtag,delta_cyclic,tol,FlowSol);//couple vertexes of the paired cyclic interface
                   rot_tag(i) = rtag;
                   break;
                 }
             }
-          if (found==0) // Corresponding cyclic edges belongs to another processsor
+          if (found==0) // Corresponding cyclic edges belongs to another processsor or doesn't exist
             {
               f2c(i,1) = -1;
-              bctype_c(f2c(i,0),f2loc_f(i,0)) = 0;
+              bctype_c(f2c(i,0),f2loc_f(i,0)) = 0;//set to be mpi_interface
             }
         }
     }
@@ -581,17 +588,16 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
       bctype_f = bctype_c( f2c(i,0),f2loc_f(i,0));
       ic_r = f2c(i,1);
 
-      if (bctype_f==0 && ic_r==-1) { // mpi_face
-
+      if (bctype_f==0 && ic_r==-1) { // if mpi_interface or wrong cyclic setting
           if (FlowSol->nproc==1)
             {
               cout << "ic=" << f2c(i,0) << endl;
               cout << "local_face=" << f2loc_f(i,0) << endl;
-              FatalError("Should not be here");
+              FatalError("Can't find coupled cyclic interface");
             }
 
-          bctype_c( f2c(i,0),f2loc_f(i,0)) = 10;
-          f_mpi2f(FlowSol->n_mpi_inters) = i;
+          bctype_c( f2c(i,0),f2loc_f(i,0)) = 10;// flag as mpi_interface or mpi_wrong_cyclic_setting
+          f_mpi2f(FlowSol->n_mpi_inters) = i;//set local mpiface to local face index
           FlowSol->n_mpi_inters++;
 
           if (f2nv(i)==2) n_seg_mpi_inters++;
@@ -627,7 +633,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   int i_tri_mpi = 0;
   int i_quad_mpi = 0;
 
-  for(int i_mpi=0;i_mpi<FlowSol->n_mpi_inters;i_mpi++)
+  for(int i_mpi=0;i_mpi<FlowSol->n_mpi_inters;i_mpi++)//loop over all local mpi_inters
     {
       int i = f_mpi2f(i_mpi);
       bctype_f = bctype_c( f2c(i,0),f2loc_f(i,0) );
@@ -731,7 +737,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
             }
           else // boundary interface
             {
-              if (bctype_f!=99) //  Not a deleted cyclic interface
+              if (bctype_f!=99) //  Not a coupled cyclic interface
                 {
                   n_bdy_inters++;
                   if (f2nv(i)==2) n_seg_bdy_inters++;
@@ -2588,7 +2594,7 @@ void CompConnectivity(array<int>& in_c2v, array<int>& in_c2n_v, array<int>& in_c
           } // Loop over edges
       } // Loop over cells
       out_n_edges++; // 0-index -> actual value
-
+if(run_input.motion!=STATIC_MESH){
       set<int>::iterator it;
       // consider reversing for better use of CPU cache
       out_e2v.setup(out_n_edges,2);
@@ -2609,6 +2615,7 @@ void CompConnectivity(array<int>& in_c2v, array<int>& in_c2n_v, array<int>& in_c
           ie++;
         }
       }
+}
 
   } // if n_dims=3 || motion != 0
 

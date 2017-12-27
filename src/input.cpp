@@ -124,7 +124,8 @@ void input::read_input_file(string fileName, int rank)
   opts.getScalarValue("restart_dump_freq",restart_dump_freq,0);
   opts.getScalarValue("monitor_res_freq",monitor_res_freq,100);
   opts.getScalarValue("monitor_cp_freq",monitor_cp_freq,0);
-  opts.getScalarValue("monitor_integrals_freq",monitor_integrals_freq,0);
+  //opts.getScalarValue("monitor_integrals_freq",monitor_integrals_freq,0);
+  opts.getScalarValue("calc_force",calc_force,0);
   opts.getScalarValue("res_norm_type",res_norm_type,2);
   opts.getScalarValue("error_norm_type",error_norm_type,2);
   opts.getScalarValue("res_norm_field",res_norm_field,0);
@@ -362,13 +363,13 @@ void input::read_input_file(string fileName, int rank)
 
   opts.getScalarValue("ArtifOn",ArtifOn,0);
   if (ArtifOn) {
-    opts.getScalarValue("artif_only",artif_only);
-    opts.getScalarValue("artif_type",artif_type);
-    opts.getScalarValue("epsilon0",epsilon0);
+    opts.getScalarValue("artif_only",artif_only,0);
+    opts.getScalarValue("artif_type",artif_type,1); //default: concentration method
+    //opts.getScalarValue("epsilon0",epsilon0);
     opts.getScalarValue("s0",s0);
-    opts.getScalarValue("kappa",kappa);
+    //opts.getScalarValue("kappa",kappa);
   }
-  opts.getScalarValue("shock_vortex_restart",shock_vortex_restart,0);
+  //opts.getScalarValue("shock_vortex_restart",shock_vortex_restart,0);
 
   /* ---- FR Element Solution Point / Correction Function Parameters ---- */
   // Tris
@@ -442,9 +443,9 @@ void input::setup_params(int rank)
   // ERROR CHECKING
   // --------------------
 
-  if (monitor_res_freq == 0) monitor_res_freq = INFINITY;
+  if (monitor_res_freq == 0) monitor_res_freq = 1000;
   if (monitor_cp_freq == 0) monitor_cp_freq = INFINITY;
-  if (monitor_integrals_freq == 0) monitor_integrals_freq = INFINITY;
+  //if (monitor_integrals_freq == 0) monitor_integrals_freq = INFINITY; //corresponding condition change to whether there's any testcases or integral quantities
 
   if (!mesh_file.compare(mesh_file.size()-3,3,"neu"))
     mesh_format=0;

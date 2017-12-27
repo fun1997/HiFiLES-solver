@@ -102,6 +102,7 @@ public:
   int restart_dump_freq;
   int adv_type;
 
+/* ---LES options --- */
   int LES;
   int filter_type;
 	double filter_ratio;
@@ -109,20 +110,25 @@ public:
 	int wall_model;
 	double wall_layer_t;
 
+/* --- output options --- */
   double spinup_time;
   int monitor_res_freq;
-  int monitor_integrals_freq;
+//  int monitor_integrals_freq;
+  int calc_force;
   int monitor_cp_freq;
   int res_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
   int error_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
   int res_norm_field;
   int probe;
   string probe_file_name;
+/* -------------------------------- */
+
+/* ------- restart options -------- */
   int restart_flag;
   int restart_iter;
   int n_restart_files;
   int restart_mesh_out; // Print out separate restart file with X,Y,Z of all sol'n points?
-
+  /* -------------------------------- */
   int ic_form;
 
   /* --- Mesh deformation options --- */
@@ -139,7 +145,7 @@ public:
   /* --- Shock Capturing options --- */
   int artif_only, artif_type, ArtifOn;
   double epsilon0, s0, kappa;
-  int shock_vortex_restart;
+  //int shock_vortex_restart;
   double p_bound_out;
   /* -------------------------------- */
 

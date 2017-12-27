@@ -213,11 +213,13 @@ int main(int argc, char *argv[]) {
 
       /*! Compute the value of the forces. */
 
-      //CalcForces(FlowSol.ini_iter+i_steps, &FlowSol);
+      if (run_input.calc_force!=0)
+          CalcForces(FlowSol.ini_iter+i_steps, &FlowSol);
 
       /*! Compute integral quantities. */
 
-      CalcIntegralQuantities(FlowSol.ini_iter+i_steps, &FlowSol);
+      if (run_input.n_integral_quantities!=0)//if calculate integral quantities
+          CalcIntegralQuantities(FlowSol.ini_iter+i_steps, &FlowSol);
 
       /*! Compute time-averaged quantities. */
 

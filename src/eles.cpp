@@ -382,7 +382,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         sensor.setup(n_eles);
         sensor.initialize_to_zero();//mark
 
-      if(run_input.artif_type == 0)
+      /*if(run_input.artif_type == 0)//artificial viscosity
       {
           epsilon.setup(n_eles);
           epsilon_upts.setup(n_upts_per_ele,n_eles);
@@ -390,6 +390,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
           //dt_local.setup(n_eles);
           min_dt_local.setup(1);
       }
+      */
     }
 
     // Set connectivity array. Needed for Paraview output.
@@ -895,8 +896,8 @@ void eles::mv_all_cpu_gpu(void)
           concentration_array.mv_cpu_gpu();
           sigma.mv_cpu_gpu();
         }
-
-        if(run_input.artif_type == 0)
+/*
+        if(run_input.artif_type == 0)//artificial viscosity
         {
           epsilon.mv_cpu_gpu();
           epsilon_upts.cp_cpu_gpu();
@@ -908,6 +909,7 @@ void eles::mv_all_cpu_gpu(void)
           dt_local.cp_cpu_gpu();
           min_dt_local.cp_cpu_gpu();
         }
+        */
     }
   }
 #endif
@@ -3457,16 +3459,18 @@ void eles::shock_capture_concentration(int in_disu_upts_from)
 {
   if (n_eles!=0){
     #ifdef _GPU
-      shock_capture_concentration_gpu_kernel_wrapper(n_eles, n_upts_per_ele, n_fields, order, ele_type, run_input.artif_type, run_input.s0, run_input.kappa, disu_upts(in_disu_upts_from).get_ptr_gpu(), inv_vandermonde.get_ptr_gpu(), inv_vandermonde2D.get_ptr_gpu(), vandermonde2D.get_ptr_gpu(), concentration_array.get_ptr_gpu(), sensor.get_ptr_gpu(), sigma.get_ptr_gpu());
+      //shock_capture_concentration_gpu_kernel_wrapper(n_eles, n_upts_per_ele, n_fields, order, ele_type, run_input.artif_type, run_input.s0, run_input.kappa, disu_upts(in_disu_upts_from).get_ptr_gpu(), inv_vandermonde.get_ptr_gpu(), inv_vandermonde2D.get_ptr_gpu(), vandermonde2D.get_ptr_gpu(), concentration_array.get_ptr_gpu(), sensor.get_ptr_gpu(), sigma.get_ptr_gpu());
+      shock_capture_concentration_gpu_kernel_wrapper(n_eles, n_upts_per_ele, n_fields, order, ele_type, run_input.artif_type, run_input.s0, disu_upts(in_disu_upts_from).get_ptr_gpu(), inv_vandermonde.get_ptr_gpu(), inv_vandermonde2D.get_ptr_gpu(), vandermonde2D.get_ptr_gpu(), concentration_array.get_ptr_gpu(), sensor.get_ptr_gpu(), sigma.get_ptr_gpu());
     #endif
 
     #ifdef _CPU
-        shock_capture_concentration_cpu(n_eles, n_upts_per_ele, n_fields, order, ele_type, run_input.artif_type, run_input.s0, run_input.kappa, disu_upts(in_disu_upts_from).get_ptr_cpu(), inv_vandermonde.get_ptr_cpu(), inv_vandermonde2D.get_ptr_cpu(), vandermonde2D.get_ptr_cpu(), concentration_array.get_ptr_cpu(), sensor.get_ptr_cpu(), sigma.get_ptr_cpu());
+        //shock_capture_concentration_cpu(n_eles, n_upts_per_ele, n_fields, order, ele_type, run_input.artif_type, run_input.s0, run_input.kappa, disu_upts(in_disu_upts_from).get_ptr_cpu(), inv_vandermonde.get_ptr_cpu(), inv_vandermonde2D.get_ptr_cpu(), vandermonde2D.get_ptr_cpu(), concentration_array.get_ptr_cpu(), sensor.get_ptr_cpu(), sigma.get_ptr_cpu());
+        shock_capture_concentration_cpu(n_eles, n_upts_per_ele, n_fields, order, ele_type, run_input.artif_type, run_input.s0, disu_upts(in_disu_upts_from).get_ptr_cpu(), inv_vandermonde.get_ptr_cpu(), inv_vandermonde2D.get_ptr_cpu(), vandermonde2D.get_ptr_cpu(), concentration_array.get_ptr_cpu(), sensor.get_ptr_cpu(), sigma.get_ptr_cpu());
     #endif
   }
 }
 
-void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double kappa, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma)
+void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma)
 {
     int stride = in_n_upts_per_ele*in_n_eles;
     double tmp_sensor = 0;
@@ -3548,7 +3552,7 @@ void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele,
             /* -------------------------------------------------------------------------------------- */
             /* Exponential modal filter */
 
-            if(tmp_sensor > s0 + kappa && in_artif_type == 1) {
+            if(tmp_sensor > s0 && in_artif_type == 1) {//if(tmp_sensor > s0 + kappa && in_artif_type == 1)
                 double nodal_sol[36];
                 double modal_sol[36];
 
@@ -4832,7 +4836,7 @@ void eles::set_transforms(void)
           loc(k)=loc_upts(k,j);
         }
 
-        calc_pos(loc,i,pos);
+        calc_pos_upts(j,i,pos);
 
         for(k=0;k<n_dims;k++)
         {
@@ -4840,7 +4844,7 @@ void eles::set_transforms(void)
         }
 
         // calculate first derivatives of shape functions at the solution point
-        calc_d_pos(loc,i,d_pos);
+        calc_d_pos_upt(j,i,d_pos);
 
         // store quantities at the solution point
 
@@ -4938,7 +4942,7 @@ void eles::set_transforms(void)
           loc(k)=tloc_fpts(k,j);
         }
 
-        calc_pos(loc,i,pos);
+        calc_pos_upts(j,i,pos);
 
         for(k=0;k<n_dims;k++)
         {
@@ -4947,7 +4951,7 @@ void eles::set_transforms(void)
 
         // calculate first derivatives of shape functions at the flux points
 
-        calc_d_pos(loc,i,d_pos);
+        calc_d_pos_fpt(j,i,d_pos);
 
         // store quantities at the flux point
 
@@ -5979,6 +5983,37 @@ void eles::calc_pos(array<double> in_loc, int in_ele, array<double>& out_pos)
 
 }
 
+void eles::calc_pos_upts(int in_upt, int in_ele, array<double>& out_pos)
+{
+  int i,j;
+
+  for(i=0;i<n_dims;i++)
+  {
+    out_pos(i)=0.0;
+
+    for(j=0;j<n_spts_per_ele(in_ele);j++)
+    {
+      out_pos(i)+=nodal_s_basis_upts(j,in_upt,in_ele)*shape(i,j,in_ele);
+    }
+  }
+
+}
+
+void eles::calc_pos_fpts(int in_fpt, int in_ele, array<double>& out_pos)
+{
+   int i,j;
+
+  for(i=0;i<n_dims;i++)
+  {
+    out_pos(i)=0.0;
+
+    for(j=0;j<n_spts_per_ele(in_ele);j++)
+    {
+      out_pos(i)+=nodal_s_basis_fpts(j,in_fpt,in_ele)*shape(i,j,in_ele);
+    }
+  }
+
+}
 /** find the position of a point within the element (r,s,t -> xd,yd,zd) (using positions in dynamic grid) */
 void eles::calc_pos_dyn(array<double> in_loc, int in_ele, array<double>& out_pos)
 {

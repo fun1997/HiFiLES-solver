@@ -34,6 +34,7 @@ ___bin_HiFiLES_LDFLAGS=
 # characters in the given expression above with an underscore
 ___bin_HiFiLES_SOURCES = ../src/global.cpp \
                   ../src/input.cpp \
+                  ../src/probe_input.cpp \
                   ../src/flux.cpp \
                   ../src/source.cpp \
                   ../src/cubature_tet.cpp \

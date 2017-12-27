@@ -246,9 +246,10 @@ void write_tec(int in_file_num, struct solution* FlowSol)
                 /*! Calculate the sensor at the plot points */
                 FlowSol->mesh_eles(i)->calc_sensor_ppts(j,sensor_ppts_temp);
 
-                if(run_input.artif_type == 0)
-                  /*! Calculate the artificial viscosity co-efficients at plot points */
+                /*if(run_input.artif_type == 0)
+                  /*! Calculate the artificial viscosity co-efficients at plot points
                   FlowSol->mesh_eles(i)->calc_epsilon_ppts(j,epsilon_ppts_temp);
+                  */
               }
 
               /*! Calculate the time averaged fields at the plot points */
@@ -839,9 +840,10 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
                   /*! Calculate the sensor at the plot points */
                   FlowSol->mesh_eles(i)->calc_sensor_ppts(j,sensor_ppts_temp);
 
-                  if(run_input.artif_type == 0)
-                    /*! Calculate the artificial viscosity co-efficients at plot points */
+                  /*if(run_input.artif_type == 0)
+                    /*! Calculate the artificial viscosity co-efficients at plot points
                     FlowSol->mesh_eles(i)->calc_epsilon_ppts(j,epsilon_ppts_temp);
+                    */
                 }
 
                 /*! Calculate the diagnostic fields at the plot points */
@@ -1254,16 +1256,31 @@ void write_probe(struct solution* FlowSol)
 void write_restart(int in_file_num, struct solution* FlowSol)
 {
 
-  char file_name_s[256], file_name_s2[256];
+  char file_name_s[256], file_name_s2[256], folder[50];
   char *file_name;
   ofstream restart_file, restart_mesh;
   restart_file.precision(15);
   restart_mesh.precision(15);
 
-
 #ifdef _MPI
-  sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,FlowSol->rank);
-  sprintf(file_name_s2,"Rest_%s_%.09d_p%.04d.dat",run_input.data_file_name.c_str(),in_file_num,FlowSol->rank);
+if (FlowSol->nproc>1)
+{
+  sprintf(file_name_s,"Rest_%.09d/Rest_%.09d_p%.04d.dat",in_file_num,in_file_num,FlowSol->rank);
+  sprintf(folder,"Rest_%.09d",in_file_num);
+      if(myrank==0)
+    {
+        struct stat st = {0};
+        if(stat(folder,&st)==-1)
+        {
+            mkdir(folder,0755);
+        }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+}
+
+  else//==1
+      sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,FlowSol->rank);
+      sprintf(file_name_s2,"Rest_%s_%.09d_p%.04d.dat",run_input.data_file_name.c_str(),in_file_num,FlowSol->rank);
   if (FlowSol->rank==0) cout << "Writing Restart file number " << in_file_num << " ...." << endl;
 #else
   sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,0);
@@ -1979,8 +1996,10 @@ void CopyGPUCPU(struct solution* FlowSol)
       if(run_input.ArtifOn)
       {
         FlowSol->mesh_eles(i)->cp_sensor_gpu_cpu();
+        /*
         if(run_input.artif_type==0)
           FlowSol->mesh_eles(i)->cp_epsilon_upts_gpu_cpu();
+          */
       }
     }
   }

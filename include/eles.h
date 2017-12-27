@@ -358,6 +358,10 @@ public:
 
   /*! calculate position */
   void calc_pos(array<double> in_loc, int in_ele, array<double>& out_pos);
+    /*! calculate position at a solution point */
+    void calc_pos_upts(int in_upt, int in_ele, array<double>& out_pos);
+    /*! calculate position at a flux point */
+    void calc_pos_fpts(int in_fpt, int in_ele, array<double>& out_pos);
 
   /*! calculate derivative of position */
   void calc_d_pos(array<double> in_loc, int in_ele, array<double>& out_d_pos);
@@ -604,7 +608,7 @@ public:
   /* --- Shock capturing functions --- */
 
   void shock_capture_concentration(int in_disu_upts_from);
-  void shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double kappa, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma);
+  void shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma);
 
 protected:
 

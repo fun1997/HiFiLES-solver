@@ -70,13 +70,13 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
 
   /*! If at first RK step and using certain LES models, compute some model-related quantities. */
   if(run_input.LES==1 && in_disu_upts_from==0) {
-      if(run_input.SGS_model==2 || run_input.SGS_model==3 || run_input.SGS_model==4) {
+      if(run_input.SGS_model==2 || run_input.SGS_model==3 || run_input.SGS_model==4) {//similarity and svv
           for(i=0; i<FlowSol->n_ele_types; i++)
             FlowSol->mesh_eles(i)->calc_sgs_terms(in_disu_upts_from);
         }
     }
 
-  /*! Shock capturing part - only concentration method on GPU and on quads for now */
+  /*! Shock capturing part - only concentration method and on quads for now */
   /*! TO be added: Persson's method for triangles with artificial viscosity structure */
 
   if(run_input.ArtifOn) {
@@ -400,7 +400,10 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
 
           for (int j=0;j<in_n_files;j++)
             {
-              sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,j);
+              if(in_n_files!=1)
+                  sprintf(file_name_s,"Rest_%.09d/Rest_%.09d_p%.04d.dat",in_file_num,in_file_num,j);//in folder
+              else
+                  sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,j);
               file_name = &file_name_s[0];
               restart_file.open(file_name);
               if (!restart_file)
@@ -422,7 +425,10 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
   for (int j=0;j<in_n_files;j++)
     {
       //cout <<  "Reading restart file " << j << endl;
-      sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,j);
+      if (in_n_files!=1)
+          sprintf(file_name_s,"Rest_%.09d/Rest_%.09d_p%.04d.dat",in_file_num,in_file_num,j);//in folder
+      else
+          sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,j);
       file_name = &file_name_s[0];
       restart_file.open(file_name);
 
