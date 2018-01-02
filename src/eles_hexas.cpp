@@ -60,7 +60,7 @@ using namespace std;
 // default constructor
 
 eles_hexas::eles_hexas()
-{	
+{
 
 }
 
@@ -90,6 +90,9 @@ void eles_hexas::setup_ele_type_specific()
   set_loc_1d_upts();
   set_loc_upts();
   set_vandermonde();
+  set_vandermonde3D();
+  set_concentration_array();
+  set_filter_array();
 
   set_inters_cubpts();
   set_volume_cubpts();
@@ -879,7 +882,7 @@ int eles_hexas::read_restart_info(ifstream& restart_file)
 }
 
 // write restart info
-void eles_hexas::write_restart_info(ofstream& restart_file)        
+void eles_hexas::write_restart_info(ofstream& restart_file)
 {
   restart_file << "HEXAS" << endl;
 
@@ -912,6 +915,64 @@ void eles_hexas::set_vandermonde(void)
   inv_vandermonde = inv_array(vandermonde);
 }
 
+void eles_hexas::set_vandermonde3D(void)
+{
+    vandermonde2D.setup(n_upts_per_ele,n_upts_per_ele);
+    array<double> loc(n_dims);
+    for (int i=0;i<n_upts_per_ele;i++)//location
+    {
+        loc(0)=loc_upts(0,i);
+        loc(1)=loc_upts(1,i);
+        loc(2)=loc_upts(2,i);
+        for (int j=0;j<n_upts_per_ele;j++)//in mode
+            vandermonde2D(i,j)=eval_legendre_basis_3D_hierarchical(j,loc,order);
+    }
+    inv_vandermonde2D=inv_array(vandermonde2D);
+}
+
+  void eles_hexas::set_filter_array(void)
+  {
+      sigma.setup(n_upts_per_ele);
+      for (int i=0;i<n_upts_per_ele;i++)
+      {
+          sigma(i)=exponential_filter(i,order);
+      }
+  }
+
+  void eles_hexas::set_concentration_array()
+  {
+  int concen_type = 1;
+  array<double> concentration_factor(order+1);
+  array<double> grad_vandermonde;
+  grad_vandermonde.setup(order+1,order+1);//1D gradient Vandermonde
+  concentration_array.setup((order+1),(order+1));//concentration array
+
+    // create the vandermonde matrix
+    for (int i=0;i<order+1;i++)
+        for (int j=0;j<order+1;j++)
+            grad_vandermonde(i,j) = eval_d_legendre(loc_1d_upts(i),j);
+
+    // create concentration factor array
+    for(int j=0; j <order+1; j++){
+        if(concen_type == 0){ // exponential
+            if(j==0)
+                concentration_factor(j) = 0;
+            else
+                concentration_factor(j) = exp(1/(6*j*(j+1)));
+        }
+        else if(concen_type == 1) // linear
+            concentration_factor(j) = 1;
+
+        else
+            cout<<"Concentration factor not setup"<<endl;
+        }
+
+//set up concentration array
+    for (int i=0;i<order+1;i++)
+                for (int j=0;j<order+1;j++)
+                        concentration_array(j,i) = concentration_factor(j)*sqrt(1 - loc_1d_upts(i)*loc_1d_upts(i))*grad_vandermonde(i,j);//tanspose?
+
+  }
 // evaluate nodal basis
 
 double eles_hexas::eval_nodal_basis(int in_index, array<double> in_loc)
@@ -1145,6 +1206,86 @@ void eles_hexas::eval_d_nodal_s_basis(array<double> &d_nodal_s_basis, array<doub
     }
 }
 
+//evaluate 3D Legendre basis
+double eles_hexas::eval_legendre_basis_3D_hierarchical(int in_mode, array<double> in_loc, int in_basis_order)
+{
+        double leg_basis;
+
+        int n_dof=(in_basis_order+1)*(in_basis_order+1)*(in_basis_order+1);
+
+        if(in_mode<n_dof)
+          {
+            int i,j,k,l;
+            int mode;
+
+            mode = 0; //mode=x+y*(N_x+1)+z*(N_x+1)*(N_z+1)
+        for (l=0; l<3*in_basis_order+1; l++) // sum range from 0 to 3*order
+        {
+            for (k=0; k<l+1; k++) // k no more than the sum
+            {
+                for (j=0; j<l-k+1; j++)// j no more than sum-k
+                {
+                    i = l-k-j;
+                    if(i<=in_basis_order && j<=in_basis_order && k<=in_basis_order)
+                    {
+
+                        if(mode==in_mode) // found the correct mode
+                            leg_basis=eval_legendre(in_loc(0),i)*eval_legendre(in_loc(1),j)*eval_legendre(in_loc(2),k);
+
+                        mode++;
+                    }
+                }
+            }
+        }
+          }
+        else
+          {
+            cout << "ERROR: Invalid mode when evaluating Legendre basis ...." << endl;
+          }
+
+        return leg_basis;
+}
+
+double eles_hexas::exponential_filter(int in_mode, int in_basis_order)
+{
+        double sigma, eta;
+
+        int n_dof=(in_basis_order+1)*(in_basis_order+1)*(in_basis_order+1);
+
+        if(in_mode<n_dof)
+          {
+            int i,j,k,l;
+            int mode;
+
+            mode = 0;
+            for (l=0;l<3*in_basis_order+1;l++)//sum of x,y,z mode
+              {
+                for (k=0;k<l+1;k++)//k no more than sum
+                  {
+                      for (j=0;j<l-k+1;j++)//j no more than sum-k
+                    i = l-k-j;//i+j+k=l
+                    if(i<=in_basis_order && j<=in_basis_order && k<=in_basis_order){
+
+                        if(mode==in_mode) // found the correct mode
+                          {
+                            eta = (double)(i+j+k)/n_dof;
+                            sigma = exp(-1*pow(eta,2.0));
+                            //cout<<"sigma values are "<<sigma<<endl;
+                          }
+
+                        mode++;
+                    }
+                  }
+              }
+          }
+        else
+          {
+            cout << "ERROR: Invalid mode when evaluating exponential filter ...." << endl;
+          }
+
+        return sigma;
+}
+
 void eles_hexas::fill_opp_3(array<double>& opp_3)
 {
   int i,j,k;
@@ -1172,9 +1313,9 @@ double eles_hexas::eval_div_vcjh_basis(int in_index, array<double>& loc)
   double eta;
   double div_vcjh_basis;
   int scheme = run_input.vcjh_scheme_hexa;
-  
+
   if (scheme==0)
-    eta = run_input.eta_hexa;    
+    eta = run_input.eta_hexa;
   else if (scheme < 5)
     eta = compute_eta(run_input.vcjh_scheme_hexa,order);
 
@@ -1232,7 +1373,7 @@ double eles_hexas::eval_div_vcjh_basis(int in_index, array<double>& loc)
       div_vcjh_basis = eval_lagrange(loc(0),k,loc_1d_upts) * eval_lagrange(loc(1),j,loc_1d_upts) * eval_d_oesfr_1d(loc(2),1,order);
 
   }
-  
+
   return div_vcjh_basis;
 }
 

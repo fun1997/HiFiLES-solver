@@ -29,7 +29,7 @@
 #include "array.h"
 
 class eles_quads: public eles
-{	
+{
 public:
 
   // #### constructors ####
@@ -120,7 +120,7 @@ public:
   /*! set area coordinates of solution points and flux point */
   void set_area_coord(void);
 
-  /*! set area coordinates of solution points and flux point */
+  /*! set 2D Vandermonde matrix */
   void set_vandermonde2D(void);
 
   /*! setup the concentration array required for concentration method for shock capturing */
@@ -138,7 +138,7 @@ public:
 protected:
 
   // methods
-  /*! evaluate Vandermonde matrix */
+  /*! set Vandermonde matrix */
   void set_vandermonde();
 
   // members

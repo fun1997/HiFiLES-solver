@@ -3479,95 +3479,143 @@ void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele,
     double modal_rho[8];
     double uE[8];
     double temp;
-    double p = 3;	// exponent in concentration method
-    double J = 0.15;
-    int shock_found = 0;
+    double p = 3;	// exponent in nonlinear enhancement
+    double J =run_input.J_crit;// 0.15;
+    int z_range;
 
+    //int shock_found = 0;
+    if (n_dims==2) z_range=1;else z_range=in_order+1;
     if(in_n_eles!=0){
-        // X-slices
-        for(int m=0; m<in_n_eles; m++)
+        for(int m=0; m<in_n_eles; m++)//loop over every cell
         {
           tmp_sensor = 0;
-            for(int i=0; i<in_order+1; i++)
+            // X-slices
+            for(int i=0; i<in_order+1; i++)// for each y
             {
-                for(int j=0; j<in_order+1; j++){
-                    nodal_rho[j] = in_disu_upts_ptr[m*in_n_upts_per_ele + i*(in_order+1) + j];
+                for (int z=0;z<z_range;z++)//for each z
+                {
+                for(int j=0; j<in_order+1; j++){//assign nodal value
+                    nodal_rho[j] = in_disu_upts_ptr[m*in_n_upts_per_ele +z*(in_order+1)*(in_order+1)+ i*(in_order+1) + j];
                 }
 
-                for(int j=0; j<in_order+1; j++){
+                for(int j=0; j<in_order+1; j++){//assign modal value
                     modal_rho[j] = 0;
                     for(int k=0; k<in_order+1; k++){
                         modal_rho[j] += in_inv_vandermonde_ptr[j + k*(in_order+1)]*nodal_rho[k];
                     }
                 }
 
-                for(int j=0; j<in_order+1; j++){
+                for(int j=0; j<in_order+1; j++){// for each loc
                     uE[j] = 0;
                     for(int k=0; k<in_order+1; k++)
                         uE[j] += modal_rho[k]*concentration_array_ptr[j*(in_order+1) + k];
 
-                    uE[j] = abs((3.1415/(in_order+1))*uE[j]);
-                    temp = pow(uE[j],p)*pow(in_order+1,p/2);
+                    uE[j] = abs((3.1415/(in_order))*uE[j]);//pi/N*sum_N(1*f_k*T_k(x))
+                    temp = pow(uE[j],p)*pow(in_order,p/2);//(K*f)^p*(1/N)^(p/2)
 
                     if(temp >= J)
-                        shock_found++;
+                        temp=uE[j];
+                        else
+                        temp=0;
 
-                    if(temp > tmp_sensor)
+
+                    if(temp > tmp_sensor)//find the largest discontinuity
                         tmp_sensor = temp;
                 }
-
+                }
             }
 
             // Y-slices
-            for(int i=0; i<in_order+1; i++)
+            for(int i=0; i<in_order+1; i++)//for every x
             {
-                for(int j=0; j<in_order+1; j++){
-                    nodal_rho[j] = in_disu_upts_ptr[m*in_n_upts_per_ele + j*(in_order+1) + i];
+                for(int z=0;z<z_range;z++)//for every z
+                {
+                for(int j=0; j<in_order+1; j++){//assign nodal value
+                    nodal_rho[j] = in_disu_upts_ptr[m*in_n_upts_per_ele + z*(in_order+1)*(in_order+1) + j*(in_order+1) + i];
                 }
 
-                for(int j=0; j<in_order+1; j++){
+                for(int j=0; j<in_order+1; j++){//assign modal value
                     modal_rho[j] = 0;
                     for(int k=0; k<in_order+1; k++)
                         modal_rho[j] += in_inv_vandermonde_ptr[j + k*(in_order+1)]*nodal_rho[k];
                 }
 
-                for(int j=0; j<in_order+1; j++){
+                for(int j=0; j<in_order+1; j++){//for each loc
                     uE[j] = 0;
                     for(int k=0; k<in_order+1; k++)
                         uE[j] += modal_rho[k]*concentration_array_ptr[j*(in_order+1) + k];
 
-                    uE[j] = (3.1415/(in_order+1))*uE[j];
-                    temp = pow(abs(uE[j]),p)*pow(in_order+1,p/2);
+                    uE[j] = (3.1415/(in_order))*uE[j];//pi/N*sum_N(1*f_k*T_K(X))
+                    temp = pow(abs(uE[j]),p)*pow(in_order,p/2);//(K*f)^p*(1/N)^(p/2)
 
                     if(temp >= J)
-                        shock_found++;
+                        temp=uE[j];
+                        else
+                        temp=0;
 
-                    if(temp > tmp_sensor)
+                    if(temp > tmp_sensor)//find the largest discontinuity
                         tmp_sensor = temp;
+                }
                 }
             }
 
-            out_sensor[m] = tmp_sensor;
+            if (n_dims==3)
+            {
+                            // Z-slices
+            for(int i=0; i<in_order+1; i++)//for each x
+            {
+                for (int j=0;j<in_order+1;j++)//for each y
+                {
+                for(int z=0; z<in_order+1; z++){//assign nodal value
+                    nodal_rho[z] = in_disu_upts_ptr[m*in_n_upts_per_ele + z*(in_order+1)*(in_order+1) + j*(in_order+1) + i];
+                }
+
+                for(int j=0; j<in_order+1; j++){//assign modal value
+                    modal_rho[j] = 0;
+                    for(int k=0; k<in_order+1; k++)
+                        modal_rho[j] += in_inv_vandermonde_ptr[j + k*(in_order+1)]*nodal_rho[k];
+                }
+
+                for(int j=0; j<in_order+1; j++){//for each loc
+                    uE[j] = 0;
+                    for(int k=0; k<in_order+1; k++)
+                        uE[j] += modal_rho[k]*concentration_array_ptr[j*(in_order+1) + k];
+
+                    uE[j] = (3.1415/(in_order))*uE[j];//pi/N*sum_N(1*f_k*T_K(X))
+                    temp = pow(abs(uE[j]),p)*pow(in_order+1,p/2);
+
+                    if(temp >= J)
+                        temp=uE[j];
+                        else
+                        temp=0;
+
+                    if(temp > tmp_sensor)//find the largest discontinuity
+                        tmp_sensor = temp;
+                }
+            }
+            }
+            }
+            out_sensor[m] = tmp_sensor;//the largest discontinuity
 
             /* -------------------------------------------------------------------------------------- */
             /* Exponential modal filter */
 
             if(tmp_sensor > s0 && in_artif_type == 1) {//if(tmp_sensor > s0 + kappa && in_artif_type == 1)
-                double nodal_sol[36];
-                double modal_sol[36];
+                double nodal_sol[512];//support up to 7th order polynomial in 3D
+                double modal_sol[512];
 
                 for(int k=0; k<in_n_fields; k++) {
 
-                    for(int i=0; i<in_n_upts_per_ele; i++){
+                    for(int i=0; i<in_n_upts_per_ele; i++){//assign nodal values
                         nodal_sol[i] = in_disu_upts_ptr[m*in_n_upts_per_ele + k*stride + i];
                     }
 
-                    // Nodal to modal only upto 1st order
+                    // Nodal to modal
                     for(int i=0; i<in_n_upts_per_ele; i++){
                         modal_sol[i] = 0;
                         for(int j=0; j<in_n_upts_per_ele; j++)
                             modal_sol[i] += in_inv_vandermonde2D_ptr[i + j*in_n_upts_per_ele]*nodal_sol[j];
-
+                           //filtering
                         modal_sol[i] = modal_sol[i]*sigma[i];
                         //printf("The exp filter values are %f \n",modal_sol[i]);
                     }

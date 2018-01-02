@@ -1017,21 +1017,25 @@ double eles_quads::eval_legendre_basis_2D_hierarchical(int in_mode, array<double
             int i,j,k;
             int mode;
 
-            mode = 0;
-            for (k=0;k<in_basis_order*in_basis_order+1;k++)
-              {
-                for (j=0;j<k+1;j++)
-                  {
-                    i = k-j;
-                    if(i<=in_basis_order && j<=in_basis_order){
+            mode=0;
+             //mode=j+i*(N_x+1)
+        for (k=0; k<2*in_basis_order+1; k++) //sum of x,y mode range from 0 to 2*order
+        {
+            for (j=0; j<k+1; j++) //j no more than the sum
+            {
+                i=k-j;//i+j=k,i>=0
 
-                        if(mode==in_mode) // found the correct mode
-                            leg_basis=eval_legendre(in_loc(0),i)*eval_legendre(in_loc(1),j);
-
-                        mode++;
+                if (i<=in_basis_order && j<=in_basis_order)//i and j both no more than order to be valid
+                {
+                    if(mode==in_mode) // found the correct mode
+                    {
+                        leg_basis=eval_legendre(in_loc(0),i)*eval_legendre(in_loc(1),j);
                     }
-                  }
-              }
+
+                    mode++;
+                }
+            }
+        }
           }
         else
           {
@@ -1054,7 +1058,7 @@ double eles_quads::exponential_filter(int in_mode, int in_basis_order)
             int mode;
 
             mode = 0;
-            for (k=0;k<in_basis_order*in_basis_order+1;k++)
+            for (k=0;k<in_basis_order+in_basis_order+1;k++)//sum of x,y mode
               {
                 for (j=0;j<k+1;j++)
                   {
