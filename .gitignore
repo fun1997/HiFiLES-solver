@@ -11,6 +11,7 @@
 *.slo
 *.lo
 *.o
+*.Po
 
 # External Libraries Folder (in order to compile in place)
 lib/
