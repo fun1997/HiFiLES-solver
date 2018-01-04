@@ -566,7 +566,7 @@ void eles::set_ics(double& time)
           ics(4)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));
         }
       }
-       else if(run_input.ic_form==9)
+       else if(run_input.ic_form==9)//Reimann problem
       {
         rho=run_input.rho_c_ic;
                 if(pos(1)>=run_input.y_lim_ic)
@@ -3480,7 +3480,7 @@ void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele,
     double uE[8];
     double temp;
     double p = 3;	// exponent in nonlinear enhancement
-    double J =run_input.J_crit;// 0.15;
+    //double J = 0.15;
     int z_range;
 
     //int shock_found = 0;
@@ -3510,14 +3510,8 @@ void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele,
                     for(int k=0; k<in_order+1; k++)
                         uE[j] += modal_rho[k]*concentration_array_ptr[j*(in_order+1) + k];
 
-                    uE[j] = abs((3.1415/(in_order))*uE[j]);//pi/N*sum_N(1*f_k*T_k(x))
-                    temp = pow(uE[j],p)*pow(in_order,p/2);//(K*f)^p*(1/N)^(p/2)
-
-                    if(temp >= J)
-                        temp=uE[j];
-                        else
-                        temp=0;
-
+                    uE[j] = abs((3.1415/(in_order+1))*uE[j]);//pi/N*sum_N(1*f_k*T_k(x))
+                    temp = pow(uE[j],p)*pow(in_order+1,p/2);//(K*f)^p*(1/N)^(p/2)
 
                     if(temp > tmp_sensor)//find the largest discontinuity
                         tmp_sensor = temp;
@@ -3545,13 +3539,8 @@ void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele,
                     for(int k=0; k<in_order+1; k++)
                         uE[j] += modal_rho[k]*concentration_array_ptr[j*(in_order+1) + k];
 
-                    uE[j] = (3.1415/(in_order))*uE[j];//pi/N*sum_N(1*f_k*T_K(X))
-                    temp = pow(abs(uE[j]),p)*pow(in_order,p/2);//(K*f)^p*(1/N)^(p/2)
-
-                    if(temp >= J)
-                        temp=uE[j];
-                        else
-                        temp=0;
+                    uE[j] = (3.1415/(in_order+1))*uE[j];//pi/N*sum_N(1*f_k*T_K(X))
+                    temp = pow(abs(uE[j]),p)*pow(in_order+1,p/2);//(K*f)^p*(1/N)^(p/2)
 
                     if(temp > tmp_sensor)//find the largest discontinuity
                         tmp_sensor = temp;
@@ -3581,13 +3570,8 @@ void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele,
                     for(int k=0; k<in_order+1; k++)
                         uE[j] += modal_rho[k]*concentration_array_ptr[j*(in_order+1) + k];
 
-                    uE[j] = (3.1415/(in_order))*uE[j];//pi/N*sum_N(1*f_k*T_K(X))
+                    uE[j] = (3.1415/(in_order+1))*uE[j];//pi/N*sum_N(1*f_k*T_K(X))
                     temp = pow(abs(uE[j]),p)*pow(in_order+1,p/2);
-
-                    if(temp >= J)
-                        temp=uE[j];
-                        else
-                        temp=0;
 
                     if(temp > tmp_sensor)//find the largest discontinuity
                         tmp_sensor = temp;

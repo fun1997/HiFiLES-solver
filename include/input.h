@@ -144,7 +144,8 @@ public:
 
   /* --- Shock Capturing options --- */
   int artif_only, artif_type, ArtifOn;
-  double epsilon0, s0, kappa,J_crit;
+  double epsilon0, s0, kappa;
+  double con_fact,con_exp;
   //int shock_vortex_restart;
   //double p_bound_out;
   /* -------------------------------- */

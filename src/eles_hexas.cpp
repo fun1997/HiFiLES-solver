@@ -1269,7 +1269,7 @@ double eles_hexas::exponential_filter(int in_mode, int in_basis_order)
                         if(mode==in_mode) // found the correct mode
                           {
                             eta = (double)(i+j+k)/n_dof;
-                            sigma = exp(-1*pow(eta,2.0));
+                            sigma = exp(-run_input.con_fact*pow(eta,run_input.con_exp));
                             //cout<<"sigma values are "<<sigma<<endl;
                           }
 

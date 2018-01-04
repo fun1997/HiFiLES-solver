@@ -368,7 +368,10 @@ void input::read_input_file(string fileName, int rank)
     //opts.getScalarValue("epsilon0",epsilon0);
     opts.getScalarValue("s0",s0);
     if(artif_type==1)
-    opts.getScalarValue("J_crit",J_crit);
+    {
+        opts.getScalarValue("con_fact",con_fact,36.0);
+        opts.getScalarValue("con_exp",con_exp,4.0);
+    }
     //opts.getScalarValue("kappa",kappa);
   }
   //opts.getScalarValue("shock_vortex_restart",shock_vortex_restart,0);
