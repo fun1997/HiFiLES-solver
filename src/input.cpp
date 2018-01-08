@@ -234,15 +234,15 @@ void input::read_input_file(string fileName, int rank)
   opts.getScalarValue("dy_cyclic",dy_cyclic,(double)INFINITY);
   opts.getScalarValue("dz_cyclic",dz_cyclic,(double)INFINITY);
 
-  opts.getScalarValue("nx_free_stream",nx_free_stream);
-  opts.getScalarValue("ny_free_stream",ny_free_stream);
-  opts.getScalarValue("nz_free_stream",nz_free_stream);
   //Sub_In_Simp
   opts.getScalarValue("Sub_In_Simp",Sub_In_Simp,0);
   if (Sub_In_Simp)
   {
       opts.getScalarValue("Mach_Sub_In_Simp",Mach_Sub_In_Simp);
       opts.getScalarValue("Rho_Sub_In_Simp",Rho_Sub_In_Simp);
+      opts.getScalarValue("nx_sub_in_simp",nx_sub_in_simp,1.);
+      opts.getScalarValue("ny_sub_in_simp",ny_sub_in_simp,0.);
+      opts.getScalarValue("nz_sub_in_simp",nz_sub_in_simp,0.);
   }
   //Sub_In_Simp2
   opts.getScalarValue("Sub_In_Simp2",Sub_In_Simp2,0);
@@ -252,6 +252,9 @@ void input::read_input_file(string fileName, int rank)
       {
         opts.getScalarValue("Mach_Sub_In_Simp2",Mach_Sub_In_Simp2);
         opts.getScalarValue("Rho_Sub_In_Simp2",Rho_Sub_In_Simp2);
+        opts.getScalarValue("nx_sub_in_simp2",nx_sub_in_simp2,1.);
+        opts.getScalarValue("ny_sub_in_simp2",ny_sub_in_simp2,0.);
+        opts.getScalarValue("nz_sub_in_simp2",nz_sub_in_simp2,0.);
       }
       else
       {
@@ -267,6 +270,9 @@ void input::read_input_file(string fileName, int rank)
       opts.getScalarValue("P_Total_Nozzle",P_Total_Nozzle,0.);
       opts.getScalarValue("T_Total_Nozzle",T_Total_Nozzle,0.);
       opts.getScalarValue("Pressure_Ramp",Pressure_Ramp,0);
+      opts.getScalarValue("nx_sub_in_char",nx_sub_in_char,1.);
+      opts.getScalarValue("ny_sub_in_char",ny_sub_in_char,0.);
+      opts.getScalarValue("nz_sub_in_char",nz_sub_in_char,0.);
   if (Pressure_Ramp)
    {
       opts.getScalarValue("P_Ramp_Coeff",P_Ramp_Coeff,0.);
@@ -287,6 +293,9 @@ void input::read_input_file(string fileName, int rank)
   {
       opts.getScalarValue("P_Sup_In",P_Sup_In);
       opts.getScalarValue("Mach_Sup_In",Mach_Sup_In);
+      opts.getScalarValue("nx_sup_in",nx_sup_in,1.);
+      opts.getScalarValue("ny_sup_in",ny_sup_in,0.);
+      opts.getScalarValue("nz_sup_in",nz_sup_in,0.);
   }
   //Sup_In2
   opts.getScalarValue("Sup_In2",Sup_In2,0);
@@ -296,6 +305,9 @@ void input::read_input_file(string fileName, int rank)
       {
         opts.getScalarValue("P_Sup_In2",P_Sup_In2);
         opts.getScalarValue("Mach_Sup_In2",Mach_Sup_In2);
+        opts.getScalarValue("nx_sup_in2",nx_sup_in2,1.);
+        opts.getScalarValue("ny_sup_in2",ny_sup_in2,0.);
+        opts.getScalarValue("nz_sup_in2",nz_sup_in2,0.);
       }
       else
       {
@@ -308,6 +320,9 @@ void input::read_input_file(string fileName, int rank)
   {
       opts.getScalarValue("P_Far_Field",P_Far_Field);
       opts.getScalarValue("Mach_Far_Field",Mach_Far_Field);
+      opts.getScalarValue("nx_far_field",nx_far_field,1.);
+      opts.getScalarValue("ny_far_field",ny_far_field,0.);
+      opts.getScalarValue("nz_far_field",nz_far_field,0.);
   }
 
   opts.getScalarValue("Mach_free_stream",Mach_free_stream,1.);
@@ -340,13 +355,15 @@ void input::read_input_file(string fileName, int rank)
   /* ---- Initial Conditions (use BC's by default) ---- */
 
   opts.getScalarValue("Mach_c_ic",Mach_c_ic);
-  opts.getScalarValue("nx_c_ic",nx_c_ic,nx_free_stream);
-  opts.getScalarValue("ny_c_ic",ny_c_ic,ny_free_stream);
-  opts.getScalarValue("nz_c_ic",nz_c_ic,nz_free_stream);
+  opts.getScalarValue("nx_c_ic",nx_c_ic,1.);
+  opts.getScalarValue("ny_c_ic",ny_c_ic,0.);
+  opts.getScalarValue("nz_c_ic",nz_c_ic,0.);
   //opts.getScalarValue("Re_c_ic",Re_c_ic,Re_free_stream);
   opts.getScalarValue("T_c_ic",T_c_ic,T_free_stream);
   opts.getScalarValue("rho_c_ic",rho_c_ic);
   if (ic_form==9)
+      opts.getScalarValue("x_lim_ic",x_lim_ic);
+  else if (ic_form==8)
       opts.getScalarValue("y_lim_ic",y_lim_ic);
 
   //Invis
@@ -525,11 +542,11 @@ void input::setup_params(int rank)
 
       // Compute the corresponding density from the definition of the Reynolds number
       // Re and the Re length are specified in the input file.
-      rho_ref = rho_c_ic; //for cases have no sub sonic or far field outlet, no Supersonic inlet
+      rho_ref = rho_c_ic; //for cases have no sub sonic or far field outlet
       if (Sup_In)
       {
         Rho_Sup_In = P_Sup_In/(R_gas*T_free_stream);
-        rho_ref = Rho_Sup_In;
+        //rho_ref = Rho_Sup_In;
       }
       if (Sup_In2)
       {
@@ -561,17 +578,17 @@ void input::setup_params(int rank)
       if(Sub_In_Simp)
       {
         rho_bound_Sub_In_Simp = Rho_Sub_In_Simp/rho_ref;
-        v_bound_Sub_In_Simp(0) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
-        v_bound_Sub_In_Simp(1) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
-        v_bound_Sub_In_Simp(2) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
+        v_bound_Sub_In_Simp(0) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_sub_in_simp;
+        v_bound_Sub_In_Simp(1) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_sub_in_simp;
+        v_bound_Sub_In_Simp(2) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_sub_in_simp;
       }
 
       if(Sub_In_Simp2)
       {
         rho_bound_Sub_In_Simp2 = Rho_Sub_In_Simp2/rho_ref;
-        v_bound_Sub_In_Simp2(0) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
-        v_bound_Sub_In_Simp2(1) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
-        v_bound_Sub_In_Simp2(2) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
+        v_bound_Sub_In_Simp2(0) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_sub_in_simp2;
+        v_bound_Sub_In_Simp2(1) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_sub_in_simp2;
+        v_bound_Sub_In_Simp2(2) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_sub_in_simp2;
       }
 
       if(Sub_In_char)
@@ -595,18 +612,18 @@ void input::setup_params(int rank)
       {
             rho_bound_Sup_In=Rho_Sup_In/rho_ref;
             p_bound_Sup_In=P_Sup_In/p_ref;
-            v_bound_Sup_In(0)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
-            v_bound_Sup_In(1)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
-            v_bound_Sup_In(2)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
+            v_bound_Sup_In(0)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_sup_in;
+            v_bound_Sup_In(1)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_sup_in;
+            v_bound_Sup_In(2)=Mach_Sup_In*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_sup_in;
       }
 
           if (Sup_In2)
       {
             rho_bound_Sup_In2=Rho_Sup_In2/rho_ref;
             p_bound_Sup_In2=P_Sup_In2/p_ref;
-            v_bound_Sup_In2(0)=Mach_Sup_In2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
-            v_bound_Sup_In2(1)=Mach_Sup_In2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
-            v_bound_Sup_In2(2)=Mach_Sup_In2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
+            v_bound_Sup_In2(0)=Mach_Sup_In2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_sup_in2;
+            v_bound_Sup_In2(1)=Mach_Sup_In2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_sup_in2;
+            v_bound_Sup_In2(2)=Mach_Sup_In2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_sup_in2;
       }
 
      if (Far_Field)
@@ -614,9 +631,9 @@ void input::setup_params(int rank)
          rho_bound_Far_Field=Rho_Far_Field/rho_ref;
          p_bound_Far_Field=P_Far_Field/p_ref;
          p_bound = p_bound_Far_Field;
-         v_bound_Far_Field(0)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_free_stream;
-         v_bound_Far_Field(1)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_free_stream;
-         v_bound_Far_Field(2)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_free_stream;
+         v_bound_Far_Field(0)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_far_field;
+         v_bound_Far_Field(1)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_far_field;
+         v_bound_Far_Field(2)=Mach_Far_Field*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_far_field;
      }
 
       // Set up the dimensionless conditions @ moving boundaries

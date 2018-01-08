@@ -4974,7 +4974,7 @@ void eles::set_transforms(void)
           loc(k)=tloc_fpts(k,j);
         }
 
-        calc_pos_upts(j,i,pos);
+        calc_pos_fpts(j,i,pos);
 
         for(k=0;k<n_dims;k++)
         {

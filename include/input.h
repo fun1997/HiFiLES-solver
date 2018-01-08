@@ -220,20 +220,26 @@ public:
   double Mach_Sub_In_Simp;
   double Rho_Sub_In_Simp;
   double rho_bound_Sub_In_Simp;
+  double nx_sub_in_simp;
+  double ny_sub_in_simp;
+  double nz_sub_in_simp;
 //Sub_In_Simp2
   int Sub_In_Simp2;
   double Mach_Sub_In_Simp2;
   double Rho_Sub_In_Simp2;
   double rho_bound_Sub_In_Simp2;
+  double nx_sub_in_simp2;
+  double ny_sub_in_simp2;
+  double nz_sub_in_simp2;
 //Sub_In_Char
   int Sub_In_char;
   double P_Total_Nozzle;
   double T_Total_Nozzle;
   double p_total_bound;
   double T_total_bound;
-  double nx_free_stream;
-  double ny_free_stream;
-  double nz_free_stream;
+  double nx_sub_in_char;
+  double ny_sub_in_char;
+  double nz_sub_in_char;
   //double P_Free_Nozzle;
   int Pressure_Ramp;
   double P_Ramp_Coeff;
@@ -254,6 +260,9 @@ public:
   double Mach_Sup_In;
   double rho_bound_Sup_In;
   double p_bound_Sup_In;
+  double nx_sup_in;
+  double ny_sup_in;
+  double nz_sup_in;
 //Sup_In2
   int Sup_In2;
   double Rho_Sup_In2;
@@ -261,6 +270,9 @@ public:
   double Mach_Sup_In2;
   double rho_bound_Sup_In2;
   double p_bound_Sup_In2;
+  double nx_sup_in2;
+  double ny_sup_in2;
+  double nz_sup_in2;
 //Far_Field
   int Far_Field;
   double Rho_Far_Field;
@@ -268,6 +280,9 @@ public:
   double Mach_Far_Field;
   double rho_bound_Far_Field;
   double p_bound_Far_Field;
+  double nx_far_field;
+  double ny_far_field;
+  double nz_far_field;
 
   double Mach_free_stream;
   //double Re_free_stream;
@@ -313,6 +328,7 @@ public:
   double v_c_ic;
   double w_c_ic;
   double mu_c_ic;
+  double x_lim_ic;
   double y_lim_ic;
 
   // SA turblence model parameters

@@ -80,9 +80,6 @@ void bdy_inters::set_bdy_params()
 {
   max_bdy_params=50;
   bdy_params.setup(max_bdy_params);
-  bdy_params(11) = run_input.nx_free_stream;
-  bdy_params(12) = run_input.ny_free_stream;
-  bdy_params(13) = run_input.nz_free_stream;
   bdy_params(4) = run_input.p_bound;
   if(!viscous)
   {
@@ -102,6 +99,9 @@ void bdy_inters::set_bdy_params()
   // Boundary parameters for Characteristic Subsonic Inflow
   if (run_input.Sub_In_char)
   {
+          bdy_params(11) = run_input.nx_sub_in_char;
+          bdy_params(12) = run_input.ny_sub_in_char;
+          bdy_params(13) = run_input.nz_sub_in_char;
       if (viscous)
       {
           bdy_params(9) = run_input.p_total_bound;
