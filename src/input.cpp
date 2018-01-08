@@ -92,7 +92,10 @@ void input::read_input_file(string fileName, int rank)
 
   v_bound.setup(3);
   v_bound_Sub_In_Simp.setup(3);
+  v_bound_Sub_In_Simp2.setup(3);
   v_bound_Sup_In.setup(3);
+  v_bound_Sup_In2.setup(3);
+  v_bound_Sup_In3.setup(3);
   v_bound_Far_Field.setup(3);
   wave_speed.setup(3);
   v_wall.setup(3);
@@ -314,6 +317,23 @@ void input::read_input_file(string fileName, int rank)
         FatalError("Sup_In has to be set");
       }
   }
+  //Sup_In3
+  opts.getScalarValue("Sup_In3",Sup_In3,0);
+  if (Sup_In3)
+  {
+      if (Sup_In&&Sup_In2)
+      {
+        opts.getScalarValue("P_Sup_In3",P_Sup_In3);
+        opts.getScalarValue("Mach_Sup_In3",Mach_Sup_In3);
+        opts.getScalarValue("nx_sup_in3",nx_sup_in3,1.);
+        opts.getScalarValue("ny_sup_in3",ny_sup_in3,0.);
+        opts.getScalarValue("nz_sup_in3",nz_sup_in3,0.);
+      }
+      else
+      {
+        FatalError("Sup_In and Sup_In2 has to be set");
+      }
+  }
 //Far_Field
   opts.getScalarValue("Far_Field",Far_Field,0);
   if (Far_Field)
@@ -361,9 +381,9 @@ void input::read_input_file(string fileName, int rank)
   //opts.getScalarValue("Re_c_ic",Re_c_ic,Re_free_stream);
   opts.getScalarValue("T_c_ic",T_c_ic,T_free_stream);
   opts.getScalarValue("rho_c_ic",rho_c_ic);
-  if (ic_form==9)
+  if (ic_form==8)//shock tube
       opts.getScalarValue("x_lim_ic",x_lim_ic);
-  else if (ic_form==8)
+  else if (ic_form==9)//split shear
       opts.getScalarValue("y_lim_ic",y_lim_ic);
 
   //Invis
@@ -466,7 +486,7 @@ void input::setup_params(int rank)
   // --------------------
 
   if (monitor_res_freq == 0) monitor_res_freq = 1000;
-  if (monitor_cp_freq == 0) monitor_cp_freq = INFINITY;
+  if (monitor_cp_freq == 0) monitor_cp_freq = 1000;
   //if (monitor_integrals_freq == 0) monitor_integrals_freq = INFINITY; //corresponding condition change to whether there's any testcases or integral quantities
 
   if (!mesh_file.compare(mesh_file.size()-3,3,"neu"))
@@ -506,7 +526,7 @@ void input::setup_params(int rank)
 
     // If we have chosen an isentropic vortex case as the initial condition
 
-    if(ic_form == 0 || artif_only || ic_form == 8)   {
+    if(ic_form == 0 || artif_only || ic_form == 7)   {
 
       fix_vis  = 1.;
       R_ref     = 1.;
@@ -521,13 +541,9 @@ void input::setup_params(int rank)
       T_ref = T_free_stream;
       L_ref = L_free_stream;
 
-      // Compute the freestream velocity from the Mach number and direction
+      // Compute the reference velocity from the "freestream Mach number"
 
       uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream); //set to Mach 1
-
-      //u_free_stream   = uvw_ref*nx_free_stream;
-      //v_free_stream   = uvw_ref*ny_free_stream;
-      //w_free_stream   = uvw_ref*nz_free_stream;
 
       // Set either a fixed value for the viscosity or a value from Sutherland's law
 
@@ -546,11 +562,14 @@ void input::setup_params(int rank)
       if (Sup_In)
       {
         Rho_Sup_In = P_Sup_In/(R_gas*T_free_stream);
-        //rho_ref = Rho_Sup_In;
       }
       if (Sup_In2)
       {
           Rho_Sup_In2 = P_Sup_In2/(R_gas*T_free_stream);
+      }
+      if (Sup_In3)
+      {
+          Rho_Sup_In3=P_Sup_In3/(R_gas*T_free_stream);
       }
       if (Far_Field)
       {
@@ -626,6 +645,14 @@ void input::setup_params(int rank)
             v_bound_Sup_In2(2)=Mach_Sup_In2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_sup_in2;
       }
 
+          if (Sup_In3)
+      {
+            rho_bound_Sup_In3=Rho_Sup_In3/rho_ref;
+            p_bound_Sup_In3=P_Sup_In3/p_ref;
+            v_bound_Sup_In3(0)=Mach_Sup_In3*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_sup_in3;
+            v_bound_Sup_In3(1)=Mach_Sup_In3*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_sup_in3;
+            v_bound_Sup_In3(2)=Mach_Sup_In3*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_sup_in3;
+      }
      if (Far_Field)
      {
          rho_bound_Far_Field=Rho_Far_Field/rho_ref;
@@ -692,7 +719,7 @@ void input::setup_params(int rank)
         cout << "v_c_ic=" << v_c_ic << endl;
         cout << "w_c_ic=" << w_c_ic << endl;
         cout << "mu_c_ic=" << mu_c_ic << endl;
-        cout << "Boundary Conditions: " << "Sub_In_Simp: " << Sub_In_Simp << Sub_In_Simp2 << " ; Sub_In_Char: " << Sub_In_char <<" ; Sub_Out: " << Sub_Out << " ; Sup_In: " << Sup_In << Sup_In2 << " ; Far_Field: " << Far_Field <<endl;
+        cout << "Boundary Conditions: " << "Sub_In_Simp: " << Sub_In_Simp << Sub_In_Simp2 << " ; Sub_In_Char: " << Sub_In_char <<" ; Sub_Out: " << Sub_Out << " ; Sup_In: " << Sup_In << Sup_In2 << Sup_In3 << " ; Far_Field: " << Far_Field <<endl;
         cout << "p_bound: " << p_bound <<endl;
         if(Pressure_Ramp)
         {

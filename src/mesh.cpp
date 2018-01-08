@@ -74,6 +74,7 @@ mesh::mesh(void)
   bc_name["Slip_Wall_Dual"] = 16;
   bc_name["Sub_In_Simp2"] = 17;
   bc_name["Sup_In2"] = 18;
+  bc_name["Sup_In3"] = 19;
   bc_name["AD_Wall"] = 50;
 
   bc_flag[1] = "Sub_In_Simp";
@@ -92,6 +93,7 @@ mesh::mesh(void)
   bc_flag[16]= "Slip_Wall_Dual";
   bc_flag[17]= "Sub_In_Simp2";
   bc_flag[18]= "Sup_In2";
+  bc_flag[19]= "Sup_In3";
   bc_flag[50]= "AD_Wall";
 }
 

@@ -179,6 +179,15 @@ void bdy_inters::set_bdy_params()
       bdy_params(41) = run_input.v_bound_Sup_In2(2);
       bdy_params(42) = run_input.p_bound_Sup_In2;
   }
+   //Boundary parameters for Supersonic Inflow2
+  if (run_input.Sup_In3)
+  {
+      bdy_params(43) = run_input.rho_bound_Sup_In3;
+      bdy_params(44) = run_input.v_bound_Sup_In3(0);
+      bdy_params(45) = run_input.v_bound_Sup_In3(1);
+      bdy_params(46) = run_input.v_bound_Sup_In3(2);
+      bdy_params(47) = run_input.p_bound_Sup_In3;
+  }
   // Boundary parameters for turbulence models
   if (run_input.turb_model == 1)
   {
@@ -501,6 +510,10 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
       double rho_bound_Sup_In2 = bdy_params[38];
       double* v_bound_Sup_In2 = &bdy_params[39];
       double p_bound_Sup_In2 = bdy_params[42];
+ //Boundary parameters for Supersonic Inflow3
+      double rho_bound_Sup_In3 = bdy_params[43];
+      double* v_bound_Sup_In3 = &bdy_params[44];
+      double p_bound_Sup_In3 = bdy_params[47];
   // Navier-Stokes Boundary Conditions
   if(equation==0)
     {
@@ -877,6 +890,33 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
 
           // fix pressure
             p_r = p_bound_Sup_In2;
+
+          // compute energy
+          v_sq = 0.;
+          for (int i=0; i<n_dims; i++)
+            v_sq += (v_r[i]*v_r[i]);
+          e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
+        }
+
+      // Supersonic inflow3
+      else if(bdy_type == 19)
+        {
+            if(!run_input.Sup_In3)
+                FatalError("No boundary Parameters given");
+                if(!viscous)
+                {
+                    rho_bound_Sup_In3=rho_bound;
+                    v_bound_Sup_In3=v_bound;
+                    p_bound_Sup_In3=p_bound;
+                }
+          // fix density and velocity
+            rho_r = rho_bound_Sup_In3;
+
+          for (int i=0; i<n_dims; i++)
+            v_r[i] = v_bound_Sup_In3[i];
+
+          // fix pressure
+            p_r = p_bound_Sup_In3;
 
           // compute energy
           v_sq = 0.;

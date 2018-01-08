@@ -451,12 +451,12 @@ void eles::set_ics(double& time)
     {
       for(k=0;k<n_dims;k++)
       {
-        loc(k)=loc_upts(k,j);
+        pos(k)=pos_upts(j,i,k);
       }
 
       // calculate position of solution point
 
-      calc_pos(loc,i,pos);
+      //calc_pos_upt(j,i,pos);
 
       // evaluate solution at solution point
       if(run_input.ic_form==0)
@@ -566,34 +566,33 @@ void eles::set_ics(double& time)
           ics(4)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));
         }
       }
-       else if(run_input.ic_form==9)//Reimann problem
+       else if(run_input.ic_form==9)//split initial condition by y initialized by two groups of inlet boundaries
       {
-        rho=run_input.rho_c_ic;
                 if(pos(1)>=run_input.y_lim_ic)
                 {
                     if(run_input.Sub_In_Simp)
-                    {
+                    {   rho=run_input.rho_bound_Sub_In_Simp;
                         vx=run_input.v_bound_Sub_In_Simp(0);
                         vy=run_input.v_bound_Sub_In_Simp(1);
                         vz=run_input.v_bound_Sub_In_Simp(2);
+                        p=run_input.p_c_ic;
                     }
 
                     else if(run_input.Sup_In)
                     {
+                        rho=run_input.rho_bound_Sup_In;
                         vx=run_input.v_bound_Sup_In(0);
                         vy=run_input.v_bound_Sup_In(1);
                         vz=run_input.v_bound_Sup_In(2);
+                        p=run_input.p_bound_Sup_In;
                     }
-
                     else
-                    {
-                        vx=run_input.u_c_ic;
-                        vy=run_input.v_c_ic;
-                        vz=run_input.w_c_ic;
-                    }
+                        FatalError("At least one simple inlet is needed!");
+
                 }
                 else
                 {
+                    rho=run_input.rho_c_ic;
                     vx=run_input.u_c_ic;
                     vy=run_input.v_c_ic;
                     vz=run_input.w_c_ic;
@@ -4863,10 +4862,10 @@ void eles::set_transforms(void)
       {
         // get coordinates of the solution point
 
-        for(k=0;k<n_dims;k++)
-        {
-          loc(k)=loc_upts(k,j);
-        }
+        //for(k=0;k<n_dims;k++)
+        //{
+          //loc(k)=loc_upts(k,j);
+        //}
 
         calc_pos_upts(j,i,pos);
 
@@ -4969,10 +4968,10 @@ void eles::set_transforms(void)
       {
         // get coordinates of the flux point
 
-        for(k=0;k<n_dims;k++)
-        {
-          loc(k)=tloc_fpts(k,j);
-        }
+        //for(k=0;k<n_dims;k++)
+        //{
+          //loc(k)=tloc_fpts(k,j);
+        //}
 
         calc_pos_fpts(j,i,pos);
 

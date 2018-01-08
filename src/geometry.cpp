@@ -140,6 +140,7 @@ int get_bc_number(string& bcname) {
   else if (!bcname.compare("slip_wall_dual")) bcflag = 16;// Dual consistent BC //
   else if (!bcname.compare("sub_in_simp2")) bcflag = 17;  // Second sub_in_simp BC //
   else if (!bcname.compare("sup_in2")) bcflag = 18;       // Second sup_in BC //
+  else if (!bcname.compare("sup_in3")) bcflag = 19;       // third sup_in BC //
   else if (!bcname.compare("ad_wall")) bcflag = 50;       // Advection, Advection-Diffusion Boundary Conditions //
   else
   {

@@ -157,6 +157,7 @@ public:
   array<double> v_bound_Sup_In;
   array<double> v_bound_Sub_In_Simp2;
   array<double> v_bound_Sup_In2;
+  array<double> v_bound_Sup_In3;
   array<double> v_bound_Far_Field;
   double p_bound;//inviscid
   int mesh_format;
@@ -273,6 +274,16 @@ public:
   double nx_sup_in2;
   double ny_sup_in2;
   double nz_sup_in2;
+  //Sup_In3
+  int Sup_In3;
+  double Rho_Sup_In3;
+  double P_Sup_In3;
+  double Mach_Sup_In3;
+  double rho_bound_Sup_In3;
+  double p_bound_Sup_In3;
+  double nx_sup_in3;
+  double ny_sup_in3;
+  double nz_sup_in3;
 //Far_Field
   int Far_Field;
   double Rho_Far_Field;

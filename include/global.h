@@ -61,6 +61,7 @@ enum BCFLAG {
   SLIP_WALL_DUAL= 16,
   SUB_IN_SIMP2  = 17,
   SUP_IN2       = 18,
+  SUP_IN3       = 19,
   AD_WALL       = 50
 };
 
