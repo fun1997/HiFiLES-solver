@@ -559,11 +559,11 @@ void eles::set_ics(double& time)
         else if(n_dims==3)
         {
           // ONERA benchmark setup
-          p = 100 + rho/16.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)))*(cos(2.0*pos(2)) + 2.0);
-          ics(1) = sin(pos(0))*cos(pos(1))*cos(pos(2));
-          ics(2) = -1.0*cos(pos(0))*sin(pos(1))*cos(pos(2));
+          p = rho*1.*122.284283 + rho*1.30842652*1.30842652/16.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)))*(cos(2.0*pos(2)) + 2.0);
+          ics(1) = 1.30842652*rho*sin(pos(0))*cos(pos(1))*cos(pos(2));//rho*u
+          ics(2) = -1.30842652*rho*cos(pos(0))*sin(pos(1))*cos(pos(2));//rho*v
           ics(3) = 0.0;
-          ics(4)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));
+          ics(4)=p/(gamma-1.0)+0.5/rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));
         }
       }
        else if(run_input.ic_form==9)//split initial condition by y initialized by two groups of inlet boundaries

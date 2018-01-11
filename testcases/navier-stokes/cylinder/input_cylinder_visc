@@ -11,9 +11,10 @@ vis_riemann_solve_type  0
 ic_form   1           // 0: Isentropic Vortex, 1: Uniform flow, 2: Sine Wave
 test_case 0           // 0: Normal (doesn't have an analytical solution), 1:Isentropic Vortex, 2: Advection-Equation
 order     3           // Order of basis polynomials
-dt_type   0           // 0: User-supplied, 1: Global, 2: Local
+dt_type   1           // 0: User-supplied, 1: Global, 2: Local
+CFL 0.5
 dt        0.0001
-n_steps   100
+n_steps   10000
 adv_type  0           // 0: Forward Euler, 3: RK45
 tau       1.0
 pen_fact  0.5
@@ -30,7 +31,7 @@ p_res        4            // Plotting resolution, # of nodes per direction
 write_type   0            // 0: Paraview, 1: Tecplot
 inters_cub_order   6      // Order of cubature rule for integrating over element interfaces
 volume_cub_order   6      // Order of cubature rule for integrating over element volumes
-plot_freq          1000
+plot_freq          100
 data_file_name     viscCyl
 restart_dump_freq  10000
 monitor_res_freq   1
@@ -90,23 +91,13 @@ Boundary conditions
 -----------------------------------
 ==== Viscous ====
 fix_vis           0                   // 0: Sutherland's law, 1: Constant viscosity
-Mach_free_stream  0.2
-nx_free_stream    1.
-ny_free_stream    0.
-nz_free_stream    0.
-Re_free_stream    20.
-L_free_stream     1.
-T_free_stream     300 
-T_wall            300
-Mach_wall         0.
-nx_wall           1.
-ny_wall           0.
-nz_wall           0.
-T_wall            300
+Sub_In_Simp         1
+Mach_Sub_In_Simp    0.1
+Rho_Sub_In_Simp        1.17723946
 
-==== Inviscid ====
-rho_bound         1.
-u_bound           1.0
-v_bound           0.0
-w_bound           0.0
-p_bound           17.857142857142854098
+Sub_Out 1
+P_Sub_Out 101325.
+T_total_Sub_Out 300.
+Mach_c_ic 0.1
+T_c_ic 300.
+rho_c_ic    1.17723946

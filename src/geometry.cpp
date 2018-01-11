@@ -83,7 +83,7 @@ void SetInput(struct solution* FlowSol) {
   /*! Get MPI rank and nproc. */
   MPI_Comm_rank(MPI_COMM_WORLD,&FlowSol->rank);
   MPI_Comm_size(MPI_COMM_WORLD,&FlowSol->nproc);
-  cout << "my_rank=" << FlowSol->rank << endl;
+  //cout << "my_rank=" << FlowSol->rank << endl;
 
 #ifdef _GPU
 

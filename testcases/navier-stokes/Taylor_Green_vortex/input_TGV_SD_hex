@@ -11,15 +11,23 @@ vis_riemann_solve_type   0
 
 ic_form    7        // 0: Isentropic Vortex, 1: Uniform flow, 2: Sine Wave
 test_case  0        // 0: Normal (no analytical solution), 1:Isentropic Vortex, 2: Advection-Equation
-order      3        // Order of basis polynomials
+order      1        // Order of basis polynomials
 dt_type    0        // 0: User-supplied, 1: Global, 2: Local
-dt         0.001
-CFL        0.001
+dt         1e-10
 n_steps    25
 adv_type   3        // 0: Forward Euler, 3: RK45
-tau        1.0
+tau        0.0
 pen_fact   0.5
 
+-----------------------
+Large Eddy
+----------------------
+LES 1
+filter_type 0
+filter_ratio 2.
+SGS_model 0
+wall_model 0
+wall_layer_thickness 3
 -----------------------
 Restart options
 -----------------------
@@ -38,7 +46,7 @@ Monitoring, plotting parameters
 -----------------------------------
 p_res        3            // Plotting resolution, # of nodes per direction
 write_type   0            // 0: Paraview, 1: Tecplot
-diagnostic_fields  2 vorticity q_criterion
+diagnostic_fields  4 vorticity q_criterion pressure Mach
 inters_cub_order   4             // Order of cubature rule for integrating over element interfaces
 volume_cub_order   4             // Order of cubature rule for integrating over element volumes
 
@@ -50,7 +58,7 @@ res_norm_type      1              // 1:L1 norm, 2:L2 norm, 0:infinity norm <not 
 error_norm_type    1              // 1:L1 norm, 2:L2 norm, 0:infinity norm <not implemented>
 res_norm_field     0              // Density
 
-integral_quantities  2 kineticenergy vorticity
+//integral_quantities  2 kineticenergy vorticity
 
 ---------------------------
 Element parameters
@@ -64,7 +72,7 @@ sparse_tri         0
 
 ==== Quads ====
 upts_type_quad     0    // 0: Gauss, 1: Gauss-Lobatto
-vcjh_scheme_quad   0    // 0: VCJH, 1: DG, 2: SD, 3: Hu, 4: c_+
+vcjh_scheme_quad   1    // 0: VCJH, 1: DG, 2: SD, 3: Hu, 4: c_+
 eta_quad           0.0
 sparse_quad        0
 
@@ -112,9 +120,11 @@ L_free_stream     1.
 T_free_stream     300 
 T_wall            300
 
-==== Inviscid ====
-rho_bound         1.
-u_bound           1.0
-v_bound           0.0
-w_bound           0.0
-p_bound           17.857142857142854098
+rho_c_ic          0.00105263698
+Mach_c_ic         0.08
+T_c_ic            300.
+nx_c_ic           0.
+ny_c_ic           0.
+nz_c_ic           0.
+
+

@@ -17,7 +17,7 @@ test_case  0
 order      3          // Order of basis polynomials
 dt_type    1          // 0: User-supplied, 1: Global, 2: Local
 dt         0.0001
-CFL        3.5
+CFL        0.35
 n_steps    10000
 adv_type   3          // 0: Forward Euler, 3: RK45
 tau        1.0
@@ -32,11 +32,11 @@ mesh_file  cylinder_2ndorder_tri_vis.neu
 Monitoring, plotting parameters
 -----------------------------------
 p_res        6            // Plotting resolution, # of nodes per direction
-write_type   1            // 0: Paraview, 1: Tecplot
+write_type   0            // 0: Paraview, 1: Tecplot
 volume_cub_order   12     // Order of cubature rule for integrating over element volumes
 
 monitor_res_freq   100
-plot_freq          1000
+plot_freq          100
 data_file_name     invCyl
 restart_dump_freq  100000
 res_norm_type      1     // 1:L1 norm, 2:L2 norm, 0:infinity norm <not implemented>
@@ -93,24 +93,17 @@ mu_gas        1.827E-05
 Boundary conditions
 -----------------------------------
 ==== Viscous ====
-fix_vis           0                   // 0: Sutherland's law, 1: Constant viscosity
-Mach_free_stream  0.2
-nx_free_stream    1.
-ny_free_stream    0.
-nz_free_stream    0.
-Re_free_stream    100.
-L_free_stream     1.
-T_free_stream     300 
-T_wall            300
-Mach_wall         0.
-nx_wall           1.
-ny_wall           0.
-nz_wall           0.
-T_wall            300
+fix_vis           1                   // 0: Sutherland's law, 1: Constant viscosity
 
+Far_Field         1
+P_Far_Field       101325.
+Mach_Far_Field    0.1
+T_far_field       300
+nx_far_field      1   
+ny_far_field      0
 ==== Inviscid ====
-rho_bound         1.
-u_bound           1.0
-v_bound           1.0
-w_bound           0.0
-p_bound           17.857142857142854098
+rho_c_ic         1.17723946
+u_c_ic           34.7128218
+v_c_ic           0.0
+w_c_ic           0.0
+p_c_ic           101325.
