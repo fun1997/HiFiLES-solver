@@ -46,7 +46,7 @@ Monitoring, plotting parameters
 -----------------------------------
 p_res        3            // Plotting resolution, # of nodes per direction
 write_type   0            // 0: Paraview, 1: Tecplot
-diagnostic_fields  4 vorticity q_criterion pressure Mach
+diagnostic_fields  4 vorticity q_criterion pressure mach
 inters_cub_order   4             // Order of cubature rule for integrating over element interfaces
 volume_cub_order   4             // Order of cubature rule for integrating over element volumes
 
@@ -58,7 +58,7 @@ res_norm_type      1              // 1:L1 norm, 2:L2 norm, 0:infinity norm <not 
 error_norm_type    1              // 1:L1 norm, 2:L2 norm, 0:infinity norm <not implemented>
 res_norm_field     0              // Density
 
-//integral_quantities  2 kineticenergy vorticity
+integral_quantities  2 kineticenergy vorticity
 
 ---------------------------
 Element parameters
@@ -111,20 +111,15 @@ Boundary conditions
 -----------------------------------
 ==== Viscous ====
 fix_vis           1                   // 0: Sutherland's law, 1: Constant viscosity
-Mach_free_stream  0.08
-nx_free_stream    0.
-ny_free_stream    0.
-nz_free_stream    0.
-Re_free_stream    1600.
+Mach_free_stream  0.1
+rho_free_stream   0.000842110115
+//Re_free_stream    1600.
 L_free_stream     1.
-T_free_stream     300 
+T_free_stream     300. 
 T_wall            300
 
-rho_c_ic          0.00105263698
-Mach_c_ic         0.08
+rho_c_ic          0.000842110115
+Mach_c_ic         0.1
 T_c_ic            300.
-nx_c_ic           0.
-ny_c_ic           0.
-nz_c_ic           0.
 
 

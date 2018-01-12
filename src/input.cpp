@@ -394,10 +394,10 @@ void input::read_input_file(string fileName, int rank)
     }
     opts.getScalarValue("rho_c_ic",rho_c_ic);
 
-    if (ic_form==8)//shock tube
-        opts.getScalarValue("x_lim_ic",x_lim_ic);
-    else if (ic_form==9)//split shear
+    if (ic_form==9)//split shear
         opts.getScalarValue("y_lim_ic",y_lim_ic);
+    else if (ic_form==10)//shock tube
+        opts.getScalarValue("x_lim_ic",x_lim_ic);
 
     /* ---- Shock Capturing / Filtering ---- */
 

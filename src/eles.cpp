@@ -551,19 +551,19 @@ void eles::set_ics(double& time)
         if(n_dims==2)
         {
           // Simple 2D div-free vortex
-          p = 100 + rho/16.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)))*(cos(2.0*pos(2)) + 2.0);
-          ics(1) = sin(pos(0)/2.)*cos(pos(1)/2.);
-          ics(2) = -1.0*cos(pos(0)/2.)*sin(pos(1)/2.);
-          ics(3)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2));
+          p = run_input.p_c_ic + rho/16.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)))*(cos(2.0*pos(2)) + 2.0);
+          ics(1) = rho*sin(pos(0)/2.)*cos(pos(1)/2.);//rho*u
+          ics(2) = -1.0*rho*cos(pos(0)/2.)*sin(pos(1)/2.);//rho*v
+          ics(3)=p/(gamma-1.0)+0.5/rho*(ics(1)*ics(1)+ics(2)*ics(2));//e
         }
         else if(n_dims==3)
         {
           // ONERA benchmark setup
-          p = rho*1.*122.284283 + rho*1.30842652*1.30842652/16.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)))*(cos(2.0*pos(2)) + 2.0);
-          ics(1) = 1.30842652*rho*sin(pos(0))*cos(pos(1))*cos(pos(2));//rho*u
-          ics(2) = -1.30842652*rho*cos(pos(0))*sin(pos(1))*cos(pos(2));//rho*v
+          p = run_input.p_c_ic + rho/16.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)))*(cos(2.0*pos(2)) + 2.0);
+          ics(1) = rho*sin(pos(0))*cos(pos(1))*cos(pos(2));//rho*u
+          ics(2) = -1.0*rho*cos(pos(0))*sin(pos(1))*cos(pos(2));//rho*v
           ics(3) = 0.0;
-          ics(4)=p/(gamma-1.0)+0.5/rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));
+          ics(4)=p/(gamma-1.0)+0.5/rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));//e
         }
       }
        else if(run_input.ic_form==9)//split initial condition by y initialized by two groups of inlet boundaries
@@ -620,6 +620,46 @@ void eles::set_ics(double& time)
           }
         }
 
+        else
+        {
+          cout << "ERROR: Invalid number of dimensions ... " << endl;
+        }
+      }
+      else if (run_input.ic_form==10) //shock tube initial condition
+      {
+        vx=0.;
+        vy=0.;
+        vz=0.;
+        if (pos(0)<=run_input.x_lim_ic)
+        {
+            p=100000./run_input.p_ref;
+            rho=1.0/run_input.rho_ref;
+        }
+        else
+        {
+            p=10000./run_input.p_ref;
+            rho=0.125/run_input.rho_ref;
+        }
+        ics(0)=rho;
+        ics(1)=rho*vx;
+        ics(2)=rho*vy;
+        if(n_dims==2)
+        {
+          ics(3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
+
+          if (run_input.turb_model==1) {
+            ics(4) = run_input.mu_tilde_c_ic;
+          }
+        }
+        else if(n_dims==3)
+        {
+          ics(3)=rho*vz;
+          ics(4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
+
+          if(run_input.turb_model==1) {
+            ics(5) = run_input.mu_tilde_c_ic;
+          }
+        }
         else
         {
           cout << "ERROR: Invalid number of dimensions ... " << endl;
