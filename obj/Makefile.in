@@ -70,15 +70,16 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_____bin_HiFiLES_SOURCES_DIST = ../src/global.cpp ../src/input.cpp \
-	../src/flux.cpp ../src/source.cpp ../src/cubature_tet.cpp \
-	../src/cubature_hexa.cpp ../src/cubature_quad.cpp \
-	../src/cubature_tri.cpp ../src/cubature_1d.cpp \
-	../src/funcs.cpp ../src/inters.cpp ../src/bdy_inters.cpp \
-	../src/int_inters.cpp ../src/eles.cpp ../src/eles_tris.cpp \
-	../src/eles_quads.cpp ../src/eles_tets.cpp \
-	../src/eles_hexas.cpp ../src/eles_pris.cpp ../src/output.cpp \
-	../src/geometry.cpp ../src/solver.cpp ../src/mesh.cpp \
-	../src/matrix_structure.cpp ../src/vector_structure.cpp \
+	../src/probe_input.cpp ../src/flux.cpp ../src/source.cpp \
+	../src/cubature_tet.cpp ../src/cubature_hexa.cpp \
+	../src/cubature_quad.cpp ../src/cubature_tri.cpp \
+	../src/cubature_1d.cpp ../src/funcs.cpp ../src/inters.cpp \
+	../src/bdy_inters.cpp ../src/int_inters.cpp ../src/eles.cpp \
+	../src/eles_tris.cpp ../src/eles_quads.cpp \
+	../src/eles_tets.cpp ../src/eles_hexas.cpp \
+	../src/eles_pris.cpp ../src/output.cpp ../src/geometry.cpp \
+	../src/solver.cpp ../src/mesh.cpp ../src/matrix_structure.cpp \
+	../src/vector_structure.cpp \
 	../src/linear_solvers_structure.cpp ../src/HiFiLES.cpp \
 	../src/cuda_kernels.cu ../src/mpi_inters.cpp
 am__dirstamp = $(am__leading_dot)dirstamp
@@ -87,6 +88,7 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @BUILD_MPI_TRUE@	../src/___bin_HiFiLES-mpi_inters.$(OBJEXT)
 am____bin_HiFiLES_OBJECTS = ../src/___bin_HiFiLES-global.$(OBJEXT) \
 	../src/___bin_HiFiLES-input.$(OBJEXT) \
+	../src/___bin_HiFiLES-probe_input.$(OBJEXT) \
 	../src/___bin_HiFiLES-flux.$(OBJEXT) \
 	../src/___bin_HiFiLES-source.$(OBJEXT) \
 	../src/___bin_HiFiLES-cubature_tet.$(OBJEXT) \
@@ -288,6 +290,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -337,15 +340,16 @@ ___bin_HiFiLES_LDFLAGS = @CUDA_LDFLAGS@ @BLAS_LDFLAGS@
 # NOTE: '___bin_' is due to AM substituting the non-variable-name-friendly 
 # characters in the given expression above with an underscore
 ___bin_HiFiLES_SOURCES = ../src/global.cpp ../src/input.cpp \
-	../src/flux.cpp ../src/source.cpp ../src/cubature_tet.cpp \
-	../src/cubature_hexa.cpp ../src/cubature_quad.cpp \
-	../src/cubature_tri.cpp ../src/cubature_1d.cpp \
-	../src/funcs.cpp ../src/inters.cpp ../src/bdy_inters.cpp \
-	../src/int_inters.cpp ../src/eles.cpp ../src/eles_tris.cpp \
-	../src/eles_quads.cpp ../src/eles_tets.cpp \
-	../src/eles_hexas.cpp ../src/eles_pris.cpp ../src/output.cpp \
-	../src/geometry.cpp ../src/solver.cpp ../src/mesh.cpp \
-	../src/matrix_structure.cpp ../src/vector_structure.cpp \
+	../src/probe_input.cpp ../src/flux.cpp ../src/source.cpp \
+	../src/cubature_tet.cpp ../src/cubature_hexa.cpp \
+	../src/cubature_quad.cpp ../src/cubature_tri.cpp \
+	../src/cubature_1d.cpp ../src/funcs.cpp ../src/inters.cpp \
+	../src/bdy_inters.cpp ../src/int_inters.cpp ../src/eles.cpp \
+	../src/eles_tris.cpp ../src/eles_quads.cpp \
+	../src/eles_tets.cpp ../src/eles_hexas.cpp \
+	../src/eles_pris.cpp ../src/output.cpp ../src/geometry.cpp \
+	../src/solver.cpp ../src/mesh.cpp ../src/matrix_structure.cpp \
+	../src/vector_structure.cpp \
 	../src/linear_solvers_structure.cpp ../src/HiFiLES.cpp \
 	$(am__append_1) $(am__append_2)
 all: all-am
@@ -438,6 +442,8 @@ clean-binPROGRAMS:
 	../src/$(DEPDIR)/$(am__dirstamp)
 ../src/___bin_HiFiLES-input.$(OBJEXT): ../src/$(am__dirstamp) \
 	../src/$(DEPDIR)/$(am__dirstamp)
+../src/___bin_HiFiLES-probe_input.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
 ../src/___bin_HiFiLES-flux.$(OBJEXT): ../src/$(am__dirstamp) \
 	../src/$(DEPDIR)/$(am__dirstamp)
 ../src/___bin_HiFiLES-source.$(OBJEXT): ../src/$(am__dirstamp) \
@@ -526,6 +532,7 @@ mostlyclean-compile:
 	-rm -f ../src/___bin_HiFiLES-mesh.$(OBJEXT)
 	-rm -f ../src/___bin_HiFiLES-mpi_inters.$(OBJEXT)
 	-rm -f ../src/___bin_HiFiLES-output.$(OBJEXT)
+	-rm -f ../src/___bin_HiFiLES-probe_input.$(OBJEXT)
 	-rm -f ../src/___bin_HiFiLES-solver.$(OBJEXT)
 	-rm -f ../src/___bin_HiFiLES-source.$(OBJEXT)
 	-rm -f ../src/___bin_HiFiLES-vector_structure.$(OBJEXT)
@@ -559,6 +566,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-mesh.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-mpi_inters.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-output.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-probe_input.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-solver.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-source.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-vector_structure.Po@am__quote@
@@ -614,6 +622,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/input.cpp' object='../src/___bin_HiFiLES-input.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -c -o ../src/___bin_HiFiLES-input.obj `if test -f '../src/input.cpp'; then $(CYGPATH_W) '../src/input.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/input.cpp'; fi`
+
+../src/___bin_HiFiLES-probe_input.o: ../src/probe_input.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -MT ../src/___bin_HiFiLES-probe_input.o -MD -MP -MF ../src/$(DEPDIR)/___bin_HiFiLES-probe_input.Tpo -c -o ../src/___bin_HiFiLES-probe_input.o `test -f '../src/probe_input.cpp' || echo '$(srcdir)/'`../src/probe_input.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/$(DEPDIR)/___bin_HiFiLES-probe_input.Tpo ../src/$(DEPDIR)/___bin_HiFiLES-probe_input.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/probe_input.cpp' object='../src/___bin_HiFiLES-probe_input.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -c -o ../src/___bin_HiFiLES-probe_input.o `test -f '../src/probe_input.cpp' || echo '$(srcdir)/'`../src/probe_input.cpp
+
+../src/___bin_HiFiLES-probe_input.obj: ../src/probe_input.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -MT ../src/___bin_HiFiLES-probe_input.obj -MD -MP -MF ../src/$(DEPDIR)/___bin_HiFiLES-probe_input.Tpo -c -o ../src/___bin_HiFiLES-probe_input.obj `if test -f '../src/probe_input.cpp'; then $(CYGPATH_W) '../src/probe_input.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/probe_input.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/$(DEPDIR)/___bin_HiFiLES-probe_input.Tpo ../src/$(DEPDIR)/___bin_HiFiLES-probe_input.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/probe_input.cpp' object='../src/___bin_HiFiLES-probe_input.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -c -o ../src/___bin_HiFiLES-probe_input.obj `if test -f '../src/probe_input.cpp'; then $(CYGPATH_W) '../src/probe_input.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/probe_input.cpp'; fi`
 
 ../src/___bin_HiFiLES-flux.o: ../src/flux.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -MT ../src/___bin_HiFiLES-flux.o -MD -MP -MF ../src/$(DEPDIR)/___bin_HiFiLES-flux.Tpo -c -o ../src/___bin_HiFiLES-flux.o `test -f '../src/flux.cpp' || echo '$(srcdir)/'`../src/flux.cpp
