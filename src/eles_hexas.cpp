@@ -84,7 +84,7 @@ void eles_hexas::setup_ele_type_specific()
     n_fields++;
 
   n_inters_per_ele=6;
-
+  length.setup(12);
   n_upts_per_ele=(order+1)*(order+1)*(order+1);
   upts_type=run_input.upts_type_hexa;
   set_loc_1d_upts();
@@ -1395,5 +1395,23 @@ double eles_hexas::calc_ele_vol(double& detjac)
 /*! Calculate element reference length for timestep calculation */
 double eles_hexas::calc_h_ref_specific(int in_ele)
   {
-    FatalError("Reference length calculation not implemented for this element!")
+    double out_h_ref;
+
+    // Compute edge lengths (bottom to top, Counter-clockwise)
+    length(0) = sqrt(pow(shape(0,0,in_ele) - shape(0,1,in_ele),2.0) + pow(shape(1,0,in_ele) - shape(1,1,in_ele),2.0));
+    length(1) = sqrt(pow(shape(0,1,in_ele) - shape(0,3,in_ele),2.0) + pow(shape(1,1,in_ele) - shape(1,3,in_ele),2.0));
+    length(2) = sqrt(pow(shape(0,3,in_ele) - shape(0,2,in_ele),2.0) + pow(shape(1,3,in_ele) - shape(1,2,in_ele),2.0));
+    length(3) = sqrt(pow(shape(0,2,in_ele) - shape(0,0,in_ele),2.0) + pow(shape(1,2,in_ele) - shape(1,0,in_ele),2.0));
+    length(4) = sqrt(pow(shape(0,4,in_ele) - shape(0,5,in_ele),2.0) + pow(shape(1,4,in_ele) - shape(1,5,in_ele),2.0));
+    length(5) = sqrt(pow(shape(0,5,in_ele) - shape(0,7,in_ele),2.0) + pow(shape(1,5,in_ele) - shape(1,7,in_ele),2.0));
+    length(6) = sqrt(pow(shape(0,7,in_ele) - shape(0,6,in_ele),2.0) + pow(shape(1,7,in_ele) - shape(1,6,in_ele),2.0));
+    length(7) = sqrt(pow(shape(0,6,in_ele) - shape(0,4,in_ele),2.0) + pow(shape(1,6,in_ele) - shape(1,4,in_ele),2.0));
+    length(8) = sqrt(pow(shape(0,1,in_ele) - shape(0,5,in_ele),2.0) + pow(shape(1,1,in_ele) - shape(1,5,in_ele),2.0));
+    length(9) = sqrt(pow(shape(0,3,in_ele) - shape(0,7,in_ele),2.0) + pow(shape(1,3,in_ele) - shape(1,7,in_ele),2.0));
+    length(10) = sqrt(pow(shape(0,0,in_ele) - shape(0,4,in_ele),2.0) + pow(shape(1,0,in_ele) - shape(1,4,in_ele),2.0));
+    length(11) = sqrt(pow(shape(0,2,in_ele) - shape(0,6,in_ele),2.0) + pow(shape(1,2,in_ele) - shape(1,6,in_ele),2.0));
+    // Get minimum edge length
+    out_h_ref = length.get_min();
+
+    return out_h_ref;
   }

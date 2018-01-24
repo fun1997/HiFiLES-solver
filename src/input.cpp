@@ -404,7 +404,6 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("ArtifOn",ArtifOn,0);
     if (ArtifOn)
     {
-        opts.getScalarValue("artif_only",artif_only,0);
         opts.getScalarValue("artif_type",artif_type,1); //default: concentration method
         opts.getScalarValue("s0",s0);
         if(artif_type==1)
@@ -533,7 +532,7 @@ void input::setup_params(int rank)
 
         // If we have chosen an isentropic vortex case as the initial condition, set R_ref and mu_inf, and don't do non-dimensionalization
 
-        if(ic_form == 0 || artif_only || ic_form == 8)
+        if(ic_form == 0 || ic_form == 8)
         {
 
             fix_vis  = 1.;

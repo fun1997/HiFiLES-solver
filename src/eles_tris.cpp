@@ -825,7 +825,7 @@ double eles_tris::calc_h_ref_specific(int in_ele)
 
     // Compute diameter of incircle
     s = 0.5*(a+b+c);
-    out_h_ref = sqrt(((s-a)*(s-b)*(s-c))/s);
+    out_h_ref = 2*sqrt(((s-a)*(s-b)*(s-c))/s);
 
     return out_h_ref;
   }

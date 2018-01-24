@@ -1182,12 +1182,12 @@ void write_probe(struct solution* FlowSol)
                         write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
                     else FatalError("2 dimensional elements don't have z velocity");
                 }
-                else if (run_probe.probe_fields(j)== "energy")
+                else if (run_probe.probe_fields(j)== "energy")//rho*e
                 {
                     if(n_dims==2)
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
+                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3);
                     else
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(4)/disu_probe_point_temp(0);
+                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(4);
                 }
                 else if (run_probe.probe_fields(j)=="pressure")
                 {
