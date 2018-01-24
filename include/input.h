@@ -142,7 +142,7 @@ public:
     /* -------------------------------- */
 
     /* --- Shock Capturing options --- */
-    int artif_only, artif_type, ArtifOn;
+    int artif_type, ArtifOn;
     double s0;
     double con_fact,con_exp;
     /* -------------------------------- */
