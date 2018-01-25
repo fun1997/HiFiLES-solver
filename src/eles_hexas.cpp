@@ -1258,26 +1258,29 @@ double eles_hexas::exponential_filter(int in_mode, int in_basis_order)
             int mode;
 
             mode = 0;
-            for (l=0;l<3*in_basis_order+1;l++)//sum of x,y,z mode
-              {
-                for (k=0;k<l+1;k++)//k no more than sum
-                  {
-                      for (j=0;j<l-k+1;j++)//j no more than sum-k
+        for (l=0; l<3*in_basis_order+1; l++) //sum of x,y,z mode
+        {
+            for (k=0; k<l+1; k++) //k no more than sum
+            {
+                for (j=0; j<l-k+1; j++) //j no more than sum-k
+                {
                     i = l-k-j;//i+j+k=l
-                    if(i<=in_basis_order && j<=in_basis_order && k<=in_basis_order){
-
+                    if(i<=in_basis_order && j<=in_basis_order && k<=in_basis_order)
+                    {
                         if(mode==in_mode) // found the correct mode
-                          {
+                        {
                             eta = (double)(i+j+k)/n_dof;
                             sigma = exp(-run_input.con_fact*pow(eta,run_input.con_exp));
                             //cout<<"sigma values are "<<sigma<<endl;
-                          }
+                        }
 
                         mode++;
                     }
-                  }
-              }
-          }
+
+                }
+            }
+        }
+    }
         else
           {
             cout << "ERROR: Invalid mode when evaluating exponential filter ...." << endl;
