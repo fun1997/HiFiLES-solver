@@ -79,6 +79,9 @@ eles::~eles() {}
 
 // #### methods ####
 
+//initialize static variable of eles
+double eles::dt_globe = 1e12;
+
 // set number of elements
 
 void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
@@ -171,23 +174,9 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         }
 
         // Allocate storage for timestep
-        // If using global minimum, only one timestep
-        if (run_input.dt_type == 1)
-            dt_local.setup(1);
         // If using local, one timestep per element
-        else
+        if(run_input.dt_type == 2)
             dt_local.setup(n_eles);
-
-        // If in parallel and using global minumum timestep, allocate storage
-        // for minimum timesteps in each partition
-#ifdef _MPI
-        if (run_input.dt_type == 1)
-        {
-            MPI_Comm_size(MPI_COMM_WORLD,&nproc);
-            dt_local_mpi.setup(nproc);
-            dt_local_mpi.initialize_to_zero();
-        }
-#endif
 
         // Initialize to zero
         for (int m=0; m<n_adv_levels; m++)
@@ -574,7 +563,7 @@ void eles::set_ics(double& time)
                     p = run_input.p_c_ic + rho/16.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)))*(cos(2.0*pos(2)) + 2.0);
                     ics(1) = rho*sin(pos(0)/2.)*cos(pos(1)/2.);//rho*u
                     ics(2) = -1.0*rho*cos(pos(0)/2.)*sin(pos(1)/2.);//rho*v
-                    ics(3)=p/(gamma-1.0)+0.5/rho*(ics(1)*ics(1)+ics(2)*ics(2));//e
+                    ics(3)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2));//e
                 }
                 else if(n_dims==3)
                 {
@@ -583,7 +572,7 @@ void eles::set_ics(double& time)
                     ics(1) = rho*sin(pos(0))*cos(pos(1))*cos(pos(2));//rho*u
                     ics(2) = -1.0*rho*cos(pos(0))*sin(pos(1))*cos(pos(2));//rho*v
                     ics(3) = 0.0;
-                    ics(4)=p/(gamma-1.0)+0.5/rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));//e
+                    ics(4)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));//e
                 }
             }
             else if(run_input.ic_form==9)//split initial condition by y initialized by two groups of inlet boundaries
@@ -1178,35 +1167,7 @@ void eles::AdvanceSolution(int in_step, int adv_type)
              A = div_tconf_upts(0)\n
              B = disu_upts(0)
              */
-
 #ifdef _CPU
-            // If using global minimum timestep based on CFL, determine
-            // global minimum
-            if (run_input.dt_type == 1)
-            {
-                // Find minimum timestep
-                dt_local(0) = 1e12; // Set to large value
-
-                for (int ic=0; ic<n_eles; ic++)
-                {
-                    dt_local_new = calc_dt_local(ic);
-
-                    if (dt_local_new < dt_local(0))
-                        dt_local(0) = dt_local_new;
-                }
-
-                // If running in parallel, gather minimum timestep values from
-                // each partition and find global minumum across partitions
-#ifdef _MPI
-                MPI_Barrier(MPI_COMM_WORLD);
-                MPI_Allgather(&dt_local(0),1,MPI_DOUBLE,dt_local_mpi.get_ptr_cpu(),
-                              1, MPI_DOUBLE, MPI_COMM_WORLD);
-                MPI_Barrier(MPI_COMM_WORLD);
-
-                dt_local(0) = dt_local_mpi.get_min();
-#endif
-            }
-
             // If using local timestepping, just compute and store all local
             // timesteps
             if (run_input.dt_type == 2)
@@ -1226,7 +1187,7 @@ void eles::AdvanceSolution(int in_step, int adv_type)
                         {
                             // Global minimum timestep
                             if (run_input.dt_type == 1)
-                                run_input.dt = dt_local(0);
+                                run_input.dt = dt_globe;
 
                             // Element local timestep
                             else if (run_input.dt_type == 2)
@@ -1244,6 +1205,7 @@ void eles::AdvanceSolution(int in_step, int adv_type)
 #endif
 
 #ifdef _GPU
+            FatalError("GPU version unavailable!");
             RK11_update_kernel_wrapper(n_upts_per_ele,n_dims,n_fields,n_eles,disu_upts(0).get_ptr_gpu(),div_tconf_upts(0).get_ptr_gpu(),detjac_upts.get_ptr_gpu(),src_upts.get_ptr_gpu(),h_ref.get_ptr_gpu(),run_input.dt,run_input.const_src,run_input.CFL,run_input.gamma,run_input.mu_inf,run_input.order,viscous,run_input.dt_type);
 #endif
 
@@ -1285,32 +1247,6 @@ void eles::AdvanceSolution(int in_step, int adv_type)
             // for first stage only, compute timestep
             if (in_step == 0)
             {
-                // For global timestepping, find minimum timestep
-                if (run_input.dt_type == 1)
-                {
-                    dt_local(0) = 1e12;
-
-                    for (int ic=0; ic<n_eles; ic++)
-                    {
-                        dt_local_new = calc_dt_local(ic);
-
-                        if (dt_local_new < dt_local(0))
-                        {
-                            dt_local(0) = dt_local_new;
-                        }
-                    }
-
-
-                    // If using MPI, find minimum across partitions
-#ifdef _MPI
-                    MPI_Barrier(MPI_COMM_WORLD);
-                    MPI_Allgather(&dt_local(0),1,MPI_DOUBLE,dt_local_mpi.get_ptr_cpu(),1,MPI_DOUBLE,MPI_COMM_WORLD);
-                    MPI_Barrier(MPI_COMM_WORLD);
-
-                    dt_local(0) = dt_local_mpi.get_min();
-#endif
-                }
-
                 // For local timestepping, find element local timesteps
                 if (run_input.dt_type == 2)
                 {
@@ -1334,7 +1270,7 @@ void eles::AdvanceSolution(int in_step, int adv_type)
                         if (run_input.dt_type != 0)
                         {
                             if (run_input.dt_type == 1)
-                                run_input.dt = dt_local(0);
+                                run_input.dt = dt_globe;
                             else if (run_input.dt_type == 2)
                                 run_input.dt = dt_local(ic);
                         }
@@ -1350,6 +1286,7 @@ void eles::AdvanceSolution(int in_step, int adv_type)
 
 #ifdef _GPU
 
+            FatalError("GPU version unavailable!");
             RK45_update_kernel_wrapper(n_upts_per_ele,n_dims,n_fields,n_eles,disu_upts(0).get_ptr_gpu(),disu_upts(1).get_ptr_gpu(),div_tconf_upts(0).get_ptr_gpu(),detjac_upts.get_ptr_gpu(),src_upts.get_ptr_gpu(),h_ref.get_ptr_gpu(),rk4a,rk4b,run_input.dt,run_input.const_src,run_input.CFL,run_input.gamma,run_input.mu_inf,run_input.order,viscous,run_input.dt_type,in_step);
 
 #endif
@@ -7161,7 +7098,7 @@ void eles::evaluate_body_force(int in_file_num)
         if (run_input.dt_type == 0)
             dt = run_input.dt;
         else if (run_input.dt_type == 1)
-            dt = dt_local(0);
+            dt = dt_globe;
         else if (run_input.dt_type == 2)
             FatalError("Not sure what value of timestep to use in body force term when using local timestepping.");
 
@@ -7438,7 +7375,7 @@ void eles::CalcTimeAverageQuantities(double& time)
                 if (run_input.dt_type == 0)
                     dt = run_input.dt;
                 else if (run_input.dt_type == 1)
-                    dt = dt_local(0);
+                    dt = dt_globe;
                 else if (run_input.dt_type == 2)
                     FatalError("Not sure what value of timestep to use in time average calculation when using local timestepping.");
 

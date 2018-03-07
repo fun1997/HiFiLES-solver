@@ -610,6 +610,9 @@ public:
   void shock_capture_concentration(int in_disu_upts_from);
   void shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma);
 
+  //global time step
+  static double dt_globe;
+
 protected:
 
   // #### members ####
@@ -1211,8 +1214,6 @@ protected:
 
   /*! element local timestep */
   array<double> dt_local;
-  double dt_local_new;
-  array<double> dt_local_mpi;
 
   /*! Artificial Viscosity variables */
   array<double> vandermonde;

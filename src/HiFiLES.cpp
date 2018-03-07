@@ -179,6 +179,9 @@ int main(int argc, char *argv[]) {
 
       /*! Time integration usign a RK scheme */
 
+      if (run_input.dt_type == 1)
+        calc_global_time_step(i, &FlowSol);
+
       for(j=0; j<FlowSol.n_ele_types; j++) {
 
         FlowSol.mesh_eles(j)->AdvanceSolution(i, FlowSol.adv_type);

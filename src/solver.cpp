@@ -447,3 +447,40 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
   cout << "Rank=" << FlowSol->rank << " Done reading restart files" << endl;
 }
 
+void calc_global_time_step(int in_rk_stage, struct solution* FlowSol)
+{
+    // If using global minimum timestep based on CFL, determine
+    // global minimum
+    if (in_rk_stage == 0)//for first stage only
+    {
+        double dt_globe_new;
+        eles::dt_globe = 1e12; // reset to large value
+        for (int j=0; j<FlowSol->n_ele_types; j++)//for each type of element
+        {
+            if (FlowSol->mesh_eles(j)->get_n_eles()!=0)
+            {
+                for (int ic=0; ic<FlowSol->mesh_eles(j)->get_n_eles(); ic++)//loop over each element
+                {
+                    dt_globe_new =  FlowSol-> mesh_eles(j)->calc_dt_local(ic);
+                    if (dt_globe_new < eles::dt_globe)
+                        eles::dt_globe = dt_globe_new;
+                }
+            }
+        }
+
+
+        // If running in parallel, gather minimum timestep values from
+        // each partition and find global minumum across partitions
+#ifdef _MPI
+        // If in parallel and using global minumum timestep, allocate storage
+        // for minimum timesteps in each partition
+        array<double> dt_globe_mpi;
+        dt_globe_mpi.setup(FlowSol->nproc);
+        dt_globe_mpi.initialize_to_zero();
+        MPI_Allgather(&eles::dt_globe,1,MPI_DOUBLE,dt_globe_mpi.get_ptr_cpu(),
+                      1, MPI_DOUBLE, MPI_COMM_WORLD);
+        eles::dt_globe = dt_globe_mpi.get_min();
+#endif
+
+    }
+}
