@@ -303,8 +303,8 @@ void mpi_inters::send_solution()
           //cout << "rank=" << rank << "p=" << p << "inters_type=" << inters_type << "Nout = " << Nout << endl;
           if (Nout) {
 #ifdef _MPI
-              MPI_Isend(out_buffer_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*10000+p   ,MPI_COMM_WORLD,&mpi_out_requests[request_count]);
-              MPI_Irecv(in_buffer_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*10000+rank,MPI_COMM_WORLD,&mpi_in_requests[request_count]);
+              MPI_Isend(out_buffer_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+p   ,MPI_COMM_WORLD,&mpi_out_requests[request_count]);
+              MPI_Irecv(in_buffer_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+rank,MPI_COMM_WORLD,&mpi_in_requests[request_count]);
 #endif
               sk+=Nout;
               Nmess++;
@@ -365,8 +365,8 @@ void mpi_inters::send_corrected_gradient()
 
           if (Nout) {
 #ifdef _MPI
-              MPI_Isend(out_buffer_grad_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*10000+p   ,MPI_COMM_WORLD,&mpi_out_requests_grad[request_count]);
-              MPI_Irecv(in_buffer_grad_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*10000+rank,MPI_COMM_WORLD,&mpi_in_requests_grad[request_count]);
+              MPI_Isend(out_buffer_grad_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+3*MAX_PROCESSOR_AVAILABLE+p   ,MPI_COMM_WORLD,&mpi_out_requests_grad[request_count]);
+              MPI_Irecv(in_buffer_grad_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+3*MAX_PROCESSOR_AVAILABLE+rank,MPI_COMM_WORLD,&mpi_in_requests_grad[request_count]);
 #endif
               sk+=Nout;
               Nmess++;
@@ -426,8 +426,8 @@ void mpi_inters::send_sgsf_fpts()
 
           if (Nout) {
 #ifdef _MPI
-              MPI_Isend(out_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*10000+MAX_PROCESSOR_AVAILABLE+p   ,MPI_COMM_WORLD,&mpi_out_requests_sgsf[request_count]);
-              MPI_Irecv(in_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*10000+MAX_PROCESSOR_AVAILABLE+rank,MPI_COMM_WORLD,&mpi_in_requests_sgsf[request_count]);
+              MPI_Isend(out_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+6*MAX_PROCESSOR_AVAILABLE+p   ,MPI_COMM_WORLD,&mpi_out_requests_sgsf[request_count]);
+              MPI_Irecv(in_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+6*MAX_PROCESSOR_AVAILABLE+rank,MPI_COMM_WORLD,&mpi_in_requests_sgsf[request_count]);
 #endif
               sk+=Nout;
               Nmess++;
