@@ -1797,19 +1797,8 @@ void eles::calculate_corrected_divergence(int in_div_tconf_upts_to)
                         for (int intd=0; intd<n_dims; intd++)
                             printf("%5.5f, ",pos_upts(i,j,intd));
                         printf("\n");
-                        printf("solution value");
-                        for(int l=0; l<n_fields; l++)
-                            disu_upts(in_div_tconf_upts_to)(i,j,l);
-                        printf("\n");
-//error indicator
-                        cout << "Transformed divergence at solution points" << endl;
-                        for (int i=0; i<n_upts_per_ele; i++)
-                        {
-                            for (int k=0; k<n_fields; k++)
-                                cout << scientific << setw(7) << setprecision(4) << div_tconf_upts(in_div_tconf_upts_to)(j,i,k) << " ";
-                            cout << endl;
-                        }
 #ifdef _MPI
+                        cout<<"Rank: "<<rank<<" is failing,aborting..."<<endl;
                         MPI_Abort(MPI_COMM_WORLD,1);
 #endif // _MPI
                         FatalError("NaN in residual, exiting.");

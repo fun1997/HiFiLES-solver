@@ -2347,9 +2347,9 @@ void repartition_mesh(int &out_n_cells, array<int> &out_c2v, array<int> &out_c2n
   for (int p=0;p<FlowSol->nproc;p++)
     {
       MPI_Irecv(new_c2v[cnt], MAX_V_PER_C*inK[p],MPI_INT,p,666+p,MPI_COMM_WORLD,inrequests+p);
-      MPI_Irecv(&new_c2n_v[cnt], inK[p],MPI_INT,p,666+p,MPI_COMM_WORLD,inrequests_c2n_v+p);
-      MPI_Irecv(&new_ctype[cnt], inK[p],MPI_INT,p,666+p,MPI_COMM_WORLD,inrequests_ctype+p);
-      MPI_Irecv(&new_ic2icg[cnt], inK[p],MPI_INT,p,666+p,MPI_COMM_WORLD,inrequests_ic2icg+p);
+      MPI_Irecv(&new_c2n_v[cnt], inK[p],MPI_INT,p,666+MAX_PROCESSOR_AVAILABLE+p,MPI_COMM_WORLD,inrequests_c2n_v+p);
+      MPI_Irecv(&new_ctype[cnt], inK[p],MPI_INT,p,666+2*MAX_PROCESSOR_AVAILABLE+p,MPI_COMM_WORLD,inrequests_ctype+p);
+      MPI_Irecv(&new_ic2icg[cnt], inK[p],MPI_INT,p,666+3*MAX_PROCESSOR_AVAILABLE+p,MPI_COMM_WORLD,inrequests_ic2icg+p);
       cnt = cnt + inK[p];
     }
 
@@ -2379,9 +2379,9 @@ void repartition_mesh(int &out_n_cells, array<int> &out_c2v, array<int> &out_c2n
         }
 
       MPI_Isend(outlist[p],MAX_V_PER_C*outK[p],MPI_INT,p,666+FlowSol->rank,MPI_COMM_WORLD,outrequests+p);
-      MPI_Isend(outlist_c2n_v[p],outK[p],MPI_INT,p,666+FlowSol->rank,MPI_COMM_WORLD,outrequests_c2n_v+p);
-      MPI_Isend(outlist_ctype[p],outK[p],MPI_INT,p,666+FlowSol->rank,MPI_COMM_WORLD,outrequests_ctype+p);
-      MPI_Isend(outlist_ic2icg[p],outK[p],MPI_INT,p,666+FlowSol->rank,MPI_COMM_WORLD,outrequests_ic2icg+p);
+      MPI_Isend(outlist_c2n_v[p],outK[p],MPI_INT,p,666+MAX_PROCESSOR_AVAILABLE+FlowSol->rank,MPI_COMM_WORLD,outrequests_c2n_v+p);
+      MPI_Isend(outlist_ctype[p],outK[p],MPI_INT,p,666+2*MAX_PROCESSOR_AVAILABLE+FlowSol->rank,MPI_COMM_WORLD,outrequests_ctype+p);
+      MPI_Isend(outlist_ic2icg[p],outK[p],MPI_INT,p,666+3*MAX_PROCESSOR_AVAILABLE+FlowSol->rank,MPI_COMM_WORLD,outrequests_ic2icg+p);
     }
 
   MPI_Waitall(FlowSol->nproc,inrequests,instatus);

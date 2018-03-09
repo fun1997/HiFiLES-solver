@@ -426,8 +426,8 @@ void mpi_inters::send_sgsf_fpts()
 
           if (Nout) {
 #ifdef _MPI
-              MPI_Isend(out_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*10000+p   ,MPI_COMM_WORLD,&mpi_out_requests_sgsf[request_count]);
-              MPI_Irecv(in_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*10000+rank,MPI_COMM_WORLD,&mpi_in_requests_sgsf[request_count]);
+              MPI_Isend(out_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*10000+MAX_PROCESSOR_AVAILABLE+p   ,MPI_COMM_WORLD,&mpi_out_requests_sgsf[request_count]);
+              MPI_Irecv(in_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*10000+MAX_PROCESSOR_AVAILABLE+rank,MPI_COMM_WORLD,&mpi_in_requests_sgsf[request_count]);
 #endif
               sk+=Nout;
               Nmess++;
