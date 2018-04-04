@@ -37,21 +37,20 @@ public:
     ~probe_input();
     array<string> probe_fields;
     int probe_layout;
-    array<double> probe_init_cord;
-    array<double> growth_rate;
-    array<double> init_incre;
-    int probe_dim_x;
-    int probe_dim_y;
-    int probe_dim_z;
+    array<double> p_0;//start point coord
+    array<double> p_1;//end point coord
+    double l_length;
+    double growth_rate;
+    double init_incre;
     int n_probe_fields;
     array<double> probe_x;
     array<double> probe_y;
     array<double> probe_z;
-    array<double> probe_pos;
+    array<double> pos_probe;
     int n_probe;
     int prob_freq;
-    array<int> p2c;
-    array<int> p2t;
+    array<int> p2c;//probe point to cell number(local typewise)
+    array<int> p2t;//probe point to cell type
     void setup(string filenameS,int in_dim, int rank);
     void read_probe_input(string filename, int rank);
     void set_probe_connection(struct solution* FlowSol,int rank);

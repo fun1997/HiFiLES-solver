@@ -29,7 +29,7 @@
 #include "array.h"
 
 class eles_tris: public eles
-{	
+{
 public:
 
   // #### constructors ####
@@ -107,6 +107,8 @@ public:
 
   /*! Element reference length calculation */
   double calc_h_ref_specific(int in_ele);
+
+  int calc_p2c(array<double>& in_pos);
 
 protected:
 

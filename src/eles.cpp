@@ -314,8 +314,8 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         d_nodal_s_basis_upts.setup(n_dims,in_max_n_spts_per_ele,n_upts_per_ele,n_eles);
         d_nodal_s_basis_fpts.setup(n_dims,in_max_n_spts_per_ele,n_fpts_per_ele,n_eles);
 
-        nodal_s_basis_vol_cubpts.setup(in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);
-        d_nodal_s_basis_vol_cubpts.setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);
+        //nodal_s_basis_vol_cubpts.setup(in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);//must be specified for prism ele
+        //d_nodal_s_basis_vol_cubpts.setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);
         nodal_s_basis_inters_cubpts.setup(n_inters_per_ele);
         d_nodal_s_basis_inters_cubpts.setup(n_inters_per_ele);
         for (int iface=0; iface<n_inters_per_ele; iface++)
@@ -401,10 +401,8 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         }
 
         // Set connectivity array. Needed for Paraview output.
-        if (ele_type==3) // prism
-            connectivity_plot.setup(8,n_peles_per_ele);
-        else
-            connectivity_plot.setup(n_verts_per_ele,n_peles_per_ele);
+
+        connectivity_plot.setup(n_verts_per_ele,n_peles_per_ele);
 
         set_connectivity_plot();
     }
@@ -5076,8 +5074,8 @@ void eles::calc_loc_probepoints(int in_probe_i, int in_ele,int in_type, array<do
         B=square_to_quad(ref_loc_X,ref_loc_y);//square to ref
         B=mult_arrays(A,B);//quad to ref
         array<double>temp_pos(1,3);
-        temp_pos(0)=run_probe.probe_pos(0,in_probe_i);
-        temp_pos(1)=run_probe.probe_pos(1,in_probe_i);
+        temp_pos(0)=run_probe.pos_probe(0,in_probe_i);
+        temp_pos(1)=run_probe.pos_probe(1,in_probe_i);
         temp_pos(2)=1.;
         temp_pos=mult_arrays(temp_pos,B);
         out_loc(0)=temp_pos(0)/temp_pos(2);

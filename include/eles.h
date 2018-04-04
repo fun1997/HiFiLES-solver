@@ -421,6 +421,9 @@ public:
   /*! Calculate element volume */
   virtual double calc_ele_vol(double& detjac)=0;
 
+  /*! calculate which cell probe points in */
+  virtual int calc_p2c(array<double>& in_pos)=0;
+
   double compute_res_upts(int in_norm_type, int in_field);
 
   /*! calculate body forcing at solution points */

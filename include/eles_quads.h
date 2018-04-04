@@ -135,6 +135,7 @@ public:
   /*! Evaluate 2D Legendre Basis */
   double eval_legendre_basis_2D_hierarchical(int, array<double>, int in_order);
 
+  int calc_p2c(array<double>& in_pos);
 protected:
 
   // methods

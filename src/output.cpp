@@ -625,9 +625,9 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
   array<int> con;
 
   /*! VTK element types (different to HiFiLES element type) */
-  /*! tri, quad, tet, prism (undefined), hex */
+  /*! tri, quad, tet, prism , hex */
   /*! See vtkCellType.h for full list */
-  int vtktypes[5] = {5,9,10,0,12};
+  int vtktypes[5] = {5,9,10,13,12};
 
   /*! File names */
   char vtu_s[256];
@@ -1058,9 +1058,8 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
 
 /*! Method to write out a probe file.
 Used in run mode.
-input: in_file_num																						current timestep
-input: FlowSol																								solution structure
-output: probe_<probe_index>.dat																probe data file
+input: FlowSol						solution structure
+output: probe_<probe_index>.dat		probe data file
 */
 
 void write_probe(struct solution* FlowSol)
@@ -1072,9 +1071,7 @@ void write_probe(struct solution* FlowSol)
     /*! No. of optional diagnostic fields */
     int n_probe_fields;
     /*! No. of dimensions */
-    int n_dims;
-    /*! No. of elements */
-    int n_eles;
+    int n_dims=FlowSol->n_dims;
     /*! reference location of probe points */
     array<double> loc_probe_point_temp;
     /*! solution data at probe points */
@@ -1113,7 +1110,6 @@ void write_probe(struct solution* FlowSol)
     {
         if(run_probe.p2c(i)!=-1)//if probe point belongs to this processor
         {
-            n_dims=FlowSol->mesh_eles(run_probe.p2t(i))->get_n_dims();
             n_fields=FlowSol->mesh_eles(run_probe.p2t(i))->get_n_fields();//number of computing fields
             loc_probe_point_temp.setup(n_dims);
             //grad_disu_probe_point_temp.setup(n_fields,n_dims);
@@ -1122,19 +1118,7 @@ void write_probe(struct solution* FlowSol)
                 disu_average_probe_points_temp.setup(run_input.n_average_fields);
             //cout<<run_probe.p2c(i)<<endl;
             int exist=0;
-            if(run_probe.probe_layout==0)//generate file name
-                sprintf(probe_data,"Probes/probe_%.04d.dat",i);
-            else
-            {
-                int indx,indy,indz;
-                indx=i/(run_probe.probe_dim_y*run_probe.probe_dim_z);
-                indy=(i/run_probe.probe_dim_z)%run_probe.probe_dim_y;//
-                if(n_dims==2)
-                    indz=0;
-                else
-                    indz=i%run_probe.probe_dim_y;
-                sprintf(probe_data,"Probes/probe_%.04d_%.04d_%.04d.dat",indx,indy,indz);
-            }
+            sprintf(probe_data,"Probes/probe_%.04d.dat",i);//generate file name
             data=&probe_data[0];
             struct stat st= {0};
             if (stat(data,&st)==-1) exist = -1;//check if the file exists
@@ -1149,7 +1133,7 @@ void write_probe(struct solution* FlowSol)
             {
 
                 if(run_probe.p2t(i)==0||run_probe.p2t(i)==1)//tri
-                    write_probe<<"Probe location:"<<setw(10)<<setprecision(5)<<run_probe.probe_pos(0,i)<<setw(10)<<setprecision(5)<<run_probe.probe_pos(1,i)<<endl;
+                    write_probe<<"Probe location:"<<setw(10)<<setprecision(5)<<run_probe.pos_probe(0,i)<<setw(10)<<setprecision(5)<<run_probe.pos_probe(1,i)<<endl;
                 else FatalError("3D not implemented yet!");
                 /*! write field titles*/
                 write_probe<<setw(17)<<"time";
@@ -1159,7 +1143,7 @@ void write_probe(struct solution* FlowSol)
                     write_probe<<setw(17)<<run_input.average_fields(j);
                 write_probe<<endl;
             }
-            FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp);//calculate reference location
+            FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp); //HACK: use virtual function//calculate reference location
             FlowSol->mesh_eles(run_probe.p2t(i))->set_opp_probe(loc_probe_point_temp);//calculate solution on upts to probe points matrix
             //cout<<"calc_loc"<<endl;
             FlowSol->mesh_eles(run_probe.p2t(i))->calc_disu_probepoints(run_probe.p2c(i),disu_probe_point_temp);//calculate solution on the reference probe point
@@ -1203,7 +1187,7 @@ void write_probe(struct solution* FlowSol)
                 }
                 else FatalError("Probe field not implemented yet!");
             }
-            for(int j=0; j<run_input.n_average_fields;j++)//write average fields
+            for(int j=0; j<run_input.n_average_fields;j++) //HACK: some problems in it!//write average fields
             {
                 if(run_input.average_fields(j)=="rho_average")
                     write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(0);
@@ -1247,8 +1231,9 @@ void write_probe(struct solution* FlowSol)
                 else FatalError("Average field not implemented yet!");
             }
             write_probe<<endl;
+            write_probe.close();//close file
         }
-        write_probe.close();//close file
+
     }
     if (myrank==0) cout<<"done."<<endl;
 }

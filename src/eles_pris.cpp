@@ -43,7 +43,7 @@ using namespace std;
 // default constructor
 
 eles_pris::eles_pris()
-{	
+{
 }
 
 // #### methods ####
@@ -69,15 +69,22 @@ void eles_pris::setup_ele_type_specific()
     n_fields++;
 
   n_inters_per_ele=5;
-
+  length.setup(5);
   n_upts_per_ele=(order+2)*(order+1)*(order+1)/2;
   upts_type_pri_tri = run_input.upts_type_pri_tri;
   upts_type_pri_1d = run_input.upts_type_pri_1d;
   set_loc_upts();
   set_vandermonde_tri();
-
+  /*
+  set_vandermonde3D();
+  set_concentration_array();
+  set_filter_array();
+  */
   set_inters_cubpts();
-
+  /*
+  set_volume_cubpts();
+  set_opp_volume_cubpts();
+  */
   n_ppts_per_ele=(p_res+1)*(p_res)*(p_res)/2;
   n_peles_per_ele=( (p_res-1)*(p_res-1)*(p_res-1) );
   n_verts_per_ele = 6;
@@ -114,6 +121,9 @@ void eles_pris::setup_ele_type_specific()
 
   if(viscous)
     {
+      // Compute hex filter matrix
+      //if(filter) compute_filter_upts();
+
       set_opp_4(run_input.sparse_pri);
       set_opp_5(run_input.sparse_pri);
       set_opp_6(run_input.sparse_pri);
@@ -138,11 +148,11 @@ void eles_pris::set_connectivity_plot()
 {
   int vertex_0,vertex_1,vertex_2,vertex_3,vertex_4,vertex_5;
   int count=0;
-  int temp = (p_res)*(p_res+1)/2;
+  int temp = (p_res)*(p_res+1)/2;//number of pts each 1d layer
 
-  for (int l=0;l<p_res-1;++l){
-      for(int j=0;j<p_res-1;++j){ // look to right from each point
-          for(int k=0;k<p_res-j-1;++k){
+  for (int l=0;l<p_res-1;++l){// level 1d
+      for(int j=0;j<p_res-1;++j){ // level_tri
+          for(int k=0;k<p_res-j-1;++k){// starting pt
 
               vertex_0=k+(j*(p_res+1))-((j*(j+1))/2) + l*temp;
               vertex_1=vertex_0+1;
@@ -155,22 +165,20 @@ void eles_pris::set_connectivity_plot()
               connectivity_plot(0,count) = vertex_0;
               connectivity_plot(1,count) = vertex_1;
               connectivity_plot(2,count) = vertex_2;
-              connectivity_plot(3,count) = vertex_2;
-              connectivity_plot(4,count) = vertex_3;
-              connectivity_plot(5,count) = vertex_4;
-              connectivity_plot(6,count) = vertex_5;
-              connectivity_plot(7,count) = vertex_5;
+              connectivity_plot(3,count) = vertex_3;
+              connectivity_plot(4,count) = vertex_4;
+              connectivity_plot(5,count) = vertex_5;
               count++;
             }
         }
     }
   for (int l=0;l<p_res-1;++l){
-      for(int j=0;j<p_res-2;++j){ //  look to left from each point
-          for(int k=1;k<p_res-j-1;++k){
+      for(int j=0;j<p_res-2;++j){
+          for(int k=0;k<p_res-j-2;++k){
 
-              vertex_0=k+(j*(p_res+1))-((j*(j+1))/2) + l*temp;
-              vertex_1=k+((j+1)*(p_res+1))-(((j+1)*(j+2))/2) + l*temp;
-              vertex_2=k-1+((j+1)*(p_res+1))-(((j+1)*(j+2))/2) + l*temp;
+              vertex_0=k+1+(j*(p_res+1))-((j*(j+1))/2) + l*temp;
+              vertex_1=vertex_0 +p_res -l + l*temp;
+              vertex_2=vertex_1 -1 + l*temp;
 
               vertex_3 = vertex_0 + temp;
               vertex_4 = vertex_1 + temp;
@@ -179,11 +187,9 @@ void eles_pris::set_connectivity_plot()
               connectivity_plot(0,count) = vertex_0;
               connectivity_plot(1,count) = vertex_1;
               connectivity_plot(2,count) = vertex_2;
-              connectivity_plot(3,count) = vertex_2;
-              connectivity_plot(4,count) = vertex_3;
-              connectivity_plot(5,count) = vertex_4;
-              connectivity_plot(6,count) = vertex_5;
-              connectivity_plot(7,count) = vertex_5;
+              connectivity_plot(3,count) = vertex_3;
+              connectivity_plot(4,count) = vertex_4;
+              connectivity_plot(5,count) = vertex_5;
               count++;
             }
         }
@@ -311,8 +317,8 @@ void eles_pris::set_tloc_fpts(void)
   // Inter 0
   for (int i=0;i<n_fpts_per_inter(0);i++)
     {
-      tloc_fpts(0,i) = loc_tri_fpts(i,1);
-      tloc_fpts(1,i) = loc_tri_fpts(i,0);
+      tloc_fpts(0,i) = loc_tri_fpts(i,0);//note need to notice
+      tloc_fpts(1,i) = loc_tri_fpts(i,1);
       tloc_fpts(2,i) = -1.;
     }
 
@@ -335,8 +341,8 @@ void eles_pris::set_tloc_fpts(void)
                   tloc_fpts(1,offset+face*(order+1)*(order+1)+i*(order+1)+j) = -1;;
                 }
               else if (face==1) {
-                  tloc_fpts(0,offset+face*(order+1)*(order+1)+i*(order+1)+j) = loc_1d_fpts(order-j);
-                  tloc_fpts(1,offset+face*(order+1)*(order+1)+i*(order+1)+j) = loc_1d_fpts(j);
+                  tloc_fpts(0,offset+face*(order+1)*(order+1)+i*(order+1)+j) = loc_1d_fpts(order-j);//x from r to l
+                  tloc_fpts(1,offset+face*(order+1)*(order+1)+i*(order+1)+j) = loc_1d_fpts(j);//y from bot to up
                 }
               else if (face==2) {
                   tloc_fpts(0,offset+face*(order+1)*(order+1)+i*(order+1)+j) = -1.;
@@ -551,14 +557,14 @@ void eles_pris::set_loc_ppts(void)
 
   loc_ppts.setup(3,p_res*(p_res+1)/2*p_res);
 
-  for(k=0;k<p_res;k++)
+  for(k=0;k<p_res;k++)//z index
     {
-      for(j=0;j<p_res;j++)
+      for(j=0;j<p_res;j++)//y index
         {
-          for(i=0;i<p_res-j;i++)
+          for(i=0;i<p_res-j;i++)//x index
             {
-              index = (p_res*(p_res+1)/2)*k + (i+(j*(p_res+1))-((j*(j+1))/2));
-
+              index = (p_res*(p_res+1)/2)*k + (i+(j*(p_res+1))-((j*(j+1))/2));/*|2\    bottom to up
+                                                                              //|0_1\*/
               loc_ppts(0,index)=-1.0+((2.0*i)/(1.0*(p_res-1)));
               loc_ppts(1,index)=-1.0+((2.0*j)/(1.0*(p_res-1)));
               loc_ppts(2,index)=-1.0+((2.0*k)/(1.0*(p_res-1)));
@@ -697,7 +703,7 @@ int eles_pris::read_restart_info(ifstream& restart_file)
 
 }
 
-void eles_pris::write_restart_info(ofstream& restart_file)        
+void eles_pris::write_restart_info(ofstream& restart_file)
 {
   restart_file << "PRIS" << endl;
 
@@ -1195,13 +1201,110 @@ int eles_pris::face0_map(int index)
 /*! Calculate element volume */
 double eles_pris::calc_ele_vol(double& detjac)
 {
+  double vol;
+  // Element volume = |Jacobian|*width*height of reference element
+  vol = detjac*4.;
+  return vol;
 
 }
 
 /*! Calculate element reference length for timestep calculation */
 double eles_pris::calc_h_ref_specific(int in_ele)
-  {
-    FatalError("Reference length calculation not implemented for this element!")
-  }
+{
+    double a,b,c,d,s;
+    double out_h_ref;
 
+    // Compute edge lengths (Counter-clockwise)
+    for (int i=0; i<3; i++)
+        length(i) = sqrt(pow(shape(0,i,in_ele) - shape(0,i+3,in_ele),2.0) + pow(shape(1,i,in_ele) - shape(1,i+3,in_ele),2.0)+pow(shape(2,i,in_ele) - shape(2,i+3,in_ele),2.0));
+    for (int i=3; i<5; i++)
+    {
+        d=(i-3)*3;
+        a = sqrt(pow(shape(0,d,in_ele) - shape(0,d+1,in_ele),2.0) + pow(shape(1,d,in_ele) - shape(1,d+1,in_ele),2.0)+pow(shape(2,d,in_ele) - shape(2,d+1,in_ele),2.0));
+        b = sqrt(pow(shape(0,d+1,in_ele) - shape(0,d+2,in_ele),2.0) + pow(shape(1,d+1,in_ele) - shape(1,d+2,in_ele),2.0)+pow(shape(2,d+1,in_ele) - shape(2,d+2,in_ele),2.0));
+        c = sqrt(pow(shape(0,d+2,in_ele) - shape(0,d,in_ele),2.0) + pow(shape(1,d+2,in_ele) - shape(1,d,in_ele),2.0)+pow(shape(2,d+2,in_ele) - shape(2,d,in_ele),2.0));
+        s = 0.5*(a+b+c);
+        length(i) = 2*sqrt(((s-a)*(s-b)*(s-c))/s);
 
+    }
+    // Get minimum edge length
+    out_h_ref = length.get_min();
+
+    return out_h_ref;
+}
+
+int eles_pris::calc_p2c(array<double>& in_pos)
+{
+    array<double> plane_coeff;
+    array<double> pos_centroid;
+    array<int> vertex_index_loc(3);
+    array<double> pos_plane_pts(n_dims,3);
+
+    for (int i=0; i<n_eles; i++)//for each element
+    {
+        int alpha=1;//indicator
+
+        //calculate centroid
+        array<double> temp_pos_s_pts(n_dims,n_spts_per_ele(i));
+        for (int j=0; j<n_spts_per_ele(i); j++)
+            for (int k=0; k<n_dims; k++)
+                temp_pos_s_pts(k,j)=shape(k,j,i);
+        pos_centroid=calc_centroid(temp_pos_s_pts);
+
+        int num_f_per_c = 5;
+
+        for(int j=0; j<num_f_per_c; j++)//for each face
+        {
+            //store local vertex index
+            if(j==0)
+            {
+                vertex_index_loc(0) = 0;
+                vertex_index_loc(1) = 2;
+                vertex_index_loc(2) = 1;
+            }
+            else if(j==1)
+            {
+                vertex_index_loc(0) = 3;
+                vertex_index_loc(1) = 4;
+                vertex_index_loc(2) = 5;
+
+            }
+            else if(j==2)
+            {
+                vertex_index_loc(0) = 0;
+                vertex_index_loc(1) = 1;
+                vertex_index_loc(2) = 4;
+            }
+            else if(j==3)
+            {
+                vertex_index_loc(0) = 1;
+                vertex_index_loc(1) = 2;
+                vertex_index_loc(2) = 5;
+            }
+            else if(j==4)
+            {
+                vertex_index_loc(0) = 2;
+                vertex_index_loc(1) = 0;
+                vertex_index_loc(2) = 3;
+            }
+
+            //store position of vertex on each face
+            for (int k=0; k<3; k++) //number of points needed to define a plane
+                for (int l=0; l<n_dims; l++) //dims
+                    pos_plane_pts(l,k)=shape(l,vertex_index_loc(k),i);
+
+            //calculate plane coeff
+            plane_coeff=calc_plane(pos_plane_pts);
+
+            alpha=alpha*((plane_coeff(0)*in_pos(0)+plane_coeff(1)*in_pos(1)+plane_coeff(2)*in_pos(2)+plane_coeff(3))*
+                         (plane_coeff(0)*pos_centroid(0)+plane_coeff(1)*pos_centroid(1)+plane_coeff(2)*pos_centroid(2)+plane_coeff(3))>0);
+            if (alpha<0)
+                break;
+        }
+
+        if (alpha>0)
+            return i;
+    }
+
+    return -1;
+}

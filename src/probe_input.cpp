@@ -23,7 +23,6 @@
  */
 #include "../include/probe_input.h"
 #include "../include/array.h"
-#include "../include/input.h"
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
@@ -53,187 +52,182 @@ void probe_input::read_probe_input(string filename, int rank)
     if (rank==0)
         cout << endl << "---------------------- Setting up probes ---------------------" << endl;
 
+
     /*!----------read probe input parameters ------------*/
-    if (n_dims >=2)
+    probf.getVectorValueOptional("probe_fields",probe_fields);//name of probe fields
+    probf.getScalarValue("probe_layout",probe_layout,0);
+    n_probe_fields=probe_fields.get_dim(0);
+    for (int i=0; i<n_probe_fields; i++)
     {
-        probf.getVectorValueOptional("probe_fields",probe_fields);//name of probe fields
-        probf.getScalarValue("probe_layout",probe_layout,0);
-        n_probe_fields=probe_fields.get_dim(0);
-        for (int i=0; i<n_probe_fields; i++)
+        std::transform(probe_fields(i).begin(), probe_fields(i).end(),
+                       probe_fields(i).begin(), ::tolower);
+    }
+    probf.getScalarValue("prob_freq",prob_freq);
+
+    /*!----------calculate probes coordinates ------------*/
+    if(probe_layout==0)//point sources
+    {
+        probf.getVectorValueOptional("probe_x",probe_x);
+        probf.getVectorValueOptional("probe_y",probe_y);
+        n_probe=probe_x.get_dim(0);//set number of probes
+        if (n_probe!=probe_y.get_dim(0))
+            FatalError("Probe coordinate data don't agree!\n");
+        pos_probe.setup(n_dims,n_probe);
+        for(int i=0; i<n_probe; i++)
         {
-            std::transform(probe_fields(i).begin(), probe_fields(i).end(),
-            probe_fields(i).begin(), ::tolower);
+            pos_probe(0,i)=probe_x(i);
+            pos_probe(1,i)=probe_y(i);
         }
-        probf.getScalarValue("prob_freq",prob_freq);
-        if(probe_layout==0)//manual points input
+        if(n_dims==3)
         {
-            probf.getVectorValueOptional("probe_x",probe_x);
-            probf.getVectorValueOptional("probe_y",probe_y);
-            n_probe=probe_x.get_dim(0);
-            cout<<"n_probe: "<<n_probe<<endl;
-            if (n_probe!=probe_y.get_dim(0))
+            probf.getVectorValueOptional("probe_z",probe_z);
+            if (n_probe!=probe_z.get_dim(0))
                 FatalError("Probe coordinate data don't agree!\n");
-            probe_pos.setup(n_dims,n_probe);
             for(int i=0; i<n_probe; i++)
             {
-                probe_pos(0,i)=probe_x(i);
-                probe_pos(1,i)=probe_y(i);
-            }
-            if(n_dims==3)
-            {
-                probf.getVectorValueOptional("probe_z",probe_z);
-                if (n_probe!=probe_z.get_dim(0))
-                    FatalError("Probe coordinate data don't agree!\n");
-                for(int i=0; i<n_probe; i++)
-                {
-                    probe_pos(2,i)=probe_z(i);
-                }
-            }
-        }
-        else if(probe_layout==1)//formatted input
-        {
-            probf.getVectorValueOptional("probe_init_cord",probe_init_cord);
-            probf.getVectorValueOptional("growth_rate",growth_rate);
-            probf.getVectorValueOptional("init_incre",init_incre);
-            if (probe_init_cord.get_dim(0)!=n_dims||growth_rate.get_dim(0)!=n_dims||init_incre.get_dim(0)!=n_dims)
-                FatalError("input error!");
-            probf.getScalarValue("probe_dim_x",probe_dim_x);
-            probf.getScalarValue("probe_dim_y",probe_dim_y);
-            probf.getScalarValue("probe_dim_z",probe_dim_z,1);
-            n_probe=probe_dim_x*probe_dim_y*probe_dim_z;
-            probe_pos.setup(n_dims,n_probe);
-            array<int> counter(3);
-            for(counter(0)=0; counter(0)<probe_dim_x; counter(0)++)
-            {
-                for(counter(1)=0; counter(1)<probe_dim_y; counter(1)++)
-                {
-                    for(counter(2)=0; counter(2)<probe_dim_z; counter(2)++)
-                    {
-                        int index;
-                        index=counter(2)+counter(1)*probe_dim_z+counter(0)*probe_dim_y*probe_dim_z;
-                        for(int l=0; l<n_dims; l++)
-                        {
-                            if(growth_rate(l)!=1)
-                                probe_pos(l,index)=probe_init_cord(l)+init_incre(l)*(pow(growth_rate(l),((double)counter(l)))-1.)/(growth_rate(l)-1.);
-                            else
-                                probe_pos(l,index)=probe_init_cord(l)+((double)counter(l))*init_incre(l);
-                        }
-                    }
-                }
+                pos_probe(2,i)=probe_z(i);
             }
         }
     }
-    else
+    else if(probe_layout==1)//line source input
     {
-        FatalError("Dimension must be greater than 1\n");
+        double growth_rate_old=1.e6;
+        probf.getVectorValueOptional("p_0",p_0);
+        probf.getVectorValueOptional("p_1",p_1);
+        probf.getScalarValue("init_incre",init_incre);
+        probf.getScalarValue("n_probe",n_probe);
+        if (p_0.get_dim(0)!=n_dims||p_1.get_dim(0)!=n_dims)
+            FatalError("Inappropriate dimension!");
+        //calculate growth rate
+        l_length=0.;
+        for (int i=0; i<n_dims; i++)
+        {
+            l_length+=pow(p_1(i)-p_0(i),2);
+        }
+        l_length=sqrt(l_length);
+
+        if ((l_length/init_incre)!=(n_probe-1))
+        {
+            if (l_length/init_incre<(n_probe-1))
+                growth_rate=0.1;
+            else
+                growth_rate=5.;//initialze to be greater than 2
+            //find growth rate use fixed point method
+            while (fabs(growth_rate-growth_rate_old)<=1.e-10)
+            {
+                growth_rate_old=growth_rate;
+                if (l_length/init_incre<(n_probe-1))
+                    growth_rate=init_incre/l_length*(pow(growth_rate,n_probe-1)-1.)+1.;
+                else
+                    growth_rate=pow((growth_rate-1.)*(l_length/init_incre+1.),1./(double)(n_probe-1));
+            }
+
+            if(isnan(growth_rate))
+                FatalError("growth rate NaN!");
+            //calculate probe coordiantes
+            pos_probe.setup(n_dims,n_probe);
+            for (int i=0; i<n_probe; i++)
+            {
+                for (int j=0; j<n_dims; j++)
+                {
+                    if(i==0)
+                        pos_probe(j,i)=p_0(j);
+                    else if (i==(n_probe-1))
+                        pos_probe(j,i)=p_1(j);
+                    else
+                    {
+                        pos_probe(j,i)=p_0(j)+init_incre*(pow(growth_rate,(double)i)-1.)/(growth_rate-1.)/l_length*(p_1(j)-p_0(j));
+                    }
+
+                }
+            }
+        }
+        else
+        {
+            growth_rate=1.0;
+            for (int i=0; i<n_probe; i++)
+                for (int j=0; j<n_dims; j++)
+                    pos_probe(j,i)=p_0(j)+i*init_incre/l_length*(p_1(j)-p_0(j));
+        }
+    }
+
+    if (rank==0)
+    {
+        cout<<"Number of probe points: "<<n_probe<<endl;
+        if(probe_layout==1)
+            cout<<"Growth rate: "<<growth_rate<<endl;
     }
 }
 
 void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
 {
-    array<double> v1;
-    array<double> v2;
     p2c.setup(n_probe);
     p2t.setup(n_probe);
-    array<int> indicator(n_probe);
     p2c.initialize_to_value(-1);
     p2t.initialize_to_value(-1);
-    int s2v[2][4]= {{0,1,2,0},{0,1,3,2}};
+
     if(rank ==0)
-        cout<<"setting probe points connection.."<<endl;
-#ifdef _MPI
-    int nproc;
-    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
-#endif
+        cout<<"Setting up probe points connectivity.."<<endl;
 
-    if(n_dims==2)
+    for (int i=0; i<FlowSol->n_ele_types; i++)//for each element type
     {
-        v1.setup(2);
-        v2.setup(2);
-        for(int i=0; i<2; i++)//element type i(0 is tri,1 is quad)
+        if (FlowSol->mesh_eles(i)->get_n_eles()!=0)
         {
-            if (FlowSol->mesh_eles(i)->get_n_eles()!=0)//if have eles
+            for (int j=0; j<n_probe; j++)//for each probe
             {
-                for (int j=0; j<FlowSol->mesh_eles(i)->get_n_eles(); j++) //element j
+                if(p2c(j)==-1)//if not inside another type of elements
                 {
-                    indicator.initialize_to_value(1);
-                    //cout<<"element "<<j<<endl;
-                    int n_spts_per_ele=FlowSol->mesh_eles(i)->get_n_spts_per_ele(j);//get number of shape points in element
-                    if (n_spts_per_ele>4) FatalError("Complex elements no implemented!")//if is simple shape
-                        for(int k=0; k<n_spts_per_ele; k++) //shape point k
-                        {
-                            v2(0)=FlowSol->mesh_eles(i)->get_shape(0,(k+1)<n_spts_per_ele?s2v[i][k+1]:s2v[i][0],j)-FlowSol->mesh_eles(i)->get_shape(0,s2v[i][k],j);//A in AXB
-                            v2(1)=FlowSol->mesh_eles(i)->get_shape(1,(k+1)<n_spts_per_ele?s2v[i][k+1]:s2v[i][0],j)-FlowSol->mesh_eles(i)->get_shape(1,s2v[i][k],j);
-                            for(int l=0; l<n_probe; l++)
-                            {
-                                v1(0)=probe_pos(0,l) - FlowSol->mesh_eles(i)->get_shape(0,s2v[i][k],j);//B in AXB
-                                v1(1)=probe_pos(1,l) - FlowSol->mesh_eles(i)->get_shape(1,s2v[i][k],j);
-                                double vv=0;
-                                vv=v2(0)*v1(1)-v1(0)*v2(1);
-                                //cout<<"v1"<<endl;
-                                //v1.print();cout<<"v2"<<endl;v2.print();
-                                //cout<<"vv"<<setprecision(5)<<vv<<endl;
-                                if(vv<0)//RHS of the edge vector
-                                    indicator(l)=-1;
-                            }
-                        }
-                    for (int l=0; l<n_probe; l++)
-                    {
-                        if(indicator(l)!=-1)//in the cell or on the edge
-                        {
-                            p2c(l)=j;
-                            p2t(l)=i;
-                            // cout<<"p2e"<<p2e(l)<<endl;
-                            //for(int k=0;k<n_spts_per_ele;k++)
-                            //{
-                            // cout<<"x: "<<setprecision(5)<<FlowSol->mesh_eles(i)->get_shape(0,s2v[i][k],j)<<" y: "<<setprecision(5)<<FlowSol->mesh_eles(i)->get_shape(1,s2v[i][k],j)<<endl;
-                            //}
-                        }
+                    int temp_p2c;
+                    array<double>temp_pos(n_dims);
+                    for (int k=0; k<n_dims; k++)
+                        temp_pos(k)=pos_probe(k,j);
+                    temp_p2c=FlowSol->mesh_eles(i)->calc_p2c(pos_probe);
 
+                    if (temp_p2c!=-1)//if inside this type of elements
+                    {
+                        p2c(j)=temp_p2c;
+                        p2t(j)=i;
                     }
                 }
-
             }
-
         }
     }
-    else if(n_dims==3)
-    {
-        FatalError("3D not implemented yet!");
-    }
+
 #ifdef _MPI
-    MPI_Barrier(MPI_COMM_WORLD);
-    array<int> p2cglobe(n_probe,nproc);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    array<int> p2cglobe(n_probe,FlowSol->nproc);
+    array<int> p2tglobe(n_probe,FlowSol->nproc);
     MPI_Allgather(p2c.get_ptr_cpu(),n_probe,MPI_INT,p2cglobe.get_ptr_cpu(),n_probe,MPI_INT,MPI_COMM_WORLD);
-    MPI_Barrier(MPI_COMM_WORLD);
-    for (int i=0; i<n_probe; i++)
+    MPI_Allgather(p2t.get_ptr_cpu(),n_probe,MPI_INT,p2tglobe.get_ptr_cpu(),n_probe,MPI_INT,MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    for (int i=0; i<n_probe; i++)//for each probe
     {
-        for(int j=0; j<rank; j++)
+        for(int j=0; j<rank; j++)//loop over all processors before this one
         {
-                if(p2c(i)!=-1&&p2cglobe(i,j)!=-1)//there's a conflict
-                {
-                    p2c(i)=-1;
-                    p2t(i)=-1;
-                    break;
-                }
+            if(p2c(i)!=-1&&p2cglobe(i,j)!=-1&&p2t(i)==p2tglobe(i,j))//there's a conflict
+            {
+                p2c(i)=-1;
+                p2t(i)=-1;
+                break;
+            }
         }
     }
 #endif
 
-    for(int i=0; i<n_probe; i++)
-    {
-        if(p2c(i)!=-1)
-        {
-            cout<<"probe "<<i<<" is found in "<<"local element No."<<p2c(i)<<", element type: ";
-            //cout<<p2e(i)<<endl;
-            switch(p2t(i))
-            {
-            case 0:
-                cout<<"Tri";
-            case 1:
-                cout<<"Quad";
-            }
-            cout<<", rank: "<<rank<<endl;
-        }
-    }
+    //  for(int i=0; i<n_probe; i++)
+    // {
+    // if(p2c(i)!=-1)
+    //  {
+    //   cout<<"probe "<<i<<" is found in "<<"local element No."<<p2c(i)<<", element type: ";
+    //cout<<p2e(i)<<endl;
+    //   switch(p2t(i))
+    //   {
+    //  case 0:
+    //       cout<<"Tri";
+    //   case 1:
+    //      cout<<"Quad";
+    //  }
+    //   cout<<", rank: "<<rank<<endl;
+    //}
+    //}
 }

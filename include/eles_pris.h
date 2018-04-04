@@ -29,7 +29,7 @@
 #include "array.h"
 
 class eles_pris: public eles
-{	
+{
 public:
 
   // #### constructors ####
@@ -104,6 +104,8 @@ public:
   /*! Element reference length calculation */
   double calc_h_ref_specific(int in_ele);
 
+  int calc_p2c(array<double>& in_pos);
+
 protected:
 
   // members
@@ -130,4 +132,7 @@ protected:
   //methods
   void set_vandermonde_tri();
   void set_vandermonde_tri_restart();
+
+  /*! element edge lengths for h_ref calculation */
+  array<double> length;
 };

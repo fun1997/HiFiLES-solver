@@ -1417,3 +1417,94 @@ double eles_hexas::calc_h_ref_specific(int in_ele)
     out_h_ref = length.get_min();
     return out_h_ref;
   }
+
+int eles_hexas::calc_p2c(array<double>& in_pos)
+{
+    array<double> plane_coeff;
+    array<double> pos_centroid;
+    array<int> vertex_index_loc(3);
+    array<double> pos_plane_pts(n_dims,3);
+
+    for (int i=0; i<n_eles; i++)//for each element
+    {
+        int alpha=1;//indicator
+
+        //calculate centroid
+        array<double> temp_pos_s_pts(n_dims,n_spts_per_ele(i));
+        for (int j=0; j<n_spts_per_ele(i); j++)
+            for (int k=0; k<n_dims; k++)
+                temp_pos_s_pts(k,j)=shape(k,j,i);
+        pos_centroid=calc_centroid(temp_pos_s_pts);
+
+        if (n_spts_per_ele(i)==8)//linear hex
+        {
+            int num_f_per_c = 6;
+            int n_spts_1d = 2;
+            int shift = n_spts_1d*n_spts_1d*(n_spts_1d-1);
+
+            for(int j=0; j<num_f_per_c; j++)//for each face
+            {
+                //store local vertex index
+                if(j==0)
+                {
+                    vertex_index_loc(0) = n_spts_1d-1;
+                    vertex_index_loc(1) = 0;
+                    vertex_index_loc(2) = n_spts_1d*(n_spts_1d-1);
+
+                }
+                else if(j==1)
+                {
+                    vertex_index_loc(0) = 0;
+                    vertex_index_loc(1) = n_spts_1d-1;
+                    vertex_index_loc(2) = n_spts_1d-1+shift;
+                }
+                else if(j==2)
+                {
+                    vertex_index_loc(0) = n_spts_1d-1;
+                    vertex_index_loc(1) = n_spts_1d*n_spts_1d-1;
+                    vertex_index_loc(2) = n_spts_per_ele(i)-1;
+                }
+                else if(j==3)
+                {
+                    vertex_index_loc(0) = n_spts_1d*n_spts_1d-1;
+                    vertex_index_loc(1) = n_spts_1d*(n_spts_1d-1);
+                    vertex_index_loc(2) = n_spts_per_ele(i)-n_spts_1d;
+                }
+                else if(j==4)
+                {
+                    vertex_index_loc(0) = n_spts_1d*(n_spts_1d-1);
+                    vertex_index_loc(1) = 0;
+                    vertex_index_loc(2) = shift;
+                }
+                else if(j==5)
+                {
+                    vertex_index_loc(0) = shift;
+                    vertex_index_loc(1) = n_spts_1d-1+shift;
+                    vertex_index_loc(2) = n_spts_per_ele(i)-1;
+                }
+
+                //store position of vertex on each face
+                for (int k=0; k<3; k++) //number of points needed to define a plane
+                    for (int l=0; l<n_dims; l++) //dims
+                        pos_plane_pts(l,k)=shape(l,vertex_index_loc(k),i);
+
+                //calculate plane coeff
+                plane_coeff=calc_plane(pos_plane_pts);
+
+                alpha=alpha*((plane_coeff(0)*in_pos(0)+plane_coeff(1)*in_pos(1)+plane_coeff(2)*in_pos(2)+plane_coeff(3))*
+                             (plane_coeff(0)*pos_centroid(0)+plane_coeff(1)*pos_centroid(1)+plane_coeff(2)*pos_centroid(2)+plane_coeff(3))>0);
+                if (alpha<0)
+                    break;
+            }
+
+        }
+        else
+        {
+            FatalError("Quadratic element haven't been implemented yet!")
+        }
+        if (alpha>0)
+            return i;
+    }
+
+    return -1;
+}

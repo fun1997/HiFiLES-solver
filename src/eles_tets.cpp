@@ -1424,6 +1424,112 @@ double eles_tets::calc_ele_vol(double& detjac)
 
 /*! Calculate element reference length for timestep calculation */
 double eles_tets::calc_h_ref_specific(int in_ele)
-  {
-    FatalError("Reference length calculation not implemented for this element!")
-  }
+{
+    double vol,s_a,s_b,s_c,s_d;
+    array<double> a,b,c,d,e;
+    double out_h_ref;
+    s_a=0.;
+    s_b=0.;
+    s_c=0.;
+    s_d=0.;
+
+    //compute edge vector
+    for(int i=0; i<n_dims; i++)
+    {
+        a(i)=shape(i,1,in_ele)-shape(i,0,in_ele);//0-1
+        b(i)=shape(i,2,in_ele)-shape(i,0,in_ele);//0-2
+        c(i)=shape(i,3,in_ele)-shape(i,0,in_ele);//0-3
+        d(i)=shape(i,2,in_ele)-shape(i,1,in_ele);//1-2
+        e(i)=shape(i,3,in_ele)-shape(i,1,in_ele);//1-3
+    }
+
+    //calculate volume
+    vol=1./6.*trip_prod(a,b,c);
+
+    //calculate area of each face;
+    s_a=0.5*sqrt(pow(a(1)*b(2)-a(2)*b(1),2)+pow(a(0)*b(2)-a(2)*b(0),2)+pow(a(0)*b(1)-a(1)*b(0),2));
+    s_b=0.5*sqrt(pow(a(1)*c(2)-a(2)*c(1),2)+pow(a(0)*c(2)-a(2)*c(0),2)+pow(a(0)*c(1)-a(1)*c(0),2));
+    s_c=0.5*sqrt(pow(b(1)*c(2)-b(2)*c(1),2)+pow(b(0)*c(2)-b(2)*c(0),2)+pow(b(0)*c(1)-b(1)*c(0),2));
+    s_d=0.5*sqrt(pow(d(1)*e(2)-d(2)*e(1),2)+pow(d(0)*e(2)-d(2)*e(0),2)+pow(d(0)*e(1)-d(1)*e(0),2));
+
+    //insphere diameter
+    out_h_ref=6.*vol/(s_a+s_b+s_c+s_d);
+    return out_h_ref;
+}
+
+int eles_tets::calc_p2c(array<double>& in_pos)
+{
+    array<double> plane_coeff;
+    array<double> pos_centroid;
+    array<int> vertex_index_loc(3);
+    array<double> pos_plane_pts(n_dims,3);
+
+    for (int i=0; i<n_eles; i++)//for each element
+    {
+        int alpha=1;//indicator
+
+        //calculate centroid
+        array<double> temp_pos_s_pts(n_dims,n_spts_per_ele(i));
+        for (int j=0; j<n_spts_per_ele(i); j++)
+            for (int k=0; k<n_dims; k++)
+                temp_pos_s_pts(k,j)=shape(k,j,i);
+        pos_centroid=calc_centroid(temp_pos_s_pts);
+
+        if (n_spts_per_ele(i)==4)//linear tet
+        {
+            int num_f_per_c = 4;
+
+            for(int j=0; j<num_f_per_c; j++)//for each face
+            {
+                //store local vertex index
+                if(j==0)
+                {
+                    vertex_index_loc(0) = 1;
+                    vertex_index_loc(1) = 2;
+                    vertex_index_loc(2) = 3;
+                }
+                else if(j==1)
+                {
+                    vertex_index_loc(0) = 0;
+                    vertex_index_loc(1) = 3;
+                    vertex_index_loc(2) = 2;
+
+                }
+                else if(j==2)
+                {
+                    vertex_index_loc(0) = 0;
+                    vertex_index_loc(1) = 1;
+                    vertex_index_loc(2) = 3;
+                }
+                else if(j==3)
+                {
+                    vertex_index_loc(0) = 0;
+                    vertex_index_loc(1) = 2;
+                    vertex_index_loc(2) = 1;
+                }
+
+                //store position of vertex on each face
+                for (int k=0; k<3; k++) //number of points needed to define a plane
+                    for (int l=0; l<n_dims; l++) //dims
+                        pos_plane_pts(l,k)=shape(l,vertex_index_loc(k),i);
+
+                //calculate plane coeff
+                plane_coeff=calc_plane(pos_plane_pts);
+
+                alpha=alpha*((plane_coeff(0)*in_pos(0)+plane_coeff(1)*in_pos(1)+plane_coeff(2)*in_pos(2)+plane_coeff(3))*
+                             (plane_coeff(0)*pos_centroid(0)+plane_coeff(1)*pos_centroid(1)+plane_coeff(2)*pos_centroid(2)+plane_coeff(3))>0);
+                if (alpha<0)
+                    break;
+            }
+
+        }
+        else
+        {
+            FatalError("Quadratic element haven't been implemented yet!")
+        }
+        if (alpha>0)
+            return i;
+    }
+
+    return -1;
+}

@@ -2898,5 +2898,67 @@ array <double> square_to_quad(array<double>& temp_x,array<double>& temp_y)
         return A;
 }
 
+array<double> calc_plane(array<double>& in_pos)//in_pos(dim,n_pts)
+{
+    //check dimension of in_pos and if they are on the same line
+    if(!(in_pos.get_dim(0)==3&&in_pos.get_dim(0)==3))
+        FatalError("Input array must be a 3*3 array");
+    array<double> k;
+    k.setup(3,2);
+    for (int i=0; i<k.get_dim(0); i++)
+    {
+        k(i,0)=in_pos(i,1)-in_pos(i,0);
+        k(i,1)=in_pos(i,2)-in_pos(i,0);
+    }
+    if(k(0,0)/k(0,1)==k(1,0)/k(1,1)==k(2,0)/k(2,1))
+        FatalError("3 points share one line");
+
+    //coeff(0)*x+coeff(1)*y+coeff(2)*z+coeff(3)=0
+    array<double> coeff(4);
+
+    coeff(0)=(in_pos(1,1)-in_pos(1,0))*(in_pos(2,2)-in_pos(2,0))-(in_pos(2,1)-in_pos(2,0))*(in_pos(1,2)-in_pos(1,0));
+    coeff(1)=(in_pos(2,1)-in_pos(2,0))*(in_pos(0,2)-in_pos(0,0))-(in_pos(0,1)-in_pos(0,0))*(in_pos(2,2)-in_pos(2,0));
+    coeff(2)=(in_pos(0,1)-in_pos(0,0))*(in_pos(1,2)-in_pos(1,0))-(in_pos(1,1)-in_pos(1,0))*(in_pos(0,2)-in_pos(0,0));
+    coeff(3)=0.-(coeff(0)*in_pos(0,0)+coeff(1)*in_pos(1,0)+coeff(2)*in_pos(2,0));
+    return coeff;
+}
+
+array<double> calc_line(array<double>& in_pos)//in_pos(dim,n_pts)
+{
+    if(!(in_pos.get_dim(0)==2&&in_pos.get_dim(0)==2))
+        FatalError("Input array must be a 2*2 array");
+    array<double> coeff(3);
+
+    //coeff(0)*x+coeff(1)*y+coeff(2)=0
+    coeff(0)=in_pos(1,1)-in_pos(1,0);
+    coeff(1)=in_pos(0,0)-in_pos(0,1);
+    coeff(2)=0.-(coeff(0)*in_pos(0,0)+coeff(1)*in_pos(1,0));
+    return coeff;
+}
+
+
+array<double> calc_centroid(array<double>& in_pos)//in_pos(dim,n_pts)
+{
+    int in_dims=in_pos.get_dim(0);
+    int in_npts=in_pos.get_dim(1);
+    array<double> centroid(in_dims);
+    centroid.initialize_to_zero();
+    for (int i=0; i<in_npts; i++)
+    {
+        for(int j=0; j<in_dims; j++)
+        {
+            centroid(j)+=in_pos(j,i)/(double)in_npts;
+        }
+    }
+    return centroid;
+}
+
+double trip_prod(array<double> &a,array<double> &b, array<double> &c)
+{
+    if(a.get_dim(0)!=3||b.get_dim(0)!=3||c.get_dim(0)!=3)
+        FatalError("input must be 3D vectors");
+
+    return (a(0)*b(1)*c(2)+b(0)*c(1)*a(2)+c(0)*a(1)*b(2))-(c(0)*b(1)*a(2)+b(0)*a(1)*c(2)+a(0)*c(1)*b(2));
+}
 /*! END */
 

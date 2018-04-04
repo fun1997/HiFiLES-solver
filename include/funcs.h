@@ -236,6 +236,18 @@ array <double> transpose_array(array <double>& in_array);
 
 array <double> square_to_quad(array<double>& temp_x,array<double>& temp_y);
 
+/*! method to define a plane using three points*/
+array <double> calc_plane(array<double>& in_pos);
+
+/*! method to define a line using two points*/
+array<double> calc_line(array<double>& in_pos);
+
+/*! method to calculate centroid of a set of points*/
+array<double> calc_centroid(array<double>& in_pos);
+
+/*! method to calculate triple product of three 3D vectors*/
+double trip_prod(array<double> &a,array<double> &b, array<double> &c);
+
 /*! END */
 
 
