@@ -1424,7 +1424,6 @@ int eles_hexas::calc_p2c(array<double>& in_pos)
     array<double> pos_centroid;
     array<int> vertex_index_loc(3);
     array<double> pos_plane_pts(n_dims,3);
-
     for (int i=0; i<n_eles; i++)//for each element
     {
         int alpha=1;//indicator
@@ -1435,7 +1434,6 @@ int eles_hexas::calc_p2c(array<double>& in_pos)
             for (int k=0; k<n_dims; k++)
                 temp_pos_s_pts(k,j)=shape(k,j,i);
         pos_centroid=calc_centroid(temp_pos_s_pts);
-
         if (n_spts_per_ele(i)==8)//linear hex
         {
             int num_f_per_c = 6;
@@ -1492,7 +1490,7 @@ int eles_hexas::calc_p2c(array<double>& in_pos)
                 plane_coeff=calc_plane(pos_plane_pts);
 
                 alpha=alpha*((plane_coeff(0)*in_pos(0)+plane_coeff(1)*in_pos(1)+plane_coeff(2)*in_pos(2)+plane_coeff(3))*
-                             (plane_coeff(0)*pos_centroid(0)+plane_coeff(1)*pos_centroid(1)+plane_coeff(2)*pos_centroid(2)+plane_coeff(3))>0);
+                             (plane_coeff(0)*pos_centroid(0)+plane_coeff(1)*pos_centroid(1)+plane_coeff(2)*pos_centroid(2)+plane_coeff(3))>=0);
                 if (alpha<0)
                     break;
             }

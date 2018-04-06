@@ -2903,15 +2903,6 @@ array<double> calc_plane(array<double>& in_pos)//in_pos(dim,n_pts)
     //check dimension of in_pos and if they are on the same line
     if(!(in_pos.get_dim(0)==3&&in_pos.get_dim(0)==3))
         FatalError("Input array must be a 3*3 array");
-    array<double> k;
-    k.setup(3,2);
-    for (int i=0; i<k.get_dim(0); i++)
-    {
-        k(i,0)=in_pos(i,1)-in_pos(i,0);
-        k(i,1)=in_pos(i,2)-in_pos(i,0);
-    }
-    if(k(0,0)/k(0,1)==k(1,0)/k(1,1)==k(2,0)/k(2,1))
-        FatalError("3 points share one line");
 
     //coeff(0)*x+coeff(1)*y+coeff(2)*z+coeff(3)=0
     array<double> coeff(4);

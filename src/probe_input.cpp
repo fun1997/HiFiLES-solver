@@ -181,7 +181,7 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
                     array<double>temp_pos(n_dims);
                     for (int k=0; k<n_dims; k++)
                         temp_pos(k)=pos_probe(k,j);
-                    temp_p2c=FlowSol->mesh_eles(i)->calc_p2c(pos_probe);
+                    temp_p2c=FlowSol->mesh_eles(i)->calc_p2c(temp_pos);
 
                     if (temp_p2c!=-1)//if inside this type of elements
                     {
@@ -196,15 +196,13 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
 #ifdef _MPI
     //MPI_Barrier(MPI_COMM_WORLD);
     array<int> p2cglobe(n_probe,FlowSol->nproc);
-    array<int> p2tglobe(n_probe,FlowSol->nproc);
     MPI_Allgather(p2c.get_ptr_cpu(),n_probe,MPI_INT,p2cglobe.get_ptr_cpu(),n_probe,MPI_INT,MPI_COMM_WORLD);
-    MPI_Allgather(p2t.get_ptr_cpu(),n_probe,MPI_INT,p2tglobe.get_ptr_cpu(),n_probe,MPI_INT,MPI_COMM_WORLD);
     //MPI_Barrier(MPI_COMM_WORLD);
     for (int i=0; i<n_probe; i++)//for each probe
     {
         for(int j=0; j<rank; j++)//loop over all processors before this one
         {
-            if(p2c(i)!=-1&&p2cglobe(i,j)!=-1&&p2t(i)==p2tglobe(i,j))//there's a conflict
+            if(p2c(i)!=-1&&p2cglobe(i,j)!=-1)//there's a conflict
             {
                 p2c(i)=-1;
                 p2t(i)=-1;
@@ -214,20 +212,11 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
     }
 #endif
 
-    //  for(int i=0; i<n_probe; i++)
-    // {
-    // if(p2c(i)!=-1)
-    //  {
-    //   cout<<"probe "<<i<<" is found in "<<"local element No."<<p2c(i)<<", element type: ";
-    //cout<<p2e(i)<<endl;
-    //   switch(p2t(i))
-    //   {
-    //  case 0:
-    //       cout<<"Tri";
-    //   case 1:
-    //      cout<<"Quad";
-    //  }
-    //   cout<<", rank: "<<rank<<endl;
-    //}
-    //}
+/*
+    for(int i=0; i<n_probe; i++)
+        if(p2c(i)!=-1)
+            cout<<"probe "<<i<<" is found in local element No."<<p2c(i)<<
+                ", element type: "<<p2t(i)<<", rank: "<<rank<<endl;
+    FatalError("Test end!")
+    */
 }

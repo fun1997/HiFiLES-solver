@@ -879,7 +879,7 @@ int eles_tris::calc_p2c(array<double>& in_pos)
                 line_coeff=calc_line(pos_line_pts);
 
                 alpha=alpha*((line_coeff(0)*in_pos(0)+line_coeff(1)*in_pos(1)+line_coeff(2))*
-                             (line_coeff(0)*pos_centroid(0)+line_coeff(1)*pos_centroid(1)+line_coeff(2))>0);
+                             (line_coeff(0)*pos_centroid(0)+line_coeff(1)*pos_centroid(1)+line_coeff(2))>=0);
                       if (alpha<0)
                           break;
             }
