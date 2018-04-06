@@ -1427,6 +1427,11 @@ double eles_tets::calc_h_ref_specific(int in_ele)
 {
     double vol,s_a,s_b,s_c,s_d;
     array<double> a,b,c,d,e;
+    a.setup(n_dims);
+    b.setup(n_dims);
+    c.setup(n_dims);
+    d.setup(n_dims);
+    e.setup(n_dims);
     double out_h_ref;
     s_a=0.;
     s_b=0.;
@@ -1442,7 +1447,6 @@ double eles_tets::calc_h_ref_specific(int in_ele)
         d(i)=shape(i,2,in_ele)-shape(i,1,in_ele);//1-2
         e(i)=shape(i,3,in_ele)-shape(i,1,in_ele);//1-3
     }
-
     //calculate volume
     vol=1./6.*trip_prod(a,b,c);
 
