@@ -150,6 +150,13 @@ void probe_input::read_probe_input(string filename, int rank)
                     pos_probe(j,i)=p_0(j)+i*init_incre/l_length*(p_1(j)-p_0(j));
         }
     }
+    else if(probe_layout==2)
+    {
+        probf.getScalarValue("neu_file",neu_file);
+        set_probe_gambit(neu_file);
+    }
+    else
+        FatalError("Probe layout not implemented")
 
     if (rank==0)
     {
@@ -159,7 +166,7 @@ void probe_input::read_probe_input(string filename, int rank)
     }
 }
 
-void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
+void probe_input::set_probe_connectivity(struct solution* FlowSol,int rank)
 {
     p2c.setup(n_probe);
     p2t.setup(n_probe);
@@ -212,11 +219,50 @@ void probe_input::set_probe_connection(struct solution* FlowSol,int rank)
     }
 #endif
 
-/*
+    //setup probe location in reference domain.
+    if (rank==0)
+        cout<<"setting up location of probes in reference domain.."<<endl;
+    set_loc_probepts(FlowSol);
+
+    /*
     for(int i=0; i<n_probe; i++)
-        if(p2c(i)!=-1)
-            cout<<"probe "<<i<<" is found in local element No."<<p2c(i)<<
-                ", element type: "<<p2t(i)<<", rank: "<<rank<<endl;
+       if(p2c(i)!=-1)
+           cout<<"probe "<<i<<" is found in local element No."<<p2c(i)<<
+               ", element type: "<<p2t(i)<<", rank: "<<rank<<endl;
     FatalError("Test end!")
     */
 }
+
+void probe_input::set_probe_gambit(string filename)
+{
+//read points and elements
+//calculate face centroid
+//calculate face normals
+
+}
+
+void probe_input::set_loc_probepts(struct solution* FlowSol)
+{
+    loc_probe.setup(n_dims,n_probe);
+    array<double> temp_pos(n_dims);
+    array<double> temp_loc(n_dims);
+    for (int i=0; i<n_probe; i++)//loop over all probes
+    {
+        if(p2c(i)!=-1)//if probe belongs to this processor
+        {
+            for (int j=0; j<n_dims; j++)
+                temp_pos(j)=pos_probe(j,i);
+            FlowSol->mesh_eles(p2t(i))->pos_to_loc(temp_pos,p2c(i),temp_loc);
+            //copy to loc_probe
+            for (int j=0; j<n_dims; j++)
+                loc_probe(j,i)=temp_loc(j);
+        }
+        else
+        {
+            for (int j=0; j<n_dims; j++)
+                loc_probe(j,i)=0;
+        }
+    }
+    FatalError("test end")
+}
+/*! END */

@@ -5046,44 +5046,6 @@ double eles::get_loc_upt(int in_upt, int in_dim)
 }
 
 //get reference position of a probe point
-void eles::calc_loc_probepoints(int in_probe_i, int in_ele,int in_type, array<double>& out_loc)
-{
-    if(in_type==1)//quad
-    {
-        array<double> shape_x(4);//shape point x
-        array<double> shape_y(4);//shape point y
-        array<double> A,B;
-        int s2v[5]= {0,1,3,2,0};
-        for (int i=0; i<4; i++)
-        {
-            shape_x(i)=get_shape(0,s2v[i],in_ele);
-            shape_y(i)=get_shape(1,s2v[i],in_ele);
-        }
-        A=square_to_quad(shape_x,shape_y);
-        A=inv_array(A);//quad to square
-        array<double> ref_loc_X(4);
-        array<double> ref_loc_y(4);
-        ref_loc_X(0)=-1;
-        ref_loc_X(1)=1;
-        ref_loc_X(2)=1;
-        ref_loc_X(3)=-1;
-        ref_loc_y(0)=-1;
-        ref_loc_y(1)=-1;
-        ref_loc_y(2)=1;
-        ref_loc_y(3)=1;
-        B=square_to_quad(ref_loc_X,ref_loc_y);//square to ref
-        B=mult_arrays(A,B);//quad to ref
-        array<double>temp_pos(1,3);
-        temp_pos(0)=run_probe.pos_probe(0,in_probe_i);
-        temp_pos(1)=run_probe.pos_probe(1,in_probe_i);
-        temp_pos(2)=1.;
-        temp_pos=mult_arrays(temp_pos,B);
-        out_loc(0)=temp_pos(0)/temp_pos(2);
-        out_loc(1)=temp_pos(1)/temp_pos(2);
-    }
-    else
-        FatalError("other element types not implemnted yet!");
-}
 
 // set transforms
 
@@ -8087,6 +8049,40 @@ void eles::set_grid_vel_ppts(void)
 array<double> eles::get_grid_vel_ppts(void)
 {
     return vel_ppts;
+}
+
+void eles::pos_to_loc(array<double>& in_pos,int in_ele,array<double>& out_loc)
+{
+    //use newton's method to solve non-linear system
+    //dx=J^-1*(-f(xn))
+    //set initial values
+    array<double> temp_d_pos(n_dims,n_dims);
+    array<double> fx_n(n_dims);
+    array<double> dx(n_dims);
+    out_loc.initialize_to_zero();
+    dx.initialize_to_value(10.);
+    double tol=1e-6;
+    while(dx.get_max()>tol)
+    {
+        //calculate jacobian matrix
+        calc_d_pos(out_loc,in_ele,temp_d_pos);
+        temp_d_pos=inv_array(temp_d_pos);
+        //calculate position based on last step
+        calc_pos(out_loc,in_ele,fx_n);
+
+        //setup rhs of equation
+        for (int i=0;i<n_dims;i++)
+            fx_n(i)=-fx_n(i)+in_pos(i);
+
+        dx=mult_arrays(temp_d_pos,fx_n);
+
+        for(int i=0;i<n_dims;i++)
+        {
+            out_loc(i)+=dx(i);
+        }
+    }
+    calc_pos(out_loc,in_ele,dx);
+    cout<<setprecision(6)<<setw(15)<<dx(0)<<dx(1)<<dx(2)<<endl;
 }
 
 #ifdef _GPU

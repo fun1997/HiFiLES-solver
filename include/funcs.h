@@ -234,8 +234,6 @@ array <double> inv_array(array <double>& input);
 /*! method to get transpose of a square array*/
 array <double> transpose_array(array <double>& in_array);
 
-array <double> square_to_quad(array<double>& temp_x,array<double>& temp_y);
-
 /*! method to define a plane using three points*/
 array <double> calc_plane(array<double>& in_pos);
 

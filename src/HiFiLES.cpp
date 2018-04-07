@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
   if(run_input.probe)//for no motion only
       {
           run_probe.setup(run_input.probe_file_name,FlowSol.n_dims,rank);
-          run_probe.set_probe_connection(&FlowSol,rank);
+          run_probe.set_probe_connectivity(&FlowSol,rank);
       }
   /////////////////////////////////////////////////
   /// Pre-processing

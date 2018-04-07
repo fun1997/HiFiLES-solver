@@ -338,9 +338,6 @@ public:
   /*! returns position of a solution point */
   double get_loc_upt(int in_upt, int in_dim);
 
-  /*!get reference position of a probe point */
-  void calc_loc_probepoints(int in_probe_i, int in_ele,int in_type, array<double>& out_loc);
-
   /*! set transforms */
   void set_transforms(void);
 
@@ -371,6 +368,9 @@ public:
 
   /*! calculate derivative of position at a flux point (using pre-computed gradients) */
   void calc_d_pos_fpt(int in_fpt, int in_ele, array<double>& out_d_pos);
+
+  /*! iteratively calculate location in reference domain from position in physical domain*/
+  void pos_to_loc(array<double>& in_pos,int in_ele,array<double>& out_loc);
 
   // #### virtual methods ####
 

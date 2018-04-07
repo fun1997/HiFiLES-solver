@@ -1143,7 +1143,7 @@ void write_probe(struct solution* FlowSol)
                     write_probe<<setw(17)<<run_input.average_fields(j);
                 write_probe<<endl;
             }
-            FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp); //HACK: use virtual function//calculate reference location
+            //FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp); //HACK: use virtual function//calculate reference location
             FlowSol->mesh_eles(run_probe.p2t(i))->set_opp_probe(loc_probe_point_temp);//calculate solution on upts to probe points matrix
             //cout<<"calc_loc"<<endl;
             FlowSol->mesh_eles(run_probe.p2t(i))->calc_disu_probepoints(run_probe.p2c(i),disu_probe_point_temp);//calculate solution on the reference probe point

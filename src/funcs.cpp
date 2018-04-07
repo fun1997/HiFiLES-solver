@@ -2661,6 +2661,8 @@ array <double> mult_arrays(array <double>& M1, array <double>& M2)
 
           cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,dim_1_0,dim_2_1,dim_1_1,1.0,M1.get_ptr_cpu(),dim_1_0,M2.get_ptr_cpu(),dim_2_0,0.0,product.get_ptr_cpu(),dim_1_0);
 
+#elif defined _NO_BLAS
+            dgemm(dim_1_0,dim_2_1,dim_1_1,1.0,0.0,M1.get_ptr_cpu(),M2.get_ptr_cpu(),product.get_ptr_cpu());
 #else
 
           for (int i=0;i<dim_1_0;++i) {
@@ -2853,49 +2855,6 @@ array <double> inv_array(array <double>& in_array)
       cout << "ERROR: Array you are trying to invert has > 2 dimensions" << endl;
       exit(1);
     }
-}
-
-array <double> square_to_quad(array<double>& temp_x,array<double>& temp_y)
-{
-        array<double> A(3,3);
-        int s2v[5]= {0,1,3,2,0};
-        if(temp_x.get_dim(0)!=4||temp_y.get_dim(0)!=4)
-        {
-            FatalError("quad have 4 points");
-        }
-        double dx3 = temp_x(0) - temp_x(1) + temp_x(2) - temp_x(3);
-        double dy3 = temp_y(0) - temp_y(1) + temp_y(2) - temp_y(3);
-        if (dx3 == 0. && dy3 == 0.)
-        {
-            A(0,0)=temp_x(1) - temp_x(0);
-            A(1,0)=temp_x(2) - temp_x(1);
-            A(2,0)= temp_x(0);
-            A(0,1)=temp_y(1) - temp_y(0);
-            A(1,1)=temp_y(2) - temp_y(1);
-            A(2,1)=temp_y(0);
-            A(0,2)= 0;
-            A(1,2)=0;
-            A(2,2)=1;
-        }
-        else
-        {
-            double dx1 = temp_x(1) - temp_x(2);
-            double dx2 = temp_x(3) - temp_x(2);
-            double dy1 = temp_y(1) - temp_y(2);
-            double dy2 = temp_y(3) - temp_y(2);
-            double denominator = dx1 * dy2 - dx2 * dy1;
-            A(0,2) = (dx3 * dy2 - dx2 * dy3) / denominator;
-            A(1,2) = (dx1 * dy3 - dx3 * dy1) / denominator;
-            A(0,0)=temp_x(1) - temp_x(0) + A(0,2) *temp_x(1);
-            A(1,0)=  temp_x(3) -temp_x(0) + A(1,2) * temp_x(3);
-            A(2,0)= temp_x(0);
-            A(0,1)=temp_y(1) - temp_y(0) + A(0,2) * temp_y(1);
-            A(1,1)= temp_y(3) - temp_y(0) + A(1,2) * temp_y(3);
-            A(2,1)=temp_y(0);
-            A(2,2)=1.0;
-
-        }
-        return A;
 }
 
 array<double> calc_plane(array<double>& in_pos)//in_pos(dim,n_pts)
