@@ -456,7 +456,6 @@ void input::read_input_file(string fileName, int rank)
 
     /* ---- Uncategorized / Other ---- */
 
-    opts.getScalarValue("spinup_time",spinup_time,0.);
     opts.getScalarValue("const_src",const_src,0.);
     opts.getScalarValue("body_forcing",forcing,0);
     opts.getScalarValue("perturb_ic",perturb_ic,0);

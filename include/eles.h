@@ -308,9 +308,6 @@ public:
   /*! calculate solution at the probe points */
   void calc_disu_probepoints(int in_ele, array<double>& out_disu_probepoints);
 
-  /*! calculate time-averaged at the probe points */
-  void calc_time_average_probepoints(int in_ele, array<double>& out_disu_average_probepoints);
-
   /*! calculate solution at the plot points */
   void calc_disu_ppts(int in_ele, array<double>& out_disu_ppts);
 
@@ -327,7 +324,7 @@ public:
   void calc_time_average_ppts(int in_ele, array<double>& out_disu_average_ppts);
 
   /*! calculate diagnostic fields at the plot points */
-  void calc_diagnostic_fields_ppts(int in_ele, array<double>& in_disu_ppts, array<double>& in_grad_disu_ppts, array<double>& in_sensor_ppts, array<double> &in_epsilon_ppts, array<double>& out_diag_field_ppts, double& time);
+  void calc_diagnostic_fields_ppts(int in_ele, array<double>& in_disu_ppts, array<double>& in_grad_disu_ppts, array<double>& in_sensor_ppts, array<double>& out_diag_field_ppts, double& time);
 
   /*! calculate position of a solution point */
   void calc_pos_upt(int in_upt, int in_ele, array<double>& out_pos);
@@ -946,10 +943,6 @@ protected:
 	*/
 	array<double> disu_average_upts;
 
-	/*!
-	time (in secs) until start of time average period for above diagnostic fields
-	*/
-  double spinup_time;
 
 	/*!
 	filtered solution at solution points for similarity and SVV LES models

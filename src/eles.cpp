@@ -4631,41 +4631,6 @@ void eles::calc_disu_probepoints(int in_ele, array<double>& out_disu_probepoints
     }
 }
 
-// calculate time-averaged values at the probe points
-void eles::calc_time_average_probepoints(int in_ele, array<double>& out_disu_average_probepoints)
-{
-    if (n_eles!=0)
-    {
-        array<double> disu_average_upts_probe(n_upts_per_ele,n_average_fields);
-
-        for(int i=0; i<n_average_fields; i++)
-        {
-            for(int j=0; j<n_upts_per_ele; j++)
-            {
-                disu_average_upts_probe(j,i)=disu_average_upts(j,in_ele,i);
-            }
-        }
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-
-        cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,1,n_average_fields,n_upts_per_ele,1.0,opp_probe.get_ptr_cpu(),1,disu_average_upts_probe.get_ptr_cpu(),n_upts_per_ele,0.0,out_disu_average_probepoints.get_ptr_cpu(),1);
-
-#elif defined _NO_BLAS
-        dgemm(1,n_average_fields,n_upts_per_ele,1.0,0.0,opp_probe.get_ptr_cpu(),disu_average_upts_probe.get_ptr_cpu(),out_disu_average_probepoints.get_ptr_cpu());
-
-#else
-        for(int k=0; k<n_average_fields; k++)
-        {
-            out_disu_average_probepoints(k) = 0.;
-
-            for(int j=0; j<n_upts_per_ele; j++)
-            {
-                out_disu_average_probepoints(k) += opp_probe(j)*disu_average_upts_probe(j,k);
-            }
-        }
-#endif
-
-    }
-}
 // calculate solution at the plot points
 void eles::calc_disu_ppts(int in_ele, array<double>& out_disu_ppts)
 {
@@ -4879,7 +4844,7 @@ void eles::calc_epsilon_ppts(int in_ele, array<double>& out_epsilon_ppts)
 }
 
 // calculate diagnostic fields at the plot points
-void eles::calc_diagnostic_fields_ppts(int in_ele, array<double>& in_disu_ppts, array<double>& in_grad_disu_ppts, array<double>& in_sensor_ppts, array<double>& in_epsilon_ppts, array<double>& out_diag_field_ppts, double& time)
+void eles::calc_diagnostic_fields_ppts(int in_ele, array<double>& in_disu_ppts, array<double>& in_grad_disu_ppts, array<double>& in_sensor_ppts, array<double>& out_diag_field_ppts, double& time)
 {
     int i,j,k,m;
     double diagfield_upt;
@@ -5001,10 +4966,6 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, array<double>& in_disu_ppts, 
             else if (run_input.diagnostic_fields(k)=="sensor")
             {
                 diagfield_upt = in_sensor_ppts(j);
-            }
-            else if (run_input.diagnostic_fields(k)=="epsilon")
-            {
-                diagfield_upt = in_epsilon_ppts(j);
             }
 
             else
@@ -7277,9 +7238,10 @@ void eles::CalcTimeAverageQuantities(double& time)
     double rho;
     int i, j, k;
 
-    for(j=0; j<n_upts_per_ele; j++)
+
+    for(k=0; k<n_eles; k++)
     {
-        for(k=0; k<n_eles; k++)
+        for(j=0; j<n_upts_per_ele; j++)
         {
             for(i=0; i<n_average_fields; ++i)
             {
@@ -7306,7 +7268,7 @@ void eles::CalcTimeAverageQuantities(double& time)
                     current_value = disu_upts(0)(j,k,3)/rho;
                     average_value = disu_average_upts(j,k,3);
                 }
-                else if(run_input.average_fields(i)=="e_average")
+                else if(run_input.average_fields(i)=="e_average")//e only
                 {
                     if(n_dims==2)
                     {
@@ -7330,7 +7292,7 @@ void eles::CalcTimeAverageQuantities(double& time)
 
                 // set average value to current value if before spinup time
                 // and prevent division by a very small number if time = spinup time
-                if(time-spinup_time < 1.0e-12)
+                if(time==spinup_time)
                 {
                     a = 0.0;
                     b = 1.0;
@@ -8081,8 +8043,7 @@ void eles::pos_to_loc(array<double>& in_pos,int in_ele,array<double>& out_loc)
             out_loc(i)+=dx(i);
         }
     }
-    calc_pos(out_loc,in_ele,dx);
-    cout<<setprecision(6)<<setw(15)<<dx(0)<<dx(1)<<dx(2)<<endl;
+
 }
 
 #ifdef _GPU

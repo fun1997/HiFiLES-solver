@@ -52,10 +52,10 @@ public:
     array<int> p2c;//probe point to cell number(local typewise)
     array<int> p2t;//probe point to cell type
     array<double> loc_probe;
-    void setup(string filenameS,int in_dim, int rank);
-    void set_probe_connectivity(struct solution* FlowSol,int rank);
+    void setup(string filenameS,struct solution* FlowSol, int rank);
 protected:
     void read_probe_input(string filename, int rank);
+    void set_probe_connectivity(struct solution* FlowSol,int rank);
     void set_probe_gambit(string filename);
     void set_loc_probepts(struct solution* FlowSol);
 private:

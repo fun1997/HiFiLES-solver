@@ -80,8 +80,6 @@ void write_tec(int in_file_num, struct solution* FlowSol)
 
   /*! Sensor data for artificial viscosity at plot points */
   array<double> sensor_ppts_temp;
-  /*! Artificial viscosity co-efficient values for artificial viscosity at plot points */
-  array<double> epsilon_ppts_temp;
 
   int n_ppts_per_ele;
   int n_dims = FlowSol->n_dims;
@@ -198,8 +196,6 @@ void write_tec(int in_file_num, struct solution* FlowSol)
           /*! Temporary field for sensor array at plot points */
           sensor_ppts_temp.setup(n_ppts_per_ele);
 
-          /*! Temporary field for artificial viscosity co-efficients at plot points */
-          epsilon_ppts_temp.setup(n_ppts_per_ele);
 
           // write element specific header
           if(FlowSol->mesh_eles(i)->get_ele_type()==0) // tri
@@ -261,7 +257,7 @@ void write_tec(int in_file_num, struct solution* FlowSol)
               /*! Calculate the diagnostic fields at the plot points */
               if(n_diag_fields > 0)
                 {
-                  FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, epsilon_ppts_temp, diag_ppts_temp, FlowSol->time);
+                  FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, diag_ppts_temp, FlowSol->time);
                 }
 
               for(k=0;k<n_ppts_per_ele;k++)
@@ -618,8 +614,6 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
   array<double> grid_vel_ppts_temp;
   /*! Sensor data for artificial viscosity at plot points */
   array<double> sensor_ppts_temp;
-  /*! Artificial viscosity co-efficient values for artificial viscosity at plot points */
-  array<double> epsilon_ppts_temp;
 
   /*! Plot sub-element connectivity array (node IDs) */
   array<int> con;
@@ -804,8 +798,6 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
             /*! Temporary field for sensor array at plot points */
             sensor_ppts_temp.setup(n_points);
 
-            /*! Temporary field for artificial viscosity co-efficients at plot points */
-            epsilon_ppts_temp.setup(n_points);
           }
 
           /*! Temporary grid velocity array at plot points */
@@ -847,7 +839,7 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
                 }
 
                 /*! Calculate the diagnostic fields at the plot points */
-                FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, epsilon_ppts_temp, diag_ppts_temp, FlowSol->time);
+                FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, diag_ppts_temp, FlowSol->time);
               }
 
               /*! write out solution to file */
@@ -1069,29 +1061,24 @@ void write_probe(struct solution* FlowSol)
     /*! No. of solution fields */
     int n_fields;
     /*! No. of optional diagnostic fields */
-    int n_probe_fields;
+    int n_probe_fields=run_probe.n_probe_fields;
+    /*! No. of probes */
+    int n_probe=run_probe.n_probe;
     /*! No. of dimensions */
     int n_dims=FlowSol->n_dims;
-    /*! reference location of probe points */
-    array<double> loc_probe_point_temp;
+    /*! reference location of probe point */
+    array<double> loc_probe_point_temp(n_dims);
     /*! solution data at probe points */
     array<double> disu_probe_point_temp;
     /*! solution gradient data at probe points */
     array<double> grad_disu_probe_point_temp;
-    /*! time reference data at probe points*/
-    array<double> disu_average_probe_points_temp;
     /*! file name */
     char probe_data[256];
-    char* data;
-
-    /*! output files*/
+    /*! output file object*/
     ofstream write_probe;
-
-    /*! get diagnostic fields*/
-    n_probe_fields=run_probe.n_probe_fields;
-
     /*! set file name*/
     char folder[]="Probes";
+
     /*! master node create a directory to store .dat*/
     if(myrank==0)
     {
@@ -1106,49 +1093,53 @@ void write_probe(struct solution* FlowSol)
 #endif // _MPI
     /*! every node write .dat*/
     if(myrank ==0) cout<<"writing probe point data...";
-    for (int i=0; i<run_probe.n_probe; i++) //loop over every probe point i
+    for (int i=0; i<n_probe; i++) //loop over every probe point i
     {
         if(run_probe.p2c(i)!=-1)//if probe point belongs to this processor
         {
+            //copy probe point property
             n_fields=FlowSol->mesh_eles(run_probe.p2t(i))->get_n_fields();//number of computing fields
-            loc_probe_point_temp.setup(n_dims);
-            //grad_disu_probe_point_temp.setup(n_fields,n_dims);
             disu_probe_point_temp.setup(n_fields);
-            if(run_input.n_average_fields > 0)//Temporary array of time averaged fields at the plot points
-                disu_average_probe_points_temp.setup(run_input.n_average_fields);
-            //cout<<run_probe.p2c(i)<<endl;
-            int exist=0;
-            sprintf(probe_data,"Probes/probe_%.04d.dat",i);//generate file name
-            data=&probe_data[0];
+            for (int j=0;j<n_dims;j++)
+                loc_probe_point_temp(j)=run_probe.loc_probe(j,i);
+
+            //check if file exist
+            bool exist=true;
             struct stat st= {0};
-            if (stat(data,&st)==-1) exist = -1;//check if the file exists
-            write_probe.open(data,ios_base::out|ios_base::app);//open file
+            sprintf(probe_data,"Probes/probe_%.04d.dat",i);//generate file name
+            if (stat(probe_data,&st)==-1) exist = false;
+
+            write_probe.open(probe_data,ios_base::out|ios_base::app);//open file
             if (!write_probe.is_open())
             {
-                write_probe.open(data,ios_base::out|ios_base::app);
+                write_probe.open(probe_data,ios_base::out|ios_base::app);
                 if (!write_probe.is_open())
                     FatalError("Cannont open input file for reading.");
             }
-            if(exist==-1)//if doesn't exist write headers
-            {
 
-                if(run_probe.p2t(i)==0||run_probe.p2t(i)==1)//tri
-                    write_probe<<"Probe location:"<<setw(10)<<setprecision(5)<<run_probe.pos_probe(0,i)<<setw(10)<<setprecision(5)<<run_probe.pos_probe(1,i)<<endl;
-                else FatalError("3D not implemented yet!");
+            if(exist==false)//if doesn't exist write headers
+            {
+                write_probe<<"Probe position"<<endl;
+                write_probe<<setw(10)<<setprecision(5)<<run_probe.pos_probe(0,i)<<setw(10)<<setprecision(5)<<run_probe.pos_probe(1,i);
+                if (n_dims==3) write_probe<<setw(10)<<setprecision(5)<<run_probe.pos_probe(2,i)<<endl;
+                else write_probe<<endl;
+                if (run_probe.probe_layout==2)//permeable surface
+                {
+                    write_probe<<"surface normal"<<endl;
+                    //write_probe<<
+                }
                 /*! write field titles*/
                 write_probe<<setw(17)<<"time";
                 for(int j=0; j<n_probe_fields; j++)
                     write_probe<<setw(17)<<run_probe.probe_fields(j);
-                for(int j=0; j<run_input.n_average_fields; j++)
-                    write_probe<<setw(17)<<run_input.average_fields(j);
+
                 write_probe<<endl;
             }
-            //FlowSol->mesh_eles(run_probe.p2t(i))->calc_loc_probepoints(i,run_probe.p2c(i),run_probe.p2t(i),loc_probe_point_temp); //HACK: use virtual function//calculate reference location
+
+            //calculate fields data on probe points
             FlowSol->mesh_eles(run_probe.p2t(i))->set_opp_probe(loc_probe_point_temp);//calculate solution on upts to probe points matrix
-            //cout<<"calc_loc"<<endl;
             FlowSol->mesh_eles(run_probe.p2t(i))->calc_disu_probepoints(run_probe.p2c(i),disu_probe_point_temp);//calculate solution on the reference probe point
-            FlowSol->mesh_eles(run_probe.p2t(i))->calc_time_average_probepoints(run_probe.p2c(i),disu_average_probe_points_temp);
-            //cout<<"calc_disu"<<endl;
+
             /*! Start writing data*/
             write_probe<<setw(17)<<setprecision(10)<<FlowSol->time;
             for (int j=0; j<n_probe_fields; j++)//write transient fields
@@ -1156,14 +1147,14 @@ void write_probe(struct solution* FlowSol)
 
                 if (run_probe.probe_fields(j)=="rho")
                     write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(0);
-                else if (run_probe.probe_fields(j)=="u")
-                    write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(1)/disu_probe_point_temp(0);
-                else if (run_probe.probe_fields(j)=="v")
-                    write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(2)/disu_probe_point_temp(0);
-                else if (run_probe.probe_fields(j)=="w")
+                else if (run_probe.probe_fields(j)=="rho_u")
+                    write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(1);
+                else if (run_probe.probe_fields(j)=="rho_v")
+                    write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(2);
+                else if (run_probe.probe_fields(j)=="rho_w")
                 {
                     if(n_dims==3)
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
+                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3);
                     else FatalError("2 dimensional elements don't have z velocity");
                 }
                 else if (run_probe.probe_fields(j)== "energy")//rho*e
@@ -1186,49 +1177,6 @@ void write_probe(struct solution* FlowSol)
                     write_probe<<setw(17)<<setprecision(10)<<pressure;
                 }
                 else FatalError("Probe field not implemented yet!");
-            }
-            for(int j=0; j<run_input.n_average_fields;j++) //HACK: some problems in it!//write average fields
-            {
-                if(run_input.average_fields(j)=="rho_average")
-                    write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(0);
-                else if(run_input.average_fields(j)=="u_average")
-                        write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(1);
-                else if(run_input.average_fields(j)=="v_average")
-                        write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(2);
-                else if(run_input.average_fields(j)=="w_average")
-                {
-                    if(n_dims==3)
-                            write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(3);
-                    else FatalError("2 dimensional elements don't have z velocity");
-                }
-                else if(run_input.average_fields(j)=="e_average")
-                {
-                        if(n_dims==2)
-                            write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(3);
-                        else
-                            write_probe<<setw(17)<<setprecision(10)<<disu_average_probe_points_temp(4);
-                }
-                else if(run_input.average_fields(j)=="p_average")
-                {
-                    int valid_counter=0;
-                    for(int k=0; k<run_input.n_average_fields; k++)
-                    {
-                        if(run_input.average_fields(k)=="u_average"||run_input.average_fields(k)=="v_average"||run_input.average_fields(k)=="w_average"||run_input.average_fields(k)=="e_average")
-                            valid_counter++;
-                    }
-                    if(valid_counter==(n_dims+1))
-                    {
-                        double v_average_sq = 0.;
-                        double pressure_average;
-                        for (int m=0; m<n_dims; m++)
-                            v_average_sq += (disu_average_probe_points_temp(m+1)*disu_average_probe_points_temp(m+1));
-                        // Compute pressure
-                        pressure_average = (run_input.gamma-1.0)*( disu_average_probe_points_temp(n_dims+1)*disu_average_probe_points_temp(0) - 0.5*disu_average_probe_points_temp(0)*v_average_sq);
-                        write_probe<<setw(17)<<setprecision(10)<<pressure_average;
-                    }
-                    else FatalError("Some average values must be an average field to get p average");
-                }
-                else FatalError("Average field not implemented yet!");
             }
             write_probe<<endl;
             write_probe.close();//close file

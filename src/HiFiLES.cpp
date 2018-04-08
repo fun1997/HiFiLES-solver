@@ -52,7 +52,6 @@ int main(int argc, char *argv[]) {
   int i, j;                           /*!< Loop iterators */
   int i_steps = 0;                    /*!< Iteration index */
   int RKSteps;                        /*!< Number of RK steps */
-  ifstream run_input_file;            /*!< Config input file */
   clock_t init_time, final_time;      /*!< To control the time */
   struct solution FlowSol;            /*!< Main structure with the flow solution and geometry */
   ofstream write_hist;                /*!< Output files (forces, statistics, and history) */
@@ -103,10 +102,7 @@ int main(int argc, char *argv[]) {
   /*! Read the probe file if needed and store the information in run_probe. */
 
   if(run_input.probe)//for no motion only
-      {
-          run_probe.setup(run_input.probe_file_name,FlowSol.n_dims,rank);
-          run_probe.set_probe_connectivity(&FlowSol,rank);
-      }
+          run_probe.setup(run_input.probe_file_name,&FlowSol,rank);
   /////////////////////////////////////////////////
   /// Pre-processing
   /////////////////////////////////////////////////
@@ -212,6 +208,11 @@ int main(int argc, char *argv[]) {
 
     /*! Force, integral quantities, and residual computation and output. */
 
+    /*! Compute time-averaged quantities. */
+    if ( i_steps==1)//set start time for averaging
+        run_input.spinup_time=FlowSol.time;
+    CalcTimeAverageQuantities(&FlowSol);
+
     if( i_steps == 1 || i_steps%run_input.monitor_res_freq == 0 ) {
 
       /*! Compute the value of the forces. */
@@ -224,9 +225,7 @@ int main(int argc, char *argv[]) {
       if (run_input.n_integral_quantities!=0)//if calculate integral quantities
           CalcIntegralQuantities(FlowSol.ini_iter+i_steps, &FlowSol);
 
-      /*! Compute time-averaged quantities. */
 
-      CalcTimeAverageQuantities(&FlowSol);
 
       /*! Compute the norm of the residual. */
 

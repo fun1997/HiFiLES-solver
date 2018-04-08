@@ -39,11 +39,11 @@ probe_input::~probe_input()
 {
     //dtor
 }
-void probe_input::setup(string filenameS,int in_dim, int rank)
+void probe_input::setup(string filenameS,struct solution* FlowSol, int rank)
 {
-    n_dims=in_dim;
+    n_dims=FlowSol->n_dims;
     read_probe_input(filenameS,rank);
-
+    set_probe_connectivity(FlowSol,rank);
 }
 void probe_input::read_probe_input(string filename, int rank)
 
@@ -263,6 +263,5 @@ void probe_input::set_loc_probepts(struct solution* FlowSol)
                 loc_probe(j,i)=0;
         }
     }
-    FatalError("test end")
 }
 /*! END */
