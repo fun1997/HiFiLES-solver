@@ -1130,6 +1130,9 @@ void write_probe(struct solution* FlowSol)
                     if(n_dims==3) write_probe<<setw(10)<<setprecision(5)<<run_probe.surf_normal(2,i)<<endl;
                     else
                         write_probe<<endl;
+
+                    write_probe<<"surface area"<<endl;
+                    write_probe<<setw(10)<<setprecision(5)<<run_probe.surf_area(i)<<endl;
                 }
                 /*! write field titles*/
                 write_probe<<setw(17)<<"time";
@@ -1160,14 +1163,14 @@ void write_probe(struct solution* FlowSol)
                         write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3);
                     else FatalError("2 dimensional elements don't have z velocity");
                 }
-                else if (run_probe.probe_fields(j)== "energy")//rho*e
+                else if (run_probe.probe_fields(j)== "rho_e")//rho*e
                 {
                     if(n_dims==2)
                         write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3);
                     else
                         write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(4);
                 }
-                else if (run_probe.probe_fields(j)=="pressure")
+                else if (run_probe.probe_fields(j)=="p")
                 {
                     double v_sq = 0.;
                     double pressure;

@@ -55,6 +55,7 @@ public:
     //gambit surface
     #define MAX_V_PER_C 27
     array<double> surf_normal;//surface normals
+    array<double> surf_area;//surface area
     bool output_normal;
     //connetivity
     array<int> p2c;//probe point to cell number(local typewise)

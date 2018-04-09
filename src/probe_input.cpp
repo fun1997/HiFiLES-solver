@@ -388,9 +388,10 @@ if(n_dims<dummy2||n_dims<gambit_ndims)
             pos_probe(j,i)=temp_pos_centroid(j);
     }
 
-    /*! calculate face normals*/
+    /*! calculate face normals and area*/
     if (dummy2==2&&n_dims==3)//if 2D mesh and 3D simulation
     {
+        //calculate face normal
         output_normal=true;
         surf_normal.setup(n_dims,n_probe);
         for (int i=0; i<n_probe; i++)
@@ -411,7 +412,32 @@ if(n_dims<dummy2||n_dims<gambit_ndims)
                 temp_length+=temp_normal(j)*temp_normal(j);
             temp_length=sqrt(temp_length);
             for (int j=0; j<n_dims; j++)
-                surf_normal(j,i)=temp_normal(j)/temp_length;;
+                surf_normal(j,i)=temp_normal(j)/temp_length;
+        }
+
+        //calculate face area
+        surf_area.setup(n_probe);
+        surf_area.initialize_to_zero();
+        for (int i =0; i<n_probe; i++)
+        {
+            array<double> temp_vec(n_dims);
+            array<double> temp_vec2(n_dims);
+            array<double> temp_normal;
+            for (int j=0; j<probe_ctype(i)+1;j++) //1->2 part
+            {
+                for (int k=0; k<n_dims; k++) //every dimension
+                {
+                    temp_vec(k)=probe_xv(probe_c2v(i,1+2*j),k)-probe_xv(probe_c2v(i,2*j),k);
+                    temp_vec2(k)=probe_xv(((2+2*j)<probe_c2n_v(i))?probe_c2v(i,2+2*j):probe_c2v(i,0),k)
+                                -probe_xv(probe_c2v(i,1+2*j),k);
+                }
+                temp_normal=cross_prod_3d(temp_vec,temp_vec2);
+                double temp_area=0.0;
+                for (int k=0; k<n_dims; k++)
+                    temp_area+=temp_normal(k)*temp_normal(k);
+                temp_area=0.5*sqrt(temp_area);
+                surf_area(i)+=temp_area;
+            }
         }
     }
     else
