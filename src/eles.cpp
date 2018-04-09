@@ -7154,7 +7154,7 @@ void eles::CalcIntegralQuantities(int n_integral_quantities, array <double>& int
 
                     diagnostic = irho*tke;
                 }
-                else if (run_input.integral_quantities(m)=="vorticity")
+                else if (run_input.integral_quantities(m)=="enstropy")
                 {
                     // Compute vorticity squared
                     wz = dvdx - dudy;

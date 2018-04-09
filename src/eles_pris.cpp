@@ -317,8 +317,8 @@ void eles_pris::set_tloc_fpts(void)
   // Inter 0
   for (int i=0;i<n_fpts_per_inter(0);i++)
     {
-      tloc_fpts(0,i) = loc_tri_fpts(i,0);//note need to notice
-      tloc_fpts(1,i) = loc_tri_fpts(i,1);
+      tloc_fpts(0,i) = loc_tri_fpts(i,1);//note need to notice
+      tloc_fpts(1,i) = loc_tri_fpts(i,0);
       tloc_fpts(2,i) = -1.;
     }
 
@@ -1296,9 +1296,10 @@ int eles_pris::calc_p2c(array<double>& in_pos)
             //calculate plane coeff
             plane_coeff=calc_plane(pos_plane_pts);
 
+
             alpha=alpha*((plane_coeff(0)*in_pos(0)+plane_coeff(1)*in_pos(1)+plane_coeff(2)*in_pos(2)+plane_coeff(3))*
-                         (plane_coeff(0)*pos_centroid(0)+plane_coeff(1)*pos_centroid(1)+plane_coeff(2)*pos_centroid(2)+plane_coeff(3))>=0);
-            if (alpha<0)
+                    (plane_coeff(0)*pos_centroid(0)+plane_coeff(1)*pos_centroid(1)+plane_coeff(2)*pos_centroid(2)+plane_coeff(3))>=0);
+            if (alpha==0)
                 break;
         }
 

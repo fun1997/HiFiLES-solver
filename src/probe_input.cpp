@@ -435,7 +435,7 @@ if(n_dims<dummy2||n_dims<gambit_ndims)
                 double temp_area=0.0;
                 for (int k=0; k<n_dims; k++)
                     temp_area+=temp_normal(k)*temp_normal(k);
-                temp_area=0.5*sqrt(temp_area)*run_input.L_free_stream*run_input.L_free_stream;
+                    temp_area=0.5*sqrt(temp_area);
                 surf_area(i)+=temp_area;
             }
         }

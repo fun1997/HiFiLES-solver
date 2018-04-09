@@ -521,6 +521,8 @@ void input::setup_params(int rank)
     if (LES && !viscous)
         FatalError("LES not supported with inviscid flow");
 
+    if (LES && turb_model)
+        FatalError("Cannot turn on RANS and LES at same time");
 
     if (rank==0)
         cout << endl << "---------------------- Non-dimensionalization ---------------------" << endl;
@@ -531,18 +533,18 @@ void input::setup_params(int rank)
 
         // If we have chosen an isentropic vortex case as the initial condition, set R_ref and mu_inf, and don't do non-dimensionalization
 
-        if(ic_form == 0 || ic_form == 8)
-        {
-
-            fix_vis  = 1.;
-            R_ref     = 1.;
-            c_sth     = 1.;
-            rt_inf    = 1.;
-            mu_inf    = 0.1;
-
-        }
-        else     // Any other type of initial condition
-        {
+//        if(ic_form == 0 || ic_form == 8)
+//        {
+//
+//            fix_vis  = 1.;
+//            R_ref     = 1.;
+//            c_sth     = 1.;
+//            rt_inf    = 1.;
+//            mu_inf    = 0.1;
+//
+//        }
+//        else     // Any other type of initial condition
+//        {
 
             // Dimensional reference quantities for temperature and length
 
@@ -555,14 +557,14 @@ void input::setup_params(int rank)
 
             // Set either a fixed value for the viscosity or a value from Sutherland's law
 
-            if(fix_vis)
-            {
-                mu_free_stream = mu_gas;
-            }
-            else
-            {
-                mu_free_stream = mu_gas*pow(T_free_stream/T_gas, 1.5)*( (T_gas + S_gas)/(T_free_stream + S_gas));//for free_stream
-            }
+//            if(fix_vis)
+//            {
+//                mu_free_stream = mu_gas;
+//            }
+//            else
+//            {
+//                mu_free_stream = mu_gas*pow(T_free_stream/T_gas, 1.5)*( (T_gas + S_gas)/(T_free_stream + S_gas));//for free_stream
+//            }
 
             // set the corresponding density from the input file.
 
@@ -591,10 +593,10 @@ void input::setup_params(int rank)
             time_ref  = L_ref/uvw_ref;
             R_ref     = (R_gas*T_ref)/(uvw_ref*uvw_ref); // R/R_ref,non_dimensionalized R_gas
 
-            // ?
+            // non-dimensionalize sutherland law parameters
             c_sth     = S_gas/T_gas;
 
-            mu_inf    = mu_gas/mu_ref;
+            mu_inf    = mu_gas/mu_ref;//non-dimensionalized mu_gas for sutherland law
             rt_inf    = T_gas*R_gas/(uvw_ref*uvw_ref);
 
             // Set up the dimensionless conditions @ boundaries
@@ -744,7 +746,7 @@ void input::setup_params(int rank)
                         cout << "Temperature Ramp Rate=" << T_Ramp_Coeff << endl;
                     }
                 }
-            }
+//            }
         }
     }
 }
