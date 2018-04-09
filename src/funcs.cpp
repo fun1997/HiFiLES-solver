@@ -2910,5 +2910,23 @@ double trip_prod(array<double> &a,array<double> &b, array<double> &c)
 
     return (a(0)*b(1)*c(2)+b(0)*c(1)*a(2)+c(0)*a(1)*b(2))-(c(0)*b(1)*a(2)+b(0)*a(1)*c(2)+a(0)*c(1)*b(2));
 }
+
+array<double> cross_prod_3d(array<double> &a,array<double> &b)
+{
+    if(a.get_dim(0)!=b.get_dim(0))
+        FatalError("input must be same length");
+    int in_dims=a.get_dim(0);
+    array<double> product(in_dims);
+    if (in_dims==3)
+    {
+    product(0)=a(1)*b(2)-a(2)*b(1);
+    product(1)=a(2)*b(0)-a(0)*b(2);
+    product(2)=a(0)*b(1)-a(1)*b(0);
+}
+    else
+        FatalError("a and b have to be 3D");
+
+    return product;
+}
 /*! END */
 

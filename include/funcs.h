@@ -246,6 +246,8 @@ array<double> calc_centroid(array<double>& in_pos);
 /*! method to calculate triple product of three 3D vectors*/
 double trip_prod(array<double> &a,array<double> &b, array<double> &c);
 
+/*! method to calculate corss product of three 3D vectors*/
+array<double> cross_prod_3d(array<double> &a,array<double> &b);
 /*! END */
 
 

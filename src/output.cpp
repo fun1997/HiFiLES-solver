@@ -1123,10 +1123,13 @@ void write_probe(struct solution* FlowSol)
                 write_probe<<setw(10)<<setprecision(5)<<run_probe.pos_probe(0,i)<<setw(10)<<setprecision(5)<<run_probe.pos_probe(1,i);
                 if (n_dims==3) write_probe<<setw(10)<<setprecision(5)<<run_probe.pos_probe(2,i)<<endl;
                 else write_probe<<endl;
-                if (run_probe.probe_layout==2)//permeable surface
+                if (run_probe.probe_layout==2 &&run_probe.output_normal==true)//gambit surface/volume
                 {
                     write_probe<<"surface normal"<<endl;
-                    //write_probe<<
+                    write_probe<<setw(10)<<setprecision(5)<<run_probe.surf_normal(0,i)<<setw(10)<<setprecision(5)<<run_probe.surf_normal(1,i);
+                    if(n_dims==3) write_probe<<setw(10)<<setprecision(5)<<run_probe.surf_normal(2,i)<<endl;
+                    else
+                        write_probe<<endl;
                 }
                 /*! write field titles*/
                 write_probe<<setw(17)<<"time";

@@ -29,29 +29,38 @@
 #include "array.h"
 #include "input.h"
 #include "solution.h"
+#include "funcs.h"
 
 class probe_input
 {
 public:
     probe_input();
     ~probe_input();
+    //basic inputs
     array<string> probe_fields;
+    int n_probe;
+    int prob_freq;
     int probe_layout;
-    array<double> p_0;//start point coord
-    array<double> p_1;//end point coord
-    double l_length;
-    double growth_rate;
-    double init_incre;
     int n_probe_fields;
+    array<double> pos_probe;
+    //point source
     array<double> probe_x;
     array<double> probe_y;
     array<double> probe_z;
-    array<double> pos_probe;
-    int n_probe;
-    int prob_freq;
+    //line source
+    array<double> p_0;//start point coord
+    array<double> p_1;//end point coord
+    double growth_rate;
+    double init_incre;
+    //gambit surface
+    #define MAX_V_PER_C 27
+    array<double> surf_normal;//surface normals
+    bool output_normal;
+    //connetivity
     array<int> p2c;//probe point to cell number(local typewise)
     array<int> p2t;//probe point to cell type
     array<double> loc_probe;
+    //entrance
     void setup(string filenameS,struct solution* FlowSol, int rank);
 protected:
     void read_probe_input(string filename, int rank);
@@ -59,6 +68,6 @@ protected:
     void set_probe_gambit(string filename);
     void set_loc_probepts(struct solution* FlowSol);
 private:
-        int n_dims;
-        string neu_file;
+    int n_dims;
+    string neu_file;
 };
