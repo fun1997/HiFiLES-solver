@@ -1309,6 +1309,7 @@ double eles::calc_dt_local(int in_ele)
     double out_dt_local;
     double dt_inv, dt_visc;
     double u,v,w,p,c;
+    double mu,rt_ratio,inte;
 
     lam_inv = 0;
     lam_visc = 0;
@@ -1323,9 +1324,14 @@ double eles::calc_dt_local(int in_ele)
             v = disu_upts(0)(i,in_ele,2)/disu_upts(0)(i,in_ele,0);
             p = (run_input.gamma - 1.0) * (disu_upts(0)(i,in_ele,3) - 0.5*disu_upts(0)(i,in_ele,0)*(u*u+v*v));
             c = sqrt(run_input.gamma * p/disu_upts(0)(i,in_ele,0));
+            inte=disu_upts(0)(i,in_ele,3)/disu_upts(0)(i,in_ele,0) - 0.5*(u*u+v*v);
+
+            rt_ratio = (run_input.gamma-1.0)*inte/(run_input.rt_inf);
+            mu = (run_input.mu_inf)*pow(rt_ratio,1.5)*(1.+(run_input.c_sth))/(rt_ratio+(run_input.c_sth));
+            mu = mu + run_input.fix_vis*(run_input.mu_inf - mu);
 
             lam_inv_new = sqrt(u*u + v*v) + c;
-            lam_visc_new = max(4.0/3.0,run_input.gamma/run_input.prandtl)*run_input.mu_inf/disu_upts(0)(i,in_ele,0);
+            lam_visc_new = max(4.0/3.0,run_input.gamma/run_input.prandtl)*mu/disu_upts(0)(i,in_ele,0);
 
             if (lam_inv < lam_inv_new)
                 lam_inv = lam_inv_new;
@@ -1357,8 +1363,13 @@ double eles::calc_dt_local(int in_ele)
             w = disu_upts(0)(i,in_ele,3)/disu_upts(0)(i,in_ele,0);
             p = (run_input.gamma - 1.0) * (disu_upts(0)(i,in_ele,4) - 0.5*disu_upts(0)(i,in_ele,0)*(u*u+v*v+w*w));
             c = sqrt(run_input.gamma * p/disu_upts(0)(i,in_ele,0));
+            inte=disu_upts(0)(i,in_ele,4)/disu_upts(0)(i,in_ele,0) - 0.5*(u*u+v*v+w*w);
+
+            rt_ratio = (run_input.gamma-1.0)*inte/(run_input.rt_inf);
+            mu = (run_input.mu_inf)*pow(rt_ratio,1.5)*(1.+(run_input.c_sth))/(rt_ratio+(run_input.c_sth));
+            mu = mu + run_input.fix_vis*(run_input.mu_inf - mu);
             lam_inv_new = sqrt(u*u + v*v + w*w) + c;
-            lam_visc_new = max(4.0/3.0,run_input.gamma/run_input.prandtl)*run_input.mu_inf/disu_upts(0)(i,in_ele,0);
+            lam_visc_new = max(4.0/3.0,run_input.gamma/run_input.prandtl)*mu/disu_upts(0)(i,in_ele,0);
 
             if (lam_inv < lam_inv_new)
                 lam_inv = lam_inv_new;
