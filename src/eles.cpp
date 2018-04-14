@@ -779,6 +779,10 @@ void eles::read_restart_data(ifstream& restart_file)
     else if (ele_type==4) ele_name="HEXAS";
 
     // Move cursor to correct element type
+
+    restart_file.clear();
+    restart_file.seekg(0,restart_file.beg);
+
     while(1)
     {
         getline(restart_file,str);
