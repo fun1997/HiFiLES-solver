@@ -394,10 +394,19 @@ void input::read_input_file(string fileName, int rank)
     }
     opts.getScalarValue("rho_c_ic",rho_c_ic);
 
-    if (ic_form==9)//split shear
-        opts.getScalarValue("y_lim_ic",y_lim_ic);
-    else if (ic_form==10)//shock tube
-        opts.getScalarValue("x_lim_ic",x_lim_ic);
+    if (ic_form==9||ic_form==10)//shock vortex/shock tube
+    {
+        opts.getScalarValue("x_shock_ic",x_shock_ic);
+        if (ic_form==9)
+        {
+              opts.getScalarValue("Mv",Mv,0.9);
+              opts.getScalarValue("ra",ra,0.075);
+              opts.getScalarValue("rb",rb,0.175);
+              opts.getScalarValue("xc",xc,0.25);
+              opts.getScalarValue("yc",yc,0.5);
+        }
+    }
+
 
     /* ---- Shock Capturing / Filtering ---- */
 
@@ -533,18 +542,18 @@ void input::setup_params(int rank)
 
         // If we have chosen an isentropic vortex case as the initial condition, set R_ref and mu_inf, and don't do non-dimensionalization
 
-//        if(ic_form == 0 || ic_form == 8)
-//        {
-//
-//            fix_vis  = 1.;
-//            R_ref     = 1.;
-//            c_sth     = 1.;
-//            rt_inf    = 1.;
-//            mu_inf    = 0.1;
-//
-//        }
-//        else     // Any other type of initial condition
-//        {
+        if(ic_form == 0)
+        {
+
+            fix_vis  = 1.;
+            R_ref     = 1.;
+            c_sth     = 1.;
+            rt_inf    = 1.;
+            mu_inf    = 0.1;
+
+        }
+        else     // Any other type of initial condition
+        {
 
             // Dimensional reference quantities for temperature and length
 
@@ -746,7 +755,7 @@ void input::setup_params(int rank)
                         cout << "Temperature Ramp Rate=" << T_Ramp_Coeff << endl;
                     }
                 }
-//            }
+            }
         }
     }
 }
