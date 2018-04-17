@@ -55,6 +55,9 @@ public:
   /*! setup initial conditions */
   void set_ics(double& time);
 
+  /*! setup patch */
+  void set_patch(void);
+
   /*! read data from restart file */
   void read_restart_data(ifstream& restart_file);
 

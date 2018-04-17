@@ -768,8 +768,94 @@ void eles::set_ics(double& time)
 }
 
 
-// set initial conditions
+// set patch
 
+void eles::set_patch(void)
+{
+    double rho,vx,vy,vz,p,temper;
+    double gamma=run_input.gamma;
+    array<double> pos(n_dims);
+
+    for(int i=0; i<n_eles; i++)
+    {
+        for(int j=0; j<n_upts_per_ele; j++)
+        {
+            for(int k=0; k<n_dims; k++)
+            {
+                pos(k)=pos_upts(j,i,k);
+            }
+            if(run_input.patch_type==0)//shock vortex by sup_in sub_out_simp/char
+            {
+                //set parameters
+                double Mv=run_input.Mv;//vortex strength
+                double ra=run_input.ra;//inner radii
+                double rb=run_input.rb;//outer radii
+                double xc=run_input.xc;//core location x
+                double yc=run_input.yc;//core location y
+                double r=sqrt(pow(pos(0)-xc,2)+pow(pos(1)-yc,2));//distance to core
+
+                /*! copy solution to rho, vx, vy, vz, p*/
+
+                rho=disu_upts(0)(j,i,0);
+                vx=disu_upts(0)(j,i,1)/disu_upts(0)(j,i,0);
+                vy=disu_upts(0)(j,i,2)/disu_upts(0)(j,i,0);
+
+                if(n_dims==2)
+                {
+                    p=(disu_upts(0)(j,i,3)-0.5*rho*(vx*vx+vy*vy))*(gamma-1.0);
+                }
+                else
+                {
+                    vz=disu_upts(0)(j,i,3)/disu_upts(0)(j,i,0) ;
+                    p=(disu_upts(0)(j,i,4)-0.5*rho*(vx*vx+vy*vy+vz*vz))*(gamma-1.0);
+                }
+
+                if (r<=rb)//in range of vortex set rho u v p
+                {
+                    double vm=Mv*sqrt(gamma*p/rho);//max vortex angular velocity
+                    if (r<=ra)
+                    {
+                        vx-=(pos(1)-yc)/r*vm*r/ra;
+                        vy+=(pos(0)-xc)/r*vm*r/ra;
+                        temper=p/(rho*run_input.R_ref)-(gamma-1)/(run_input.R_ref*gamma)*(pow(vm,2)/pow(ra,2)*0.5*(pow(ra,2)-pow(r,2))
+                                +pow(vm,2)*pow(ra,2)/pow(pow(ra,2)-pow(rb,2),2)*(0.5*(pow(rb,2)-pow(ra,2))-0.5*pow(rb,4)*(1/pow(rb,2)-1/pow(ra,2))
+                                        -2*pow(rb,2)*(log(rb/ra))));
+                    }
+                    else
+                    {
+                        vx-=(pos(1)-yc)/r*vm*ra/(pow(ra,2)-pow(rb,2))*(r-pow(rb,2)/r);
+                        vy+=(pos(0)-xc)/r*vm*ra/(pow(ra,2)-pow(rb,2))*(r-pow(rb,2)/r);
+                        temper=p/(rho*run_input.R_ref)-(gamma-1)/(run_input.R_ref*gamma)*pow(vm,2)*pow(ra,2)/pow(pow(ra,2)-pow(rb,2),2)*(0.5*(pow(rb,2)-pow(r,2))-0.5*pow(rb,4)*(1/(pow(rb,2))-1/(pow(r,2)))
+                                -2*pow(rb,2)*(log(rb/r)));
+                    }
+                    rho=rho*pow(temper/(p/(rho*run_input.R_ref)),1/(gamma-1));
+                    p=p*pow(temper/(p/(rho*run_input.R_ref)),gamma/(gamma-1));
+                }
+                disu_upts(0)(j,i,0)=rho;
+                disu_upts(0)(j,i,1)=rho*vx;
+                disu_upts(0)(j,i,2)=rho*vy;
+                if(n_dims==2)
+                {
+                    disu_upts(0)(j,i,3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
+                }
+                else if(n_dims==3)
+                {
+                    disu_upts(0)(j,i,3)=rho*vz;
+                    disu_upts(0)(j,i,4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
+                }
+                else
+                {
+                    cout << "ERROR: Invalid number of dimensions ... " << endl;
+                }
+            }
+            else
+            {
+                cout << "ERROR: Invalid form of initial condition ... (File: " << __FILE__ << ", Line: " << __LINE__ << ")" << endl;
+                exit (1);
+            }
+        }
+    }
+}
 
 void eles::read_restart_data(ifstream& restart_file)
 {

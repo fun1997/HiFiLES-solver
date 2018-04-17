@@ -99,6 +99,9 @@ double* get_normal_disu_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter
 /*! get pointer to the grid velocity at a flux point */
 double* get_grid_vel_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, int in_fpt, int in_dim, struct solution* FlowSol);
 
+//patch solution
+void patch_solution(struct solution* FlowSol);
+
 // Initialize the solution in the mesh
 void InitSolution(struct solution* FlowSol);
 

@@ -96,13 +96,19 @@ int main(int argc, char *argv[]) {
 
   GeoPreprocess(&FlowSol, Mesh);
 
+  /*! Initialize solution and patch solution if needed */
+
   InitSolution(&FlowSol);
 
-  init_time = clock();
+    if(run_input.patch)
+        patch_solution(&FlowSol);
+
   /*! Read the probe file if needed and store the information in run_probe. */
 
   if(run_input.probe)//for no motion only
           run_probe.setup(run_input.probe_file_name,&FlowSol,rank);
+
+    init_time = clock();
   /////////////////////////////////////////////////
   /// Pre-processing
   /////////////////////////////////////////////////

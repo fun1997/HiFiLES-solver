@@ -394,19 +394,22 @@ void input::read_input_file(string fileName, int rank)
     }
     opts.getScalarValue("rho_c_ic",rho_c_ic);
 
-    if (ic_form==9||ic_form==10)//shock vortex/shock tube
-    {
-        opts.getScalarValue("x_shock_ic",x_shock_ic);
-        if (ic_form==9)
-        {
-              opts.getScalarValue("Mv",Mv,0.9);
-              opts.getScalarValue("ra",ra,0.075);
-              opts.getScalarValue("rb",rb,0.175);
-              opts.getScalarValue("xc",xc,0.25);
-              opts.getScalarValue("yc",yc,0.5);
-        }
-    }
+    /* ---- solution patch ---- */
+    opts.getScalarValue("patch",patch,0);
+    if(patch)
+        opts.getScalarValue("patch_type",patch_type,0);
 
+    /* ---- shock vortex/shock tube ic----*/
+    if(ic_form==9||ic_form==10)
+        opts.getScalarValue("x_shock_ic",x_shock_ic);
+    if (ic_form==9||(patch&&(patch_type==0)))
+    {
+        opts.getScalarValue("Mv",Mv,0.5);
+        opts.getScalarValue("ra",ra,0.075);
+        opts.getScalarValue("rb",rb,0.175);
+        opts.getScalarValue("xc",xc,0.25);
+        opts.getScalarValue("yc",yc,0.5);
+    }
 
     /* ---- Shock Capturing / Filtering ---- */
 

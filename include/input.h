@@ -342,6 +342,8 @@ public:
     double mu_c_ic;
     double x_shock_ic;
     double Mv,ra,rb,xc,yc;
+    int patch;
+    int patch_type;
 
     /* --- SA turblence model parameters ---*/
     int turb_model;

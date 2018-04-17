@@ -347,6 +347,15 @@ double* get_grid_vel_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, i
   return FlowSol->mesh_eles(in_ele_type)->get_grid_vel_fpts_ptr(in_ele,in_local_inter,in_fpt,in_dim);
 }
 
+void patch_solution(struct solution* FlowSol)
+{
+    for(int i=0; i<FlowSol->n_ele_types; i++)
+    {
+        if (FlowSol->mesh_eles(i)->get_n_eles()!=0)
+            FlowSol->mesh_eles(i)->set_patch();
+    }
+}
+
 void InitSolution(struct solution* FlowSol)
 {
   // set initial conditions
@@ -454,7 +463,7 @@ void calc_global_time_step(int in_rk_stage, struct solution* FlowSol)
     if (in_rk_stage == 0)//for first stage only
     {
         double dt_globe_new;
-        eles::dt_globe = 1e12; // reset to large value
+        //eles::dt_globe = 1e12; // reset to large value
         for (int j=0; j<FlowSol->n_ele_types; j++)//for each type of element
         {
             if (FlowSol->mesh_eles(j)->get_n_eles()!=0)
