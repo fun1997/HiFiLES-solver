@@ -397,19 +397,22 @@ void input::read_input_file(string fileName, int rank)
     /* ---- solution patch ---- */
     opts.getScalarValue("patch",patch,0);
     if(patch)
-        opts.getScalarValue("patch_type",patch_type,0);
+    {
+        opts.getScalarValue("patch_type",patch_type,0);//0: vortex
+        opts.getScalarValue("patch_freq",patch_freq,0);//0: patch once
+        if (patch_type==0)//vortex patch
+        {
+            opts.getScalarValue("Mv",Mv,0.5);
+            opts.getScalarValue("ra",ra,0.075);
+            opts.getScalarValue("rb",rb,0.175);
+            opts.getScalarValue("xc",xc,0.25);
+            opts.getScalarValue("yc",yc,0.5);
+        }
+    }
 
-    /* ---- shock vortex/shock tube ic----*/
+    /* ---- stationary shock/shock tube ic----*/
     if(ic_form==9||ic_form==10)
         opts.getScalarValue("x_shock_ic",x_shock_ic);
-    if (ic_form==9||(patch&&(patch_type==0)))
-    {
-        opts.getScalarValue("Mv",Mv,0.5);
-        opts.getScalarValue("ra",ra,0.075);
-        opts.getScalarValue("rb",rb,0.175);
-        opts.getScalarValue("xc",xc,0.25);
-        opts.getScalarValue("yc",yc,0.5);
-    }
 
     /* ---- Shock Capturing / Filtering ---- */
 

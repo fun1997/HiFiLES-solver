@@ -440,7 +440,7 @@ void eles::set_ics(double& time)
 {
     int i,j,k;
 
-    double rho,vx,vy,vz,p,temper;
+    double rho,vx,vy,vz,p;
     double gamma=run_input.gamma;
     time = 0.;
 
@@ -573,35 +573,25 @@ void eles::set_ics(double& time)
                     ics(4)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));//e
                 }
             }
-            else if(run_input.ic_form==9)//shock vortex by sup_in sub_out_simp/char
+            else if(run_input.ic_form==9)//stationary shock
             {
-                //set parameters
-                double Mv=run_input.Mv;//vortex strength
-                double ra=run_input.ra;//inner radii
-                double rb=run_input.rb;//outer radii
-                double xc=run_input.xc;//core location x
-                double yc=run_input.yc;//core location y
-                double r=sqrt(pow(pos(0)-xc,2)+pow(pos(1)-yc,2));//distance to core
-
                 //check bc
                 if (!run_input.Far_Field)
-                    FatalError("Characteristic outlet condition is needed");
+                    FatalError("Characteristic boundary condition is needed");
+                if(!run_input.Sup_In)
+                    FatalError("Sup_In is needed");
                 if(!run_input.viscous)
                     FatalError("only viscous is supported!");
 
                 /*! initialize uniform flow with normal shock stationary condition*/
+
                 if(pos(0)<=run_input.x_shock_ic)//supersonic zone
                 {
-                    if(run_input.Sup_In)
-                    {
                             rho=run_input.rho_bound_Sup_In;
                             vx=run_input.v_bound_Sup_In(0);
                             vy=run_input.v_bound_Sup_In(1);
                             vz=run_input.v_bound_Sup_In(2);
                             p=run_input.p_bound_Sup_In;
-                    }
-                    else
-                        FatalError("Sup_In is needed for shock vortex!");
                 }
                 else//subsonic zone initialize
                 {
@@ -610,28 +600,6 @@ void eles::set_ics(double& time)
                         vy=run_input.v_c_ic;
                         vz=run_input.w_c_ic;
                         p=run_input.p_c_ic;
-                }
-
-                if (r<=rb)//in range of vortex set rho u v p
-                {
-                    double vm=Mv*sqrt(gamma*p/rho);//max vortex angular velocity
-                    if (r<=ra)
-                    {
-                        vx-=(pos(1)-yc)/r*vm*r/ra;
-                        vy+=(pos(0)-xc)/r*vm*r/ra;
-                        temper=p/(rho*run_input.R_ref)-(gamma-1)/(run_input.R_ref*gamma)*(pow(vm,2)/pow(ra,2)*0.5*(pow(ra,2)-pow(r,2))
-                            +pow(vm,2)*pow(ra,2)/pow(pow(ra,2)-pow(rb,2),2)*(0.5*(pow(rb,2)-pow(ra,2))-0.5*pow(rb,4)*(1/pow(rb,2)-1/pow(ra,2))
-                                                                             -2*pow(rb,2)*(log(rb/ra))));
-                    }
-                    else
-                    {
-                        vx-=(pos(1)-yc)/r*vm*ra/(pow(ra,2)-pow(rb,2))*(r-pow(rb,2)/r);
-                        vy+=(pos(0)-xc)/r*vm*ra/(pow(ra,2)-pow(rb,2))*(r-pow(rb,2)/r);
-                        temper=p/(rho*run_input.R_ref)-(gamma-1)/(run_input.R_ref*gamma)*pow(vm,2)*pow(ra,2)/pow(pow(ra,2)-pow(rb,2),2)*(0.5*(pow(rb,2)-pow(r,2))-0.5*pow(rb,4)*(1/(pow(rb,2))-1/(pow(r,2)))
-                                                                    -2*pow(rb,2)*(log(rb/r)));
-                    }
-                        rho=rho*pow(temper/(p/(rho*run_input.R_ref)),1/(gamma-1));
-                        p=p*pow(temper/(p/(rho*run_input.R_ref)),gamma/(gamma-1));
                 }
 
                 ics(0)=rho;

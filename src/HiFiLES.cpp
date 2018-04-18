@@ -100,8 +100,8 @@ int main(int argc, char *argv[]) {
 
   InitSolution(&FlowSol);
 
-    if(run_input.patch)
-        patch_solution(&FlowSol);
+  if(run_input.patch)
+      patch_solution(&FlowSol);
 
   /*! Read the probe file if needed and store the information in run_probe. */
 
@@ -265,6 +265,12 @@ int main(int argc, char *argv[]) {
     if(i_steps%FlowSol.restart_dump_freq==0) {
       write_restart(FlowSol.ini_iter+i_steps, &FlowSol);
     }
+
+    /*! patch solution periodically */
+        if(run_input.patch)
+            if(run_input.patch_freq)
+                if(i_steps%run_input.patch_freq==0)
+                    patch_solution(&FlowSol);
 
   }
 
