@@ -743,7 +743,7 @@ void eles::set_patch(void)
     double rho,vx,vy,vz,p,temper;
     double gamma=run_input.gamma;
     array<double> pos(n_dims);
-
+    double rho_temp;
     for(int i=0; i<n_eles; i++)
     {
         for(int j=0; j<n_upts_per_ele; j++)
@@ -796,8 +796,9 @@ void eles::set_patch(void)
                         temper=p/(rho*run_input.R_ref)-(gamma-1)/(run_input.R_ref*gamma)*pow(vm,2)*pow(ra,2)/pow(pow(ra,2)-pow(rb,2),2)*(0.5*(pow(rb,2)-pow(r,2))-0.5*pow(rb,4)*(1/(pow(rb,2))-1/(pow(r,2)))
                                 -2*pow(rb,2)*(log(rb/r)));
                     }
+                    rho_temp=rho;
                     rho=rho*pow(temper/(p/(rho*run_input.R_ref)),1/(gamma-1));
-                    p=p*pow(temper/(p/(rho*run_input.R_ref)),gamma/(gamma-1));
+                    p=p*pow(temper/(p/(rho_temp*run_input.R_ref)),gamma/(gamma-1));
                 }
                 disu_upts(0)(j,i,0)=rho;
                 disu_upts(0)(j,i,1)=rho*vx;
