@@ -54,6 +54,9 @@ public:
   /*! set location and weight of interface cubature points */
   void set_inters_cubpts(void);
 
+  /*! set location and weight of volume cubature points */
+  void set_volume_cubpts(void);
+
   /*! set location of plot points */
   void set_loc_ppts(void);
 

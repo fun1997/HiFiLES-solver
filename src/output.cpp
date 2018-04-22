@@ -1427,16 +1427,16 @@ void CalcIntegralQuantities(int in_file_num, struct solution* FlowSol) {
 
   int nintq = run_input.n_integral_quantities;
 
+     // initialize to zero
+    for(int j=0; j<nintq; ++j)
+    {
+        FlowSol->integral_quantities(j) = 0.0;
+    }
   // Loop over element types
   for(int i=0;i<FlowSol->n_ele_types;i++)
     {
       if (FlowSol->mesh_eles(i)->get_n_eles()!=0)
         {
-          // initialize to zero
-          for(int j=0;j<nintq;++j)
-            {
-              FlowSol->integral_quantities(j) = 0.0;
-            }
           FlowSol->mesh_eles(i)->CalcIntegralQuantities(nintq, FlowSol->integral_quantities);
         }
     }
@@ -1772,7 +1772,7 @@ void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct s
 
       // Add integral diagnostics
       for(i=0; i<n_diags; i++)
-        write_hist[0] << ",\"Diagnostics[" << i << "]\"";
+        write_hist[0] << ",\"Diagnostics[" << run_input.integral_quantities(i) << "]\"";
 
       // Add physical and computational time
       write_hist[0] << ",\"Time<sub>Physical</sub>\",\"Time<sub>Comp</sub>(m)\"" << endl;

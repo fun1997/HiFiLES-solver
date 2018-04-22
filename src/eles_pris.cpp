@@ -81,10 +81,10 @@ void eles_pris::setup_ele_type_specific()
   set_filter_array();
   */
   set_inters_cubpts();
-  /*
+
   set_volume_cubpts();
-  set_opp_volume_cubpts();
-  */
+  //set_opp_volume_cubpts();
+
   n_ppts_per_ele=(p_res+1)*(p_res)*(p_res)/2;
   n_peles_per_ele=( (p_res-1)*(p_res-1)*(p_res-1) );
   n_verts_per_ele = 6;
@@ -453,6 +453,15 @@ void eles_pris::set_inters_cubpts(void)
 
 }
 
+void eles_pris::set_volume_cubpts(void)//ToDo:implement pris element volume cubpts
+{
+    int dummy=1;
+    n_cubpts_per_ele = dummy;
+    loc_volume_cubpts.setup(n_dims,n_cubpts_per_ele);
+    weight_volume_cubpts.setup(n_cubpts_per_ele);
+    loc_volume_cubpts.initialize_to_zero();
+    weight_volume_cubpts.initialize_to_zero();
+}
 
 // Compute the surface jacobian determinant on a face
 double eles_pris::compute_inter_detjac_inters_cubpts(int in_inter,array<double> d_pos)

@@ -2860,7 +2860,7 @@ array <double> inv_array(array <double>& in_array)
 array<double> calc_plane(array<double>& in_pos)//in_pos(dim,n_pts)
 {
     //check dimension of in_pos and if they are on the same line
-    if(!(in_pos.get_dim(0)==3&&in_pos.get_dim(0)==3))
+    if(!(in_pos.get_dim(0)==3&&in_pos.get_dim(1)==3))
         FatalError("Input array must be a 3*3 array");
 
     //coeff(0)*x+coeff(1)*y+coeff(2)*z+coeff(3)=0
@@ -2875,7 +2875,7 @@ array<double> calc_plane(array<double>& in_pos)//in_pos(dim,n_pts)
 
 array<double> calc_line(array<double>& in_pos)//in_pos(dim,n_pts)
 {
-    if(!(in_pos.get_dim(0)==2&&in_pos.get_dim(0)==2))
+    if(!(in_pos.get_dim(0)==2&&in_pos.get_dim(1)==2))
         FatalError("Input array must be a 2*2 array");
     array<double> coeff(3);
 
@@ -2893,12 +2893,13 @@ array<double> calc_centroid(array<double>& in_pos)//in_pos(dim,n_pts)
     int in_npts=in_pos.get_dim(1);
     array<double> centroid(in_dims);
     centroid.initialize_to_zero();
-    for (int i=0; i<in_npts; i++)
+    for(int j=0; j<in_dims; j++)
     {
-        for(int j=0; j<in_dims; j++)
+        for (int i=0; i<in_npts; i++)
         {
-            centroid(j)+=in_pos(j,i)/(double)in_npts;
+            centroid(j)+=in_pos(j,i);
         }
+        centroid(j)/=(double)in_npts;
     }
     return centroid;
 }

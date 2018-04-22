@@ -314,8 +314,8 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         d_nodal_s_basis_upts.setup(n_dims,in_max_n_spts_per_ele,n_upts_per_ele,n_eles);
         d_nodal_s_basis_fpts.setup(n_dims,in_max_n_spts_per_ele,n_fpts_per_ele,n_eles);
 
-        //nodal_s_basis_vol_cubpts.setup(in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);//must be specified for prism ele
-        //d_nodal_s_basis_vol_cubpts.setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);
+        nodal_s_basis_vol_cubpts.setup(in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);//must be specified for prism ele
+        d_nodal_s_basis_vol_cubpts.setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);
         nodal_s_basis_inters_cubpts.setup(n_inters_per_ele);
         d_nodal_s_basis_inters_cubpts.setup(n_inters_per_ele);
         for (int iface=0; iface<n_inters_per_ele; iface++)
