@@ -46,7 +46,7 @@ extern "C"
 #include "../include/global.h"
 #include "../include/eles.h"
 #include "../include/eles_tris.h"
-#include "../include/array.h"
+#include "../include/hf_array.h"
 #include "../include/funcs.h"
 #include "../include/cubature_1d.h"
 #include "../include/cubature_tri.h"
@@ -189,7 +189,7 @@ void eles_tris::set_loc_upts(void)
 
   if(upts_type==0) // internal points (good quadrature points)
     {
-      array<double> loc_inter_pts(n_upts_per_ele,2);
+      hf_array<double> loc_inter_pts(n_upts_per_ele,2);
 #include "../data/loc_tri_inter_pts.dat"
 
       for (int i=0;i<n_upts_per_ele;i++)
@@ -201,7 +201,7 @@ void eles_tris::set_loc_upts(void)
 
   else if(upts_type==1) // alpha optimized
     {
-      array<double> loc_alpha_pts(n_upts_per_ele,2);
+      hf_array<double> loc_alpha_pts(n_upts_per_ele,2);
 #include "../data/loc_tri_alpha_pts.dat"
 
       for (int i=0;i<n_upts_per_ele;i++)
@@ -229,14 +229,14 @@ void eles_tris::set_tloc_fpts(void)
 
   if(fpts_type==0) // gauss
     {
-      array<double> loc_1d_gauss_pts(order+1);
+      hf_array<double> loc_1d_gauss_pts(order+1);
 #include "../data/loc_1d_gauss_pts.dat"
 
       loc_1d_fpts = loc_1d_gauss_pts;
     }
   else if(fpts_type==1) // gauss lobatto
     {
-      array<double> loc_1d_gauss_lobatto_pts(order+1);
+      hf_array<double> loc_1d_gauss_lobatto_pts(order+1);
 #include "../data/loc_1d_gauss_lobatto_pts.dat"
 
       loc_1d_fpts = loc_1d_gauss_lobatto_pts;
@@ -348,7 +348,7 @@ void eles_tris::set_inters_cubpts(void)
 }
 
 // Compute the surface jacobian determinant on a face
-double eles_tris::compute_inter_detjac_inters_cubpts(int in_inter,array<double> d_pos)
+double eles_tris::compute_inter_detjac_inters_cubpts(int in_inter,hf_array<double> d_pos)
 {
   double output = 0.;
   double xr, xs, yr, ys;
@@ -564,9 +564,9 @@ void eles_tris::write_restart_info(ofstream& restart_file)
 }
 
 // evaluate nodal basis
-double eles_tris::eval_nodal_basis(int in_index, array<double> in_loc)
+double eles_tris::eval_nodal_basis(int in_index, hf_array<double> in_loc)
 {
-  array<double> dubiner_basis_at_loc(n_upts_per_ele);
+  hf_array<double> dubiner_basis_at_loc(n_upts_per_ele);
   double out_nodal_basis_at_loc;
 
   // First evaluate the normalized Dubiner basis at position in_loc
@@ -582,9 +582,9 @@ double eles_tris::eval_nodal_basis(int in_index, array<double> in_loc)
 }
 
 // evaluate nodal basis with restart points
-double eles_tris::eval_nodal_basis_restart(int in_index, array<double> in_loc)
+double eles_tris::eval_nodal_basis_restart(int in_index, hf_array<double> in_loc)
 {
-  array<double> dubiner_basis_at_loc(n_upts_per_ele_rest);
+  hf_array<double> dubiner_basis_at_loc(n_upts_per_ele_rest);
   double out_nodal_basis_at_loc;
 
   // First evaluate the normalized Dubiner basis at position in_loc
@@ -600,9 +600,9 @@ double eles_tris::eval_nodal_basis_restart(int in_index, array<double> in_loc)
 }
 
 // evaluate derivative of nodal basis
-double eles_tris::eval_d_nodal_basis(int in_index, int in_cpnt, array<double> in_loc)
+double eles_tris::eval_d_nodal_basis(int in_index, int in_cpnt, hf_array<double> in_loc)
 {
-  array<double> d_dubiner_basis_at_loc(n_upts_per_ele);
+  hf_array<double> d_dubiner_basis_at_loc(n_upts_per_ele);
   double out_d_nodal_basis_at_loc;
 
   // First evaluate the derivative normalized Dubiner basis at position in_loc
@@ -622,10 +622,10 @@ double eles_tris::eval_d_nodal_basis(int in_index, int in_cpnt, array<double> in
 }
 
 // evaluate nodal shape basis
-double eles_tris::eval_nodal_s_basis(int in_index, array<double> in_loc, int in_n_spts)
+double eles_tris::eval_nodal_s_basis(int in_index, hf_array<double> in_loc, int in_n_spts)
 {
 
-  array<double> nodal_s_basis(in_n_spts,1);
+  hf_array<double> nodal_s_basis(in_n_spts,1);
   //d_nodal_s_basis.initialize_to_zero();
   eval_dn_nodal_s_basis(nodal_s_basis, in_loc, in_n_spts, 0);
 
@@ -633,15 +633,15 @@ double eles_tris::eval_nodal_s_basis(int in_index, array<double> in_loc, int in_
 }
 
 // evaluate derivative of nodal shape basis
-//double eles_tris::eval_d_nodal_s_basis(int in_index, int in_cpnt, array<double> in_loc, int in_n_spts)
-void eles_tris::eval_d_nodal_s_basis(array<double> &d_nodal_s_basis, array<double> in_loc, int in_n_spts)
+//double eles_tris::eval_d_nodal_s_basis(int in_index, int in_cpnt, hf_array<double> in_loc, int in_n_spts)
+void eles_tris::eval_d_nodal_s_basis(hf_array<double> &d_nodal_s_basis, hf_array<double> in_loc, int in_n_spts)
 {
 
   eval_dn_nodal_s_basis(d_nodal_s_basis,in_loc, in_n_spts, 1);
 
 }
 
-void eles_tris::fill_opp_3(array<double>& opp_3)
+void eles_tris::fill_opp_3(hf_array<double>& opp_3)
 {
   get_opp_3_tri(opp_3,loc_upts,loc_1d_fpts,vandermonde,inv_vandermonde,n_upts_per_ele, order, run_input.c_tri, run_input.vcjh_scheme_tri);
 }
@@ -676,11 +676,11 @@ void eles_tris::compute_filter_upts(void)
       int ctype;
       double k_R, k_L, coeff;
       double res_0, res_L, res_R;
-      array<double> alpha(N);
-      array<double> wf(N);
-      array<double> X(n_dims,N);
-      array<double> B(N);
-      array<double> beta(N,N);
+      hf_array<double> alpha(N);
+      hf_array<double> wf(N);
+      hf_array<double> X(n_dims,N);
+      hf_array<double> B(N);
+      hf_array<double> beta(N,N);
 
       if(N != n_cubpts_per_ele)
         {
@@ -830,19 +830,19 @@ double eles_tris::calc_h_ref_specific(int in_ele)
     return out_h_ref;
   }
 
-int eles_tris::calc_p2c(array<double>& in_pos)
+int eles_tris::calc_p2c(hf_array<double>& in_pos)
 {
-    array<double> line_coeff;
-    array<double> pos_centroid;
-    array<int> vertex_index_loc(2);
-    array<double> pos_line_pts(n_dims,2);
+    hf_array<double> line_coeff;
+    hf_array<double> pos_centroid;
+    hf_array<int> vertex_index_loc(2);
+    hf_array<double> pos_line_pts(n_dims,2);
 
     for (int i=0; i<n_eles; i++)//for each element
     {
         int alpha=1;//indicator
 
         //calculate centroid
-        array<double> temp_pos_s_pts(n_dims,n_spts_per_ele(i));
+        hf_array<double> temp_pos_s_pts(n_dims,n_spts_per_ele(i));
         for (int j=0; j<n_spts_per_ele(i); j++)
             for (int k=0; k<n_dims; k++)
                 temp_pos_s_pts(k,j)=shape(k,j,i);

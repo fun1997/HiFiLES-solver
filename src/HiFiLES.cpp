@@ -27,7 +27,7 @@
 #include <fstream>
 
 #include "../include/global.h"
-#include "../include/array.h"
+#include "../include/hf_array.h"
 #include "../include/funcs.h"
 #include "../include/input.h"
 #include "../include/flux.h"

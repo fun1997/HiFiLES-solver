@@ -27,7 +27,7 @@
 #include <cmath>
 
 #include "../include/global.h"
-#include "../include/array.h"
+#include "../include/hf_array.h"
 #include "../include/inters.h"
 #include "../include/bdy_inters.h"
 #include "../include/geometry.h"
@@ -401,11 +401,11 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(double time_bound)
 {
 
 #ifdef _CPU
-    array<double> norm(n_dims), fn(n_fields);
+    hf_array<double> norm(n_dims), fn(n_fields);
 
     //viscous
     int bdy_spec, flux_spec;
-    array<double> u_c(n_fields);
+    hf_array<double> u_c(n_fields);
 
 
     for(int i=0; i<n_inters; i++)
@@ -1277,7 +1277,7 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
 
 #ifdef _CPU
     int bdy_spec, flux_spec;
-    array<double> norm(n_dims), fn(n_fields);
+    hf_array<double> norm(n_dims), fn(n_fields);
 
     for(int i=0; i<n_inters; i++)
     {

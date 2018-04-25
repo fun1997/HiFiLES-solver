@@ -54,9 +54,9 @@ const double eps = numeric_limits<double>::epsilon(); /*!< \brief machine epsilo
  * scheme).
  */
 class CSysVector {
-  
+
 private:
-  
+
 	unsigned long nElm; /*!< \brief total number of elements (or number elements on this processor) */
 	unsigned long nElmDomain; /*!< \brief total number of elements (or number elements on this processor without Ghost cells) */
   unsigned long nElmGlobal; /*!< \brief total number of elements over all processors */
@@ -65,21 +65,21 @@ private:
 	unsigned long nBlkDomain; /*!< \brief number of blocks (or number of blocks on this processor without Ghost cells) */
   unsigned long myrank; /*!< \brief processor rank (only used for parallel runs) */
   double* vec_val; /*!< \brief storage for the element values */
-  
+
 public:
-  
+
   /*!
    * \brief default constructor of the class.
    */
   CSysVector(void);
-  
+
   /*!
    * \brief constructor of the class.
    * \param[in] size - number of elements locally
    * \param[in] val - default value for elements
    */
   CSysVector(const unsigned long & size, const double & val = 0.0);
-  
+
   /*!
    * \brief constructor of the class.
    * \param[in] numBlk - number of blocks locally
@@ -87,40 +87,40 @@ public:
    * \param[in] val - default value for elements
    */
   CSysVector(const unsigned long & numBlk, const unsigned long & numBlkDomain, const unsigned short & numVar, const double & val = 0.0);
-  
+
   /*!
    * \brief copy constructor of the class.
    * \param[in] u - CSysVector that is being copied
    */
   CSysVector(const CSysVector & u);
-  
+
   /*!
 	 * \brief Sets to zero all the entries of the vector.
 	 */
 	void SetValZero(void);
-  
+
   /*!
-   * \brief constructor from array
+   * \brief constructor from hf_array
    * \param[in] size - number of elements locally
-   * \param[in] u_array - vector stored as array being copied
+   * \param[in] u_array - vector stored as hf_array being copied
    */
   explicit CSysVector(const unsigned long & size, const double* u_array);
-  
+
   /*!
-   * \brief constructor from array
+   * \brief constructor from hf_array
    * \param[in] numBlk - number of blocks locally
    * \param[in] numBlkDomain - number of blocks locally (without g cells)
    * \param[in] numVar - number of variables in each block
-   * \param[in] u_array - vector stored as array being copied
+   * \param[in] u_array - vector stored as hf_array being copied
    */
   explicit CSysVector(const unsigned long & numBlk, const unsigned long & numBlkDomain, const unsigned short & numVar,
                       const double* u_array);
-  
+
   /*!
    * \brief class destructor
    */
   virtual ~CSysVector();
-  
+
   /*!
    * \brief Initialize the class.
    * \param[in] numBlk - number of blocks locally
@@ -128,46 +128,46 @@ public:
    * \param[in] val - default value for elements
    */
   void Initialize(const unsigned long & numBlk, const unsigned short &numVar, const double &val);
-  
+
   /*!
    * \brief return the number of local elements in the CSysVector
    */
   unsigned long GetLocSize() const;
-  
+
   /*!
    * \brief return the size of the CSysVector (over all processors)
    */
   unsigned long GetSize() const;
-  
+
   /*!
    * \brief return the number of variables at each block (typically number per node)
    */
   unsigned short GetNVar() const;
-  
+
   /*!
    * \brief return the number of blocks (typically number of nodes locally)
    */
   unsigned long GetNBlk() const;
-	
+
 	/*!
    * \brief return the number of blocks (typically number of nodes locally)
    */
   unsigned long GetNBlkDomain() const;
-  
+
   /*!
    * \brief set calling CSysVector to scaling of another CSysVector
    * \param[in] a - scalar factor for x
    * \param[in] x - CSysVector that is being scaled
    */
   void Equals_AX(const double & a, CSysVector & x);
-  
+
   /*!
    * \brief adds a scaled CSysVector to calling CSysVector
    * \param[in] a - scalar factor for x
    * \param[in] x - CSysVector that is being scaled
    */
   void Plus_AX(const double & a, CSysVector & x);
-  
+
   /*!
    * \brief general linear combination of two CSysVectors
    * \param[in] a - scalar factor for x
@@ -176,113 +176,113 @@ public:
    * \param[in] y - second CSysVector in linear combination
    */
   void Equals_AX_Plus_BY(const double & a, CSysVector & x, const double & b, CSysVector & y);
-  
+
   /*!
    * \brief assignment operator with deep copy
    * \param[in] u - CSysVector whose values are being assigned
    */
   CSysVector & operator=(const CSysVector & u);
-  
+
   /*!
    * \brief CSysVector=double assignment operator
    * \param[in] val - value assigned to each element of CSysVector
    */
   CSysVector & operator=(const double & val);
-  
+
   /*!
    * \brief addition operator
    * \param[in] u - CSysVector being added to *this
    */
   CSysVector operator+(const CSysVector & u) const;
-  
+
   /*!
    * \brief compound addition-assignment operator
    * \param[in] u - CSysVector being added to calling object
    */
   CSysVector & operator+=(const CSysVector & u);
-  
+
   /*!
    * \brief subtraction operator
    * \param[in] u - CSysVector being subtracted from *this
    */
   CSysVector operator-(const CSysVector & u) const;
-  
+
   /*!
    * \brief compound subtraction-assignment operator
    * \param[in] u - CSysVector being subtracted from calling object
    */
   CSysVector & operator-=(const CSysVector & u);
-  
+
   /*!
    * \brief vector * scalar multiplication operator
    * \param[in] val - value to multiply *this by
    */
   CSysVector operator*(const double & val) const;
-  
+
   /*!
    * \brief scalar * vector multiplication operator
    * \param[in] val - scalar value to multiply by
    * \param[in] u - CSysVector having its elements scaled
    */
   friend CSysVector operator*(const double & val, const CSysVector & u);
-  
+
   /*!
    * \brief compound scalar multiplication-assignment operator
    * \param[in] val - value to multiply calling object by
    */
   CSysVector & operator*=(const double & val);
-  
+
   /*!
    * \brief vector-scalar division operator (no scalar/vector operator)
    * \param[in] val - value to divide elements of *this by
    */
   CSysVector operator/(const double & val) const;
-  
+
   /*!
    * \brief compound scalar division-assignment operator
    * \param[in] val - value to divide elements of calling object by
    */
   CSysVector & operator/=(const double & val);
-  
+
   /*!
    * \brief indexing operator with assignment permitted
    * \param[in] i = local index to access
    */
   double & operator[](const unsigned long & i);
-  
+
   /*!
    * \brief indexing operator with assignment not permitted
    * \param[in] i = local index to access
    */
   const double & operator[](const unsigned long & i) const;
-    
+
   /*!
    * \brief the L2 norm of the CSysVector
    * \result the L2 norm
    */
   double norm() const;
-  
+
   /*!
-   * \brief copies the contents of the calling CSysVector into an array
-   * \param[out] u_array - array into which information is being copied
+   * \brief copies the contents of the calling CSysVector into an hf_array
+   * \param[out] u_array - hf_array into which information is being copied
    * \pre u_array must be allocated and have the same size as CSysVector
    */
   void CopyToArray(double* u_array);
-  
+
   /*!
 	 * \brief Subtract val_residual to the residual.
 	 * \param[in] val_ipoint - index of the point where subtract the residual.
    * \param[in] val_residual - Value to subtract to the residual.
 	 */
   void SubtractBlock(unsigned long val_ipoint, double *val_residual);
-  
+
   /*!
 	 * \brief Add val_residual to the residual.
 	 * \param[in] val_ipoint - index of the point where add the residual.
    * \param[in] val_residual - Value to add to the residual.
 	 */
   void AddBlock(unsigned long val_ipoint, double *val_residual);
-  
+
   /*!
 	 * \brief Set val_residual to the residual.
 	 * \param[in] val_ipoint - index of the point where set the residual.
@@ -290,33 +290,33 @@ public:
    * \param[in] val_residual - Value to set to the residual.
 	 */
   void SetBlock(unsigned long val_ipoint, unsigned short val_var, double val_residual);
-  
+
   /*!
 	 * \brief Set val_residual to the residual.
 	 * \param[in] val_ipoint - index of the point where set the residual.
    * \param[in] val_residual - Value to set to the residual.
 	 */
   void SetBlock(unsigned long val_ipoint, double *val_residual);
-  
+
   /*!
 	 * \brief Set the residual to zero.
 	 * \param[in] val_ipoint - index of the point where set the residual.
 	 */
   void SetBlock_Zero(unsigned long val_ipoint);
-  
+
   /*!
 	 * \brief Set the velocity residual to zero.
 	 * \param[in] val_ipoint - index of the point where set the residual.
 	 */
   void SetBlock_Zero(unsigned long val_ipoint, unsigned short val_var);
-	
+
   /*!
 	 * \brief Get the value of the residual.
 	 * \param[in] val_ipoint - index of the point where set the residual.
    * \return Pointer to the residual.
 	 */
   double *GetBlock(unsigned long val_ipoint);
-	
+
   /*!
 	 * \brief Get the value of the residual.
 	 * \param[in] val_ipoint - index of the point where set the residual.
@@ -324,15 +324,15 @@ public:
    * \return Value of the residual.
 	 */
   double GetBlock(unsigned long val_ipoint, unsigned short val_var);
-  
-  
+
+
   /*!
    * \brief dot-product between two CSysVectors
    * \param[in] u - first CSysVector in dot product
    * \param[in] v - second CSysVector in dot product
    */
   friend double dotProd(const CSysVector & u, const CSysVector & v);
-  
+
 };
 
 /*!

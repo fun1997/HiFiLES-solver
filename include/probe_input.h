@@ -26,7 +26,7 @@
 #include <fstream>
 #include <vector>
 #include <map>
-#include "array.h"
+#include "hf_array.h"
 #include "input.h"
 #include "solution.h"
 #include "funcs.h"
@@ -37,30 +37,30 @@ public:
     probe_input();
     ~probe_input();
     //basic inputs
-    array<string> probe_fields;
+    hf_array<string> probe_fields;
     int n_probe;
     int prob_freq;
     int probe_layout;
     int n_probe_fields;
-    array<double> pos_probe;
+    hf_array<double> pos_probe;
     //point source
-    array<double> probe_x;
-    array<double> probe_y;
-    array<double> probe_z;
+    hf_array<double> probe_x;
+    hf_array<double> probe_y;
+    hf_array<double> probe_z;
     //line source
-    array<double> p_0;//start point coord
-    array<double> p_1;//end point coord
+    hf_array<double> p_0;//start point coord
+    hf_array<double> p_1;//end point coord
     double growth_rate;
     double init_incre;
     //gambit surface
     #define MAX_V_PER_C 27
-    array<double> surf_normal;//surface normals
-    array<double> surf_area;//surface area
+    hf_array<double> surf_normal;//surface normals
+    hf_array<double> surf_area;//surface area
     bool output_normal;
     //connetivity
-    array<int> p2c;//probe point to cell number(local typewise)
-    array<int> p2t;//probe point to cell type
-    array<double> loc_probe;
+    hf_array<int> p2c;//probe point to cell number(local typewise)
+    hf_array<int> p2t;//probe point to cell type
+    hf_array<double> loc_probe;
     //entrance
     void setup(string filenameS,struct solution* FlowSol, int rank);
 protected:

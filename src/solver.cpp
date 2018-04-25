@@ -28,7 +28,7 @@
 #include <cmath>
 
 #include "../include/global.h"
-#include "../include/array.h"
+#include "../include/hf_array.h"
 #include "../include/input.h"
 #include "../include/geometry.h"
 #include "../include/solver.h"
@@ -336,7 +336,7 @@ double* get_grad_disu_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, 
 }
 
 // get pointer to the discontinuous solution (close normal) at a flux point
-double* get_normal_disu_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, int in_field, int in_fpt, struct solution* FlowSol, array<double> temp_loc, double temp_pos[3])
+double* get_normal_disu_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, int in_field, int in_fpt, struct solution* FlowSol, hf_array<double> temp_loc, double temp_pos[3])
 {
   return FlowSol->mesh_eles(in_ele_type)->get_normal_disu_fpts_ptr(in_fpt,in_local_inter,in_field,in_ele, temp_loc, temp_pos);
 }
@@ -483,7 +483,7 @@ void calc_global_time_step(int in_rk_stage, struct solution* FlowSol)
 #ifdef _MPI
         // If in parallel and using global minumum timestep, allocate storage
         // for minimum timesteps in each partition
-        array<double> dt_globe_mpi;
+        hf_array<double> dt_globe_mpi;
         dt_globe_mpi.setup(FlowSol->nproc);
         dt_globe_mpi.initialize_to_zero();
         MPI_Allgather(&eles::dt_globe,1,MPI_DOUBLE,dt_globe_mpi.get_ptr_cpu(),

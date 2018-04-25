@@ -27,7 +27,7 @@
 #include <cmath>
 
 #include "../include/global.h"
-#include "../include/array.h"
+#include "../include/hf_array.h"
 #include "../include/inters.h"
 #include "../include/int_inters.h"
 #include "../include/geometry.h"
@@ -226,10 +226,10 @@ void int_inters::calculate_common_invFlux(void)
 {
 
 #ifdef _CPU
-  array<double> norm(n_dims), fn(n_fields);
+  hf_array<double> norm(n_dims), fn(n_fields);
 
   //viscous
-  array<double> u_c(n_fields);
+  hf_array<double> u_c(n_fields);
 
   for(int i=0;i<n_inters;i++)
   {
@@ -360,7 +360,7 @@ void int_inters::calculate_common_viscFlux(void)
 {
 
 #ifdef _CPU
-  array<double> norm(n_dims), fn(n_fields);
+  hf_array<double> norm(n_dims), fn(n_fields);
 
   for(int i=0;i<n_inters;i++)
     {

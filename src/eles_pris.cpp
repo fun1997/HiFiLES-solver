@@ -30,7 +30,7 @@
 #include "../include/global.h"
 #include "../include/eles.h"
 #include "../include/eles_pris.h"
-#include "../include/array.h"
+#include "../include/hf_array.h"
 #include "../include/funcs.h"
 #include "../include/error.h"
 #include "../include/cubature_tri.h"
@@ -216,13 +216,13 @@ void eles_pris::set_loc_upts(void)
   if (upts_type_pri_1d == 0)
     {
       // 1D: gauss
-      array<double> loc_1d_gauss_pts(order+1);
+      hf_array<double> loc_1d_gauss_pts(order+1);
 #include "../data/loc_1d_gauss_pts.dat"
       loc_upts_pri_1d=loc_1d_gauss_pts;
     }
   else if (upts_type_pri_1d == 1) {
       // 1D: gauss-lobatto
-      array<double> loc_1d_gauss_lobatto_pts(order+1);
+      hf_array<double> loc_1d_gauss_lobatto_pts(order+1);
 #include "../data/loc_1d_gauss_lobatto_pts.dat"
       loc_upts_pri_1d=loc_1d_gauss_lobatto_pts;
     }
@@ -232,7 +232,7 @@ void eles_pris::set_loc_upts(void)
 
   if (upts_type_pri_tri==0) // tri: inter
     {
-      array<double> loc_inter_pts(n_upts_tri,2);
+      hf_array<double> loc_inter_pts(n_upts_tri,2);
 #include "../data/loc_tri_inter_pts.dat"
       for (int i=0;i<n_upts_tri;i++) {
           loc_upts_pri_tri(0,i) = loc_inter_pts(i,0);
@@ -241,7 +241,7 @@ void eles_pris::set_loc_upts(void)
     }
   else if (upts_type_pri_tri == 1) // tri: alpha
     {
-      array<double> loc_alpha_pts(n_upts_tri,2);
+      hf_array<double> loc_alpha_pts(n_upts_tri,2);
 #include "../data/loc_tri_alpha_pts.dat"
       for (int i=0;i<n_upts_tri;i++) {
           loc_upts_pri_tri(0,i) = loc_alpha_pts(i,0);
@@ -272,19 +272,19 @@ void eles_pris::set_tloc_fpts(void)
 
   int get_order = order;
 
-  array<double> loc_tri_fpts( (order+1)*(order+2)/2,2);
+  hf_array<double> loc_tri_fpts( (order+1)*(order+2)/2,2);
   loc_1d_fpts.setup(order+1);
 
   // Triangular Faces
   if (upts_type_pri_tri==0) // internal points
     {
-      array<double> loc_inter_pts(n_fpts_per_inter(0),2);
+      hf_array<double> loc_inter_pts(n_fpts_per_inter(0),2);
 #include "../data/loc_tri_inter_pts.dat"
       loc_tri_fpts = loc_inter_pts;
     }
   else if(upts_type_pri_tri==1) // alpha optimized
     {
-      array<double> loc_alpha_pts(n_fpts_per_inter(0),2);
+      hf_array<double> loc_alpha_pts(n_fpts_per_inter(0),2);
 #include "../data/loc_tri_alpha_pts.dat"
       loc_tri_fpts = loc_alpha_pts;
     }
@@ -296,14 +296,14 @@ void eles_pris::set_tloc_fpts(void)
   // Quad faces
   if(upts_type_pri_1d==0) // gauss
     {
-      array<double> loc_1d_gauss_pts(order+1);
+      hf_array<double> loc_1d_gauss_pts(order+1);
 #include "../data/loc_1d_gauss_pts.dat"
 
       loc_1d_fpts = loc_1d_gauss_pts;
     }
   else if(upts_type_pri_1d==1) // gauss lobatto
     {
-      array<double> loc_1d_gauss_lobatto_pts(order+1);
+      hf_array<double> loc_1d_gauss_lobatto_pts(order+1);
 #include "../data/loc_1d_gauss_lobatto_pts.dat"
 
       loc_1d_fpts = loc_1d_gauss_lobatto_pts;
@@ -464,7 +464,7 @@ void eles_pris::set_volume_cubpts(void)//ToDo:implement pris element volume cubp
 }
 
 // Compute the surface jacobian determinant on a face
-double eles_pris::compute_inter_detjac_inters_cubpts(int in_inter,array<double> d_pos)
+double eles_pris::compute_inter_detjac_inters_cubpts(int in_inter,hf_array<double> d_pos)
 {
   double output = 0.;
   double xr, xs, xt;
@@ -655,7 +655,7 @@ void eles_pris::set_vandermonde_tri()
 // initialize the vandermonde matrix
 void eles_pris::set_vandermonde_tri_restart()
 {
-  array<double> vandermonde_tri_rest;
+  hf_array<double> vandermonde_tri_rest;
   vandermonde_tri_rest.setup(n_upts_tri_rest,n_upts_tri_rest);
 
   // create the vandermonde matrix
@@ -742,7 +742,7 @@ void eles_pris::write_restart_info(ofstream& restart_file)
 
 // evaluate nodal basis
 
-double eles_pris::eval_nodal_basis(int in_index, array<double> in_loc)
+double eles_pris::eval_nodal_basis(int in_index, hf_array<double> in_loc)
 {
   double oned_nodal_basis_at_loc;
   double tri_nodal_basis_at_loc;
@@ -753,7 +753,7 @@ double eles_pris::eval_nodal_basis(int in_index, array<double> in_loc)
   // 1. First evaluate the triangular nodal basis at loc(0) and loc(1)
 
   // First evaluate the normalized Dubiner basis at position in_loc
-  array<double> dubiner_basis_at_loc(n_upts_tri);
+  hf_array<double> dubiner_basis_at_loc(n_upts_tri);
   for (int i=0;i<n_upts_tri;i++)
     dubiner_basis_at_loc(i) = eval_dubiner_basis_2d(in_loc(0),in_loc(1),i,order);
 
@@ -771,7 +771,7 @@ double eles_pris::eval_nodal_basis(int in_index, array<double> in_loc)
 
 // evaluate nodal basis for restart
 
-double eles_pris::eval_nodal_basis_restart(int in_index, array<double> in_loc)
+double eles_pris::eval_nodal_basis_restart(int in_index, hf_array<double> in_loc)
 {
   double oned_nodal_basis_at_loc;
   double tri_nodal_basis_at_loc;
@@ -782,7 +782,7 @@ double eles_pris::eval_nodal_basis_restart(int in_index, array<double> in_loc)
   // 1. First evaluate the triangular nodal basis at loc(0) and loc(1)
 
   // First evaluate the normalized Dubiner basis at position in_loc
-  array<double> dubiner_basis_at_loc(n_upts_tri_rest);
+  hf_array<double> dubiner_basis_at_loc(n_upts_tri_rest);
   for (int i=0;i<n_upts_tri_rest;i++)
     dubiner_basis_at_loc(i) = eval_dubiner_basis_2d(in_loc(0),in_loc(1),i,order_rest);
 
@@ -799,7 +799,7 @@ double eles_pris::eval_nodal_basis_restart(int in_index, array<double> in_loc)
 
 // evaluate derivative of nodal basis
 
-double eles_pris::eval_d_nodal_basis(int in_index, int in_cpnt, array<double> in_loc)
+double eles_pris::eval_d_nodal_basis(int in_index, int in_cpnt, hf_array<double> in_loc)
 {
   double out_d_nodal_basis_at_loc;
 
@@ -814,7 +814,7 @@ double eles_pris::eval_d_nodal_basis(int in_index, int in_cpnt, array<double> in
       // 1. Evaluate the derivative of triangular nodal basis at loc(0) and loc(1)
 
       // Evalute the derivative normalized Dubiner basis at position in_loc
-      array<double> d_dubiner_basis_at_loc(n_upts_per_ele);
+      hf_array<double> d_dubiner_basis_at_loc(n_upts_per_ele);
       for (int i=0;i<n_upts_tri;i++) {
           if (in_cpnt==0)
             d_dubiner_basis_at_loc(i) = eval_dr_dubiner_basis_2d(in_loc(0),in_loc(1),i,order);
@@ -841,7 +841,7 @@ double eles_pris::eval_d_nodal_basis(int in_index, int in_cpnt, array<double> in
       // 1. First evaluate the triangular nodal basis at loc(0) and loc(1)
 
       // Evaluate the normalized Dubiner basis at position in_loc
-      array<double> dubiner_basis_at_loc(n_upts_tri);
+      hf_array<double> dubiner_basis_at_loc(n_upts_tri);
       for (int i=0;i<n_upts_tri;i++)
         dubiner_basis_at_loc(i) = eval_dubiner_basis_2d(in_loc(0),in_loc(1),i,order);
 
@@ -864,7 +864,7 @@ double eles_pris::eval_d_nodal_basis(int in_index, int in_cpnt, array<double> in
 
 // evaluate nodal shape basis
 
-double eles_pris::eval_nodal_s_basis(int in_index, array<double> in_loc, int in_n_spts)
+double eles_pris::eval_nodal_s_basis(int in_index, hf_array<double> in_loc, int in_n_spts)
 {
 
   double nodal_s_basis;
@@ -925,7 +925,7 @@ double eles_pris::eval_nodal_s_basis(int in_index, array<double> in_loc, int in_
 
 // evaluate derivative of nodal shape basis
 
-void eles_pris::eval_d_nodal_s_basis(array<double> &d_nodal_s_basis, array<double> in_loc, int in_n_spts)
+void eles_pris::eval_d_nodal_s_basis(hf_array<double> &d_nodal_s_basis, hf_array<double> in_loc, int in_n_spts)
 {
 
   if (in_n_spts==6) {
@@ -1007,11 +1007,11 @@ void eles_pris::eval_d_nodal_s_basis(array<double> &d_nodal_s_basis, array<doubl
     }
 }
 
-void eles_pris::fill_opp_3(array<double>& opp_3)
+void eles_pris::fill_opp_3(hf_array<double>& opp_3)
 {
 
-  array<double> loc(3);
-  array<double> opp_3_tri(n_upts_tri,3*(order+1));
+  hf_array<double> loc(3);
+  hf_array<double> opp_3_tri(n_upts_tri,3*(order+1));
   get_opp_3_tri(opp_3_tri,loc_upts_pri_tri,loc_1d_fpts,vandermonde_tri, inv_vandermonde_tri,n_upts_tri,order,run_input.c_tri,run_input.vcjh_scheme_tri);
 
   // Compute value of eta
@@ -1097,7 +1097,7 @@ void eles_pris::fill_opp_3(array<double>& opp_3)
 
 // evaluate divergence of vcjh basis
 
-double eles_pris::eval_div_vcjh_basis(int in_index, array<double>& loc)
+double eles_pris::eval_div_vcjh_basis(int in_index, hf_array<double>& loc)
 {
   double div_vcjh_basis;
   double tol = 1e-12;
@@ -1242,19 +1242,19 @@ double eles_pris::calc_h_ref_specific(int in_ele)
     return out_h_ref;
 }
 
-int eles_pris::calc_p2c(array<double>& in_pos)
+int eles_pris::calc_p2c(hf_array<double>& in_pos)
 {
-    array<double> plane_coeff;
-    array<double> pos_centroid;
-    array<int> vertex_index_loc(3);
-    array<double> pos_plane_pts(n_dims,3);
+    hf_array<double> plane_coeff;
+    hf_array<double> pos_centroid;
+    hf_array<int> vertex_index_loc(3);
+    hf_array<double> pos_plane_pts(n_dims,3);
 
     for (int i=0; i<n_eles; i++)//for each element
     {
         int alpha=1;//indicator
 
         //calculate centroid
-        array<double> temp_pos_s_pts(n_dims,n_spts_per_ele(i));
+        hf_array<double> temp_pos_s_pts(n_dims,n_spts_per_ele(i));
         for (int j=0; j<n_spts_per_ele(i); j++)
             for (int k=0; k<n_dims; k++)
                 temp_pos_s_pts(k,j)=shape(k,j,i);

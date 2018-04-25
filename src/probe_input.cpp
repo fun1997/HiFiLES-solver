@@ -22,7 +22,7 @@
  * along with HiFiLES.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "../include/probe_input.h"
-#include "../include/array.h"
+#include "../include/hf_array.h"
 #include "../include/global.h"
 #include <iostream>
 #include <fstream>
@@ -186,7 +186,7 @@ void probe_input::set_probe_connectivity(struct solution* FlowSol,int rank)
                 if(p2c(j)==-1)//if not inside another type of elements
                 {
                     int temp_p2c;
-                    array<double>temp_pos(n_dims);
+                    hf_array<double>temp_pos(n_dims);
                     for (int k=0; k<n_dims; k++)
                         temp_pos(k)=pos_probe(k,j);
                     temp_p2c=FlowSol->mesh_eles(i)->calc_p2c(temp_pos);
@@ -203,7 +203,7 @@ void probe_input::set_probe_connectivity(struct solution* FlowSol,int rank)
 
 #ifdef _MPI
     //MPI_Barrier(MPI_COMM_WORLD);
-    array<int> p2cglobe(n_probe,FlowSol->nproc);
+    hf_array<int> p2cglobe(n_probe,FlowSol->nproc);
     MPI_Allgather(p2c.get_ptr_cpu(),n_probe,MPI_INT,p2cglobe.get_ptr_cpu(),n_probe,MPI_INT,MPI_COMM_WORLD);
     //MPI_Barrier(MPI_COMM_WORLD);
     for (int i=0; i<n_probe; i++)//for each probe
@@ -246,10 +246,10 @@ void probe_input::set_probe_gambit(string filename)
     int dummy,dummy2;
     int gambit_ndims;
     char buf[BUFSIZ]= {""};
-    array<int> probe_c2n_v;//element to number of vertex
-    array<int> probe_c2v;//elements to vertex index
-    array<double> probe_xv;//vertex coordinates
-    array<int> probe_ctype;//type of element
+    hf_array<int> probe_c2n_v;//element to number of vertex
+    hf_array<int> probe_c2v;//elements to vertex index
+    hf_array<double> probe_xv;//vertex coordinates
+    hf_array<int> probe_ctype;//type of element
     ifstream f_neu;
 
     /*! read points and elements */
@@ -378,11 +378,11 @@ if(n_dims<dummy2||n_dims<gambit_ndims)
     for (int i=0; i<n_probe; i++)
     {
         //store coordinates of all vertex belongs to this cell
-        array<double> temp_pos(n_dims,probe_c2n_v(i));
+        hf_array<double> temp_pos(n_dims,probe_c2n_v(i));
         for (int j=0; j<probe_c2n_v(i); j++)
             for (int k=0; k<n_dims; k++)
                 temp_pos(k,j)=probe_xv(probe_c2v(i,j),k);
-        array<double> temp_pos_centroid;
+        hf_array<double> temp_pos_centroid;
         temp_pos_centroid=calc_centroid(temp_pos);
         for (int j=0; j<n_dims; j++)
             pos_probe(j,i)=temp_pos_centroid(j);
@@ -396,9 +396,9 @@ if(n_dims<dummy2||n_dims<gambit_ndims)
         surf_normal.setup(n_dims,n_probe);
         for (int i=0; i<n_probe; i++)
         {
-            array<double> temp_vec(n_dims);
-            array<double> temp_vec2(n_dims);
-            array<double> temp_normal;
+            hf_array<double> temp_vec(n_dims);
+            hf_array<double> temp_vec2(n_dims);
+            hf_array<double> temp_normal;
             for (int k=0; k<n_dims; k++) //every dimension
             {
                 temp_vec(k)=probe_xv(probe_c2v(i,1),k)-probe_xv(probe_c2v(i,0),k);
@@ -420,9 +420,9 @@ if(n_dims<dummy2||n_dims<gambit_ndims)
         surf_area.initialize_to_zero();
         for (int i =0; i<n_probe; i++)
         {
-            array<double> temp_vec(n_dims);
-            array<double> temp_vec2(n_dims);
-            array<double> temp_normal;
+            hf_array<double> temp_vec(n_dims);
+            hf_array<double> temp_vec2(n_dims);
+            hf_array<double> temp_normal;
             for (int j=0; j<probe_ctype(i)+1;j++) //1->2 part
             {
                 for (int k=0; k<n_dims; k++) //every dimension
@@ -447,8 +447,8 @@ if(n_dims<dummy2||n_dims<gambit_ndims)
 void probe_input::set_loc_probepts(struct solution* FlowSol)
 {
     loc_probe.setup(n_dims,n_probe);
-    array<double> temp_pos(n_dims);
-    array<double> temp_loc(n_dims);
+    hf_array<double> temp_pos(n_dims);
+    hf_array<double> temp_loc(n_dims);
     for (int i=0; i<n_probe; i++)//loop over all probes
     {
         if(p2c(i)!=-1)//if probe belongs to this processor

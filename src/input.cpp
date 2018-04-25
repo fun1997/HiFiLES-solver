@@ -35,7 +35,7 @@
 #include <map>
 
 #include "../include/input.h"
-#include "../include/array.h"
+#include "../include/hf_array.h"
 #include "../include/funcs.h"
 #include "../include/global.h"
 
@@ -998,7 +998,7 @@ void fileReader::getVectorValue(string optName, vector<T> &opt)
 }
 
 template<typename T>
-void fileReader::getVectorValue(string optName, array<T> &opt)
+void fileReader::getVectorValue(string optName, hf_array<T> &opt)
 {
     string str, optKey;
 
@@ -1055,7 +1055,7 @@ void fileReader::getVectorValue(string optName, array<T> &opt)
 }
 
 template<typename T>
-void fileReader::getVectorValueOptional(string optName, array<T> &opt)
+void fileReader::getVectorValueOptional(string optName, hf_array<T> &opt)
 {
     string str, optKey;
 
@@ -1108,6 +1108,6 @@ void fileReader::getVectorValueOptional(string optName, array<T> &opt)
         }
     }
 
-    // Option was not found; setup array to size 0
+    // Option was not found; setup hf_array to size 0
     opt.setup(0);
 }

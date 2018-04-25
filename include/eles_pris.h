@@ -26,7 +26,7 @@
 #pragma once
 
 #include "eles.h"
-#include "array.h"
+#include "hf_array.h"
 
 class eles_pris: public eles
 {
@@ -77,27 +77,27 @@ public:
   void write_restart_info(ofstream& restart_file);
 
   /*! Compute interface jacobian determinant on face */
-  double compute_inter_detjac_inters_cubpts(int in_inter, array<double> d_pos);
+  double compute_inter_detjac_inters_cubpts(int in_inter, hf_array<double> d_pos);
 
   /*! evaluate nodal basis */
-  double eval_nodal_basis(int in_index, array<double> in_loc);
+  double eval_nodal_basis(int in_index, hf_array<double> in_loc);
 
   /*! evaluate nodal basis for restart file*/
-  double eval_nodal_basis_restart(int in_index, array<double> in_loc);
+  double eval_nodal_basis_restart(int in_index, hf_array<double> in_loc);
 
   /*! evaluate derivative of nodal basis */
-  double eval_d_nodal_basis(int in_index, int in_cpnt, array<double> in_loc);
+  double eval_d_nodal_basis(int in_index, int in_cpnt, hf_array<double> in_loc);
 
   /*! evaluate divergence of vcjh basis */
-  double eval_div_vcjh_basis(int in_index, array<double>& loc);
+  double eval_div_vcjh_basis(int in_index, hf_array<double>& loc);
 
-  void fill_opp_3(array<double>& opp_3);
+  void fill_opp_3(hf_array<double>& opp_3);
 
   /*! evaluate nodal shape basis */
-  double eval_nodal_s_basis(int in_index, array<double> in_loc, int in_n_spts);
+  double eval_nodal_s_basis(int in_index, hf_array<double> in_loc, int in_n_spts);
 
   /*! evaluate derivative of nodal shape basis */
-  void eval_d_nodal_s_basis(array<double> &d_nodal_s_basis, array<double> in_loc, int in_n_spts);
+  void eval_d_nodal_s_basis(hf_array<double> &d_nodal_s_basis, hf_array<double> in_loc, int in_n_spts);
 
   /*! Calculate element volume */
   double calc_ele_vol(double& detjac);
@@ -107,7 +107,7 @@ public:
   /*! Element reference length calculation */
   double calc_h_ref_specific(int in_ele);
 
-  int calc_p2c(array<double>& in_pos);
+  int calc_p2c(hf_array<double>& in_pos);
 
 protected:
 
@@ -121,21 +121,21 @@ protected:
   int upts_type_pri_tri;
   int upts_type_pri_1d;
 
-  array<double> loc_upts_pri_tri;
-  array<double> loc_upts_pri_1d;
-  array<double> loc_1d_fpts;
+  hf_array<double> loc_upts_pri_tri;
+  hf_array<double> loc_upts_pri_1d;
+  hf_array<double> loc_1d_fpts;
 
-  array<double> loc_upts_pri_tri_rest;
-  array<double> loc_upts_pri_1d_rest;
+  hf_array<double> loc_upts_pri_tri_rest;
+  hf_array<double> loc_upts_pri_1d_rest;
 
-  array<double> vandermonde_tri;
-  array<double> inv_vandermonde_tri;
-  array<double> inv_vandermonde_tri_rest;
+  hf_array<double> vandermonde_tri;
+  hf_array<double> inv_vandermonde_tri;
+  hf_array<double> inv_vandermonde_tri_rest;
 
   //methods
   void set_vandermonde_tri();
   void set_vandermonde_tri_restart();
 
   /*! element edge lengths for h_ref calculation */
-  array<double> length;
+  hf_array<double> length;
 };

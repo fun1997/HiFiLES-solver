@@ -33,7 +33,7 @@
 #include <unistd.h>
 
 #include "../include/global.h"
-#include "../include/array.h"
+#include "../include/hf_array.h"
 #include "../include/input.h"
 #include "../include/geometry.h"
 #include "../include/solver.h"
@@ -72,14 +72,14 @@ void write_tec(int in_file_num, struct solution* FlowSol)
 
   int p_res=run_input.p_res; // HACK
 
-  array<double> pos_ppts_temp;
-  array<double> disu_ppts_temp;
-  array<double> grad_disu_ppts_temp;
-  array<double> disu_average_ppts_temp;
-  array<double> diag_ppts_temp;
+  hf_array<double> pos_ppts_temp;
+  hf_array<double> disu_ppts_temp;
+  hf_array<double> grad_disu_ppts_temp;
+  hf_array<double> disu_average_ppts_temp;
+  hf_array<double> diag_ppts_temp;
 
   /*! Sensor data for artificial viscosity at plot points */
-  array<double> sensor_ppts_temp;
+  hf_array<double> sensor_ppts_temp;
 
   int n_ppts_per_ele;
   int n_dims = FlowSol->n_dims;
@@ -193,7 +193,7 @@ void write_tec(int in_file_num, struct solution* FlowSol)
           diag_ppts_temp.setup(n_ppts_per_ele,n_diag_fields);
           disu_average_ppts_temp.setup(n_ppts_per_ele,n_average_fields);
 
-          /*! Temporary field for sensor array at plot points */
+          /*! Temporary field for sensor hf_array at plot points */
           sensor_ppts_temp.setup(n_ppts_per_ele);
 
 
@@ -601,22 +601,22 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
   int ele_type;
 
   /*! Plot point coordinates */
-  array<double> pos_ppts_temp;
+  hf_array<double> pos_ppts_temp;
   /*! Solution data at plot points */
-  array<double> disu_ppts_temp;
+  hf_array<double> disu_ppts_temp;
   /*! Solution gradient data at plot points */
-  array<double> grad_disu_ppts_temp;
+  hf_array<double> grad_disu_ppts_temp;
   /*! Diagnostic field data at plot points */
-  array<double> diag_ppts_temp;
+  hf_array<double> diag_ppts_temp;
   /*! Time-averaged diagnostic field data at plot points */
-  array<double> disu_average_ppts_temp;
+  hf_array<double> disu_average_ppts_temp;
   /*! Grid velocity at plot points */
-  array<double> grid_vel_ppts_temp;
+  hf_array<double> grid_vel_ppts_temp;
   /*! Sensor data for artificial viscosity at plot points */
-  array<double> sensor_ppts_temp;
+  hf_array<double> sensor_ppts_temp;
 
-  /*! Plot sub-element connectivity array (node IDs) */
-  array<int> con;
+  /*! Plot sub-element connectivity hf_array (node IDs) */
+  hf_array<int> con;
 
   /*! VTK element types (different to HiFiLES element type) */
   /*! tri, quad, tet, prism , hex */
@@ -777,30 +777,30 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
           /*! no. of dimensions */
           n_dims = FlowSol->mesh_eles(i)->get_n_dims();
 
-          /*! Temporary array of plot point coordinates */
+          /*! Temporary hf_array of plot point coordinates */
           pos_ppts_temp.setup(n_points,n_dims);
 
-          /*! Temporary solution array at plot points */
+          /*! Temporary solution hf_array at plot points */
           disu_ppts_temp.setup(n_points,n_fields);
 
-          /*! Temporary array of time averaged fields at the plot points */
+          /*! Temporary hf_array of time averaged fields at the plot points */
           if(n_average_fields > 0) {
             disu_average_ppts_temp.setup(n_points,n_average_fields);
           }
 
           if(n_diag_fields > 0) {
-            /*! Temporary solution array at plot points */
+            /*! Temporary solution hf_array at plot points */
             grad_disu_ppts_temp.setup(n_points,n_fields,n_dims);
 
-            /*! Temporary diagnostic field array at plot points */
+            /*! Temporary diagnostic field hf_array at plot points */
             diag_ppts_temp.setup(n_points,n_diag_fields);
 
-            /*! Temporary field for sensor array at plot points */
+            /*! Temporary field for sensor hf_array at plot points */
             sensor_ppts_temp.setup(n_points);
 
           }
 
-          /*! Temporary grid velocity array at plot points */
+          /*! Temporary grid velocity hf_array at plot points */
           if (run_input.motion) {
             FlowSol->mesh_eles(i)->set_grid_vel_ppts();
             grid_vel_ppts_temp = FlowSol->mesh_eles(i)->get_grid_vel_ppts();
@@ -996,7 +996,7 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
               /*! write out Cell data: connectivity, offsets, element types */
               write_vtu << "			<Cells>" << endl;
 
-              /*! Write connectivity array */
+              /*! Write connectivity hf_array */
               write_vtu << "				<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" << endl;
 
               for(k=0;k<n_cells;k++)
@@ -1067,11 +1067,11 @@ void write_probe(struct solution* FlowSol)
     /*! No. of dimensions */
     int n_dims=FlowSol->n_dims;
     /*! reference location of probe point */
-    array<double> loc_probe_point_temp(n_dims);
+    hf_array<double> loc_probe_point_temp(n_dims);
     /*! solution data at probe points */
-    array<double> disu_probe_point_temp;
+    hf_array<double> disu_probe_point_temp;
     /*! solution gradient data at probe points */
-    array<double> grad_disu_probe_point_temp;
+    hf_array<double> grad_disu_probe_point_temp;
     /*! file name */
     char probe_data[256];
     /*! output file object*/
@@ -1298,8 +1298,8 @@ void CalcForces(int in_file_num, struct solution* FlowSol) {
   struct stat st = {0};
   ofstream coeff_file;
   bool write_dir, write_forces;
-  array<double> temp_inv_force(FlowSol->n_dims);
-  array<double> temp_vis_force(FlowSol->n_dims);
+  hf_array<double> temp_inv_force(FlowSol->n_dims);
+  hf_array<double> temp_vis_force(FlowSol->n_dims);
   double temp_cl, temp_cd;
   int my_rank;
 
@@ -1393,8 +1393,8 @@ void CalcForces(int in_file_num, struct solution* FlowSol) {
 
 #ifdef _MPI
 
-  array<double> inv_force_global(FlowSol->n_dims);
-  array<double> vis_force_global(FlowSol->n_dims);
+  hf_array<double> inv_force_global(FlowSol->n_dims);
+  hf_array<double> vis_force_global(FlowSol->n_dims);
   double coeff_lift_global=0.0;
   double coeff_drag_global=0.0;
 
@@ -1443,7 +1443,7 @@ void CalcIntegralQuantities(int in_file_num, struct solution* FlowSol) {
 
 #ifdef _MPI
 
-  array<double> integral_quantities_global(nintq);
+  hf_array<double> integral_quantities_global(nintq);
   for(int j=0;j<nintq;++j)
     {
       integral_quantities_global(j) = 0.0;
@@ -1478,8 +1478,8 @@ void compute_error(int in_file_num, struct solution* FlowSol)
         }
     }
 
-  array<double> error(2,n_fields);
-  array<double> temp_error(2,n_fields);
+  hf_array<double> error(2,n_fields);
+  hf_array<double> temp_error(2,n_fields);
 
   for (int i=0; i<n_fields; i++)
     {
@@ -1504,7 +1504,7 @@ void compute_error(int in_file_num, struct solution* FlowSol)
 #ifdef _MPI
   int n_err_vals = 2*n_fields;
 
-  array<double> error_global(2,n_fields);
+  hf_array<double> error_global(2,n_fields);
   for (int i=0; i<n_fields; i++)
     {
       error_global(0,i) = 0.;
@@ -1837,7 +1837,7 @@ void check_stability(struct solution* FlowSol)
   double a_temp, b_temp;
   double c_file, a_file, b_file;
 
-  array<double> disu_ppts_temp;
+  hf_array<double> disu_ppts_temp;
 
   int r_flag = 0;
   double i_tol    = 1.0e-4;
