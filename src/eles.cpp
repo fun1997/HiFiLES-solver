@@ -762,24 +762,23 @@ void eles::set_patch(void)
                 double yc=run_input.yc;//core location y
                 double r=sqrt(pow(pos(0)-xc,2)+pow(pos(1)-yc,2));//distance to core
 
-                /*! copy solution to rho, vx, vy, vz, p*/
-
-                rho=disu_upts(0)(j,i,0);
-                vx=disu_upts(0)(j,i,1)/disu_upts(0)(j,i,0);
-                vy=disu_upts(0)(j,i,2)/disu_upts(0)(j,i,0);
-
-                if(n_dims==2)
-                {
-                    p=(disu_upts(0)(j,i,3)-0.5*rho*(vx*vx+vy*vy))*(gamma-1.0);
-                }
-                else
-                {
-                    vz=disu_upts(0)(j,i,3)/disu_upts(0)(j,i,0) ;
-                    p=(disu_upts(0)(j,i,4)-0.5*rho*(vx*vx+vy*vy+vz*vz))*(gamma-1.0);
-                }
-
                 if (r<=rb)//in range of vortex set rho u v p
                 {
+                    /*! copy solution to rho, vx, vy, vz, p*/
+                    rho=disu_upts(0)(j,i,0);
+                    vx=disu_upts(0)(j,i,1)/disu_upts(0)(j,i,0);
+                    vy=disu_upts(0)(j,i,2)/disu_upts(0)(j,i,0);
+
+                    if(n_dims==2)
+                    {
+                        p=(disu_upts(0)(j,i,3)-0.5*rho*(vx*vx+vy*vy))*(gamma-1.0);
+                    }
+                    else
+                    {
+                        vz=disu_upts(0)(j,i,3)/disu_upts(0)(j,i,0) ;
+                        p=(disu_upts(0)(j,i,4)-0.5*rho*(vx*vx+vy*vy+vz*vz))*(gamma-1.0);
+                    }
+
                     double vm=Mv*sqrt(gamma*p/rho);//max vortex angular velocity
                     if (r<=ra)
                     {
@@ -799,6 +798,23 @@ void eles::set_patch(void)
                     rho_temp=rho;
                     rho=rho*pow(temper/(p/(rho*run_input.R_ref)),1/(gamma-1));
                     p=p*pow(temper/(p/(rho_temp*run_input.R_ref)),gamma/(gamma-1));
+                    //copy solution back to solution hf_array
+                    disu_upts(0)(j,i,0)=rho;
+                    disu_upts(0)(j,i,1)=rho*vx;
+                    disu_upts(0)(j,i,2)=rho*vy;
+                    if(n_dims==2)
+                    {
+                        disu_upts(0)(j,i,3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
+                    }
+                    else if(n_dims==3)
+                    {
+                        disu_upts(0)(j,i,3)=rho*vz;
+                        disu_upts(0)(j,i,4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
+                    }
+                    else
+                    {
+                        cout << "ERROR: Invalid number of dimensions ... " << endl;
+                    }
                 }
             }
             else if (run_input.patch_type==1)//uniform patch with ic for x greater than patch_x
@@ -810,27 +826,27 @@ void eles::set_patch(void)
                     vy=run_input.v_c_ic;
                     vz=run_input.w_c_ic;
                     p=run_input.p_c_ic;
+                        //copy solution back to solution hf_array
+                    disu_upts(0)(j,i,0)=rho;
+                    disu_upts(0)(j,i,1)=rho*vx;
+                    disu_upts(0)(j,i,2)=rho*vy;
+                    if(n_dims==2)
+                    {
+                        disu_upts(0)(j,i,3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
+                    }
+                    else if(n_dims==3)
+                    {
+                        disu_upts(0)(j,i,3)=rho*vz;
+                        disu_upts(0)(j,i,4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
+                    }
+                    else
+                    {
+                        cout << "ERROR: Invalid number of dimensions ... " << endl;
+                    }
                 }
             }
             else
                 FatalError("ERROR: Invalid form of patch ... ");
-//copy solution back to solution hf_array
-            disu_upts(0)(j,i,0)=rho;
-            disu_upts(0)(j,i,1)=rho*vx;
-            disu_upts(0)(j,i,2)=rho*vy;
-            if(n_dims==2)
-            {
-                disu_upts(0)(j,i,3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
-            }
-            else if(n_dims==3)
-            {
-                disu_upts(0)(j,i,3)=rho*vz;
-                disu_upts(0)(j,i,4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
-            }
-            else
-            {
-                cout << "ERROR: Invalid number of dimensions ... " << endl;
-            }
         }
     }
 }
