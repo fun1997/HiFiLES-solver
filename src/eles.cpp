@@ -800,27 +800,36 @@ void eles::set_patch(void)
                     rho=rho*pow(temper/(p/(rho*run_input.R_ref)),1/(gamma-1));
                     p=p*pow(temper/(p/(rho_temp*run_input.R_ref)),gamma/(gamma-1));
                 }
-                disu_upts(0)(j,i,0)=rho;
-                disu_upts(0)(j,i,1)=rho*vx;
-                disu_upts(0)(j,i,2)=rho*vy;
-                if(n_dims==2)
+            }
+            else if (run_input.patch_type==1)//uniform patch with ic for x greater than patch_x
+            {
+                if(pos(0)>=run_input.patch_x)
                 {
-                    disu_upts(0)(j,i,3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
-                }
-                else if(n_dims==3)
-                {
-                    disu_upts(0)(j,i,3)=rho*vz;
-                    disu_upts(0)(j,i,4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
-                }
-                else
-                {
-                    cout << "ERROR: Invalid number of dimensions ... " << endl;
+                    rho=run_input.rho_c_ic;
+                    vx=run_input.u_c_ic;
+                    vy=run_input.v_c_ic;
+                    vz=run_input.w_c_ic;
+                    p=run_input.p_c_ic;
                 }
             }
             else
+                FatalError("ERROR: Invalid form of patch ... ");
+//copy solution back to solution hf_array
+            disu_upts(0)(j,i,0)=rho;
+            disu_upts(0)(j,i,1)=rho*vx;
+            disu_upts(0)(j,i,2)=rho*vy;
+            if(n_dims==2)
             {
-                cout << "ERROR: Invalid form of initial condition ... (File: " << __FILE__ << ", Line: " << __LINE__ << ")" << endl;
-                exit (1);
+                disu_upts(0)(j,i,3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
+            }
+            else if(n_dims==3)
+            {
+                disu_upts(0)(j,i,3)=rho*vz;
+                disu_upts(0)(j,i,4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
+            }
+            else
+            {
+                cout << "ERROR: Invalid number of dimensions ... " << endl;
             }
         }
     }

@@ -408,6 +408,10 @@ void input::read_input_file(string fileName, int rank)
             opts.getScalarValue("xc",xc,0.25);
             opts.getScalarValue("yc",yc,0.5);
         }
+        else if (patch_type==1) //uniform patch for x>patch_x with ics
+        {
+            opts.getScalarValue("patch_x",patch_x);
+        }
     }
 
     /* ---- stationary shock/shock tube ic----*/
