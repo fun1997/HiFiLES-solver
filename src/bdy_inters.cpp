@@ -1162,10 +1162,7 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                 //if supersonic set the outgoing Riemann invariant to be far field value
                 if (mach>1)
                 {
-                    double vn_far_field;
-                    for (int i=0; i<n_dims; i++)
-                        vn_far_field += v_bound_Far_Field[i]*norm[i];
-                    r_plus  = vn_far_field + 2./(gamma-1.)*sqrt(gamma*p_bound_Far_Field/rho_bound_Far_Field);
+                    r_plus  = vn_bound + 2./(gamma-1.)*sqrt(gamma*p_bound_Far_Field/rho_bound_Far_Field);
                 }
                 //extrapolate entropy
                 one_over_s = pow(rho_bound_Far_Field,gamma)/p_bound_Far_Field;
