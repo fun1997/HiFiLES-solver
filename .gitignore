@@ -16,6 +16,13 @@
 # External Libraries Folder (in order to compile in place)
 lib/
 
+# Script files
+autom4te.cache/*
+*.m4
+
+# Mesh files
+*.neu
+
 # Compiled Dynamic libraries
 *.so
 *.dylib
@@ -33,6 +40,7 @@ lib/
 *.opensdf
 *.suo
 *.vcxproj.user
+*.json
 
 # TeX-generated files
 *.aux
@@ -42,6 +50,7 @@ lib/
 
 # Visualization Output Files
 *.vtu
+*.pvtu
 *.plt
 
 # Binary / run directory
