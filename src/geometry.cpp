@@ -309,7 +309,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   if (FlowSol->rank==0) cout << "done initializing elements" << endl;
 
   // Set shape for each cell
-  hf_array<int> local_c(FlowSol->num_eles);
+  hf_array<int> local_c(FlowSol->num_eles);//index of overall element to index in one type of element
 
   int tris_count = 0;
   int quads_count = 0;
@@ -418,28 +418,30 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
     }
   if (FlowSol->rank==0) cout << "done." << endl;
 
-  // Pre-compute shape basis - CRITICAL for deforming-mesh performance
-  if (FlowSol->rank==0) cout << "pre-computing nodal shape-basis functions ... " << flush;
-  for(int i=0;i<FlowSol->n_ele_types;i++) {
-    if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
-      FlowSol->mesh_eles(i)->store_nodal_s_basis_fpts();
-      FlowSol->mesh_eles(i)->store_nodal_s_basis_upts();
-      FlowSol->mesh_eles(i)->store_nodal_s_basis_ppts();
-      FlowSol->mesh_eles(i)->store_d_nodal_s_basis_fpts();
-      FlowSol->mesh_eles(i)->store_d_nodal_s_basis_upts();
-      FlowSol->mesh_eles(i)->store_nodal_s_basis_inters_cubpts();
-      FlowSol->mesh_eles(i)->store_d_nodal_s_basis_inters_cubpts();
+  // Pre-compute shape basis when mesh motion - CRITICAL for deforming-mesh performance
+  if (run_input.motion)
+    {
+      if (FlowSol->rank==0) cout << "pre-computing nodal shape-basis functions ... " << flush;
+      for(int i=0;i<FlowSol->n_ele_types;i++) 
+      {
+        if (FlowSol->mesh_eles(i)->get_n_eles()!=0) 
+        {
+          FlowSol->mesh_eles(i)->store_nodal_s_basis_fpts();
+          FlowSol->mesh_eles(i)->store_nodal_s_basis_upts();
+          FlowSol->mesh_eles(i)->store_nodal_s_basis_ppts();
+          FlowSol->mesh_eles(i)->store_d_nodal_s_basis_fpts();
+          FlowSol->mesh_eles(i)->store_d_nodal_s_basis_upts();
+        }
+      }
+      if (FlowSol->rank==0) cout << "done." << endl;
     }
-  }
-  if (FlowSol->rank==0) cout << "done." << endl;
-
   // set transforms
   if (FlowSol->rank==0) cout << "setting element transforms ... " << endl;
   for(int i=0;i<FlowSol->n_ele_types;i++) {
     if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
-      FlowSol->mesh_eles(i)->set_transforms();
+      FlowSol->mesh_eles(i)->set_transforms();//static mesh transform
       if (run_input.motion)
-        FlowSol->mesh_eles(i)->set_transforms_dynamic();
+        FlowSol->mesh_eles(i)->set_transforms_dynamic();//motion mesh transform using precomputed basis
     }
   }
   if (FlowSol->rank==0) cout << "done." << endl;
@@ -458,7 +460,12 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   if (FlowSol->rank==0) cout << "setting element transforms at interface cubpts ... "; //only calculated when need to calculate surface/body force
   for(int i=0;i<FlowSol->n_ele_types;i++) {
       if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
-          FlowSol->mesh_eles(i)->set_transforms_inters_cubpts();
+        if(run_input.motion)
+        {
+          FlowSol->mesh_eles(i)->store_nodal_s_basis_inters_cubpts();
+          FlowSol->mesh_eles(i)->store_d_nodal_s_basis_inters_cubpts();
+        }
+          FlowSol->mesh_eles(i)->set_transforms_inters_cubpts();//calculate static mesh element interface cubature transform
         }
     }
   if (FlowSol->rank==0) cout << "done." << endl;
@@ -469,9 +476,12 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
     if (FlowSol->rank==0) cout << "setting element transforms at volume cubpts ... " << endl;//TODO: something to do with integral quantities and calculating error
     for(int i=0;i<FlowSol->n_ele_types;i++) {
       if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
-        FlowSol->mesh_eles(i)->store_nodal_s_basis_vol_cubpts();
-        FlowSol->mesh_eles(i)->store_d_nodal_s_basis_vol_cubpts();
-        FlowSol->mesh_eles(i)->set_transforms_vol_cubpts();
+        if(run_input.motion)
+        {
+          FlowSol->mesh_eles(i)->store_nodal_s_basis_vol_cubpts();
+          FlowSol->mesh_eles(i)->store_d_nodal_s_basis_vol_cubpts();
+        }
+        FlowSol->mesh_eles(i)->set_transforms_vol_cubpts();//calculate static mesh element volume cubature transform
       }
     }
   }
@@ -617,7 +627,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   FlowSol->mesh_mpi_inters(1).setup(n_tri_mpi_inters,1);
   FlowSol->mesh_mpi_inters(2).setup(n_quad_mpi_inters,2);
 
-  hf_array<int> mpifaces_part(FlowSol->nproc);
+  hf_array<int> mpifaces_part(FlowSol->nproc);//number of interface send to each processor
 
   // Call function that takes in f_mpi2f,f2v and returns a new hf_array f_mpi2f, and an hf_array mpiface_part
   // that contains the number of faces to send to each processor
@@ -629,7 +639,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   find_rot_mpifaces(f2v,f2nv,xv,f_mpi2f,rot_tag_mpi,mpifaces_part,delta_cyclic,FlowSol->n_mpi_inters,tol,FlowSol);
 
   //Initialize the mpi faces
-
+  //with local element type wise index, local element type, rotation tag and interface type
   int i_seg_mpi = 0;
   int i_tri_mpi = 0;
   int i_quad_mpi = 0;
@@ -655,12 +665,11 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
     }
 
   // Initialize Nout_proc
-  int icount = 0;
-
+  int icount = 0;//starting index of interface send to each processor
   int request_seg=0;
   int request_tri=0;
   int request_quad=0;
-
+  //set number of requests to each processor for each type of mpi_interface 
   for (int p=0;p<FlowSol->nproc;p++)
     {
       // For all faces to send to processor p, split between face types
@@ -706,8 +715,6 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   // ---------------------------------------
   // Initializing internal and bdy faces
   // ---------------------------------------
-
-  // TODO: Need to count quad and triangle faces
 
   // Count the number of int_inters and bdy_inters
   int n_seg_int_inters = 0;
@@ -1029,7 +1036,7 @@ void ReadMesh(string& in_file_name, hf_array<double>& out_xv, hf_array<int>& out
   int n_verts;
   create_iv2ivg(iv2ivg,out_c2v,n_verts,out_n_cells);
   out_iv2ivg=iv2ivg;
-
+  /*! now vertex and element number are all local*/
   // Now read position of vertices in mesh file
   out_xv.setup(n_verts,FlowSol->n_dims);
 
@@ -1774,13 +1781,10 @@ void read_connectivity_gambit(string& in_file_name, int &out_n_cells, hf_array<i
   out_ic2icg.setup(out_n_cells);
 
   // Initialize arrays to -1
-  for (int i=0;i<out_n_cells;i++) {
-      out_c2n_v(i)=-1;
-      out_ctype(i) = -1;
-      out_ic2icg(i) = -1;
-      for (int k=0;k<MAX_V_PER_C;k++)
-        out_c2v(i,k)=-1;
-    }
+  out_c2n_v.initialize_to_value(-1);
+  out_ctype.initialize_to_value(-1);
+  out_ic2icg.initialize_to_value(-1);
+  out_c2v.initialize_to_value(-1);
 
   // Skip elements being read by other processors
 
@@ -2300,8 +2304,8 @@ void repartition_mesh(int &out_n_cells, hf_array<int> &out_c2v, hf_array<int> &o
   int **outlist_ctype = (int**) calloc(FlowSol->nproc,sizeof(int*));
   int **outlist_ic2icg = (int**) calloc(FlowSol->nproc,sizeof(int*));
 
-  int *outK = (int*) calloc(FlowSol->nproc,sizeof(int));
-  int *inK =  (int*) calloc(FlowSol->nproc,sizeof(int));
+  int *outK = (int*) calloc(FlowSol->nproc,sizeof(int));//on this processor, number of elements need to send to each processor
+  int *inK =  (int*) calloc(FlowSol->nproc,sizeof(int));//number of elements to receive from each processor
 
   for (int i=0;i<klocal;i++)
     ++outK[part[i]];
@@ -2311,13 +2315,21 @@ void repartition_mesh(int &out_n_cells, hf_array<int> &out_c2v, hf_array<int> &o
                MPI_COMM_WORLD);
 
   // count totals on each processor
-  int *newkprocs =  (int*) calloc(FlowSol->nproc,sizeof(int));
+  int *newkprocs =  (int*) calloc(FlowSol->nproc,sizeof(int));//total number of element on each processor
   MPI_Allreduce(outK,newkprocs,FlowSol->nproc,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
 
-  int totalinK = 0;
-  for (int p=0;p<FlowSol->nproc;p++)
-    totalinK += inK[p];
+  int totalinK = newkprocs[FlowSol->rank];//total number of element belong to this processor
 
+  //number of reveive/send requests
+  int num_inrequests = 0;
+  int num_outrequests = 0;
+  for (int i = 0; i < FlowSol->nproc; i++)
+  {
+    if (inK[i] != 0)
+      num_inrequests++;
+    if (outK[i] != 0)
+      num_outrequests++;
+  }
   // declare new hf_array c2v
   int **new_c2v = (int**) calloc(totalinK,sizeof(int*));
   new_c2v[0] = (int*) calloc(totalinK*MAX_V_PER_C,sizeof(int));
@@ -2329,31 +2341,39 @@ void repartition_mesh(int &out_n_cells, hf_array<int> &out_c2v, hf_array<int> &o
   int *new_ctype = (int*) calloc(totalinK,sizeof(int*));
   int *new_ic2icg = (int*) calloc(totalinK,sizeof(int*));
 
-  MPI_Request *inrequests = (MPI_Request*) calloc(FlowSol->nproc,sizeof(MPI_Request));
-  MPI_Request *inrequests_c2n_v = (MPI_Request*) calloc(FlowSol->nproc,sizeof(MPI_Request));
-  MPI_Request *inrequests_ctype = (MPI_Request*) calloc(FlowSol->nproc,sizeof(MPI_Request));
-  MPI_Request *inrequests_ic2icg= (MPI_Request*) calloc(FlowSol->nproc,sizeof(MPI_Request));
+  MPI_Request *inrequests = (MPI_Request*) calloc(num_inrequests,sizeof(MPI_Request));
+  MPI_Request *inrequests_c2n_v = (MPI_Request*) calloc(num_inrequests,sizeof(MPI_Request));
+  MPI_Request *inrequests_ctype = (MPI_Request*) calloc(num_inrequests,sizeof(MPI_Request));
+  MPI_Request *inrequests_ic2icg= (MPI_Request*) calloc(num_inrequests,sizeof(MPI_Request));
 
-  MPI_Request *outrequests = (MPI_Request*) calloc(FlowSol->nproc,sizeof(MPI_Request));
-  MPI_Request *outrequests_c2n_v = (MPI_Request*) calloc(FlowSol->nproc,sizeof(MPI_Request));
-  MPI_Request *outrequests_ctype = (MPI_Request*) calloc(FlowSol->nproc,sizeof(MPI_Request));
-  MPI_Request *outrequests_ic2icg= (MPI_Request*) calloc(FlowSol->nproc,sizeof(MPI_Request));
+  MPI_Request *outrequests = (MPI_Request*) calloc(num_outrequests,sizeof(MPI_Request));
+  MPI_Request *outrequests_c2n_v = (MPI_Request*) calloc(num_outrequests,sizeof(MPI_Request));
+  MPI_Request *outrequests_ctype = (MPI_Request*) calloc(num_outrequests,sizeof(MPI_Request));
+  MPI_Request *outrequests_ic2icg= (MPI_Request*) calloc(num_outrequests,sizeof(MPI_Request));
 
-  MPI_Status *instatus = (MPI_Status*) calloc(FlowSol->nproc,sizeof(MPI_Status));
-  MPI_Status *outstatus= (MPI_Status*) calloc(FlowSol->nproc,sizeof(MPI_Status));
+  MPI_Status *instatus = (MPI_Status*) calloc(num_inrequests,sizeof(MPI_Status));
+  MPI_Status *outstatus= (MPI_Status*) calloc(num_outrequests,sizeof(MPI_Status));
 
   // Make exchange for arrays c2v,c2n_v,ctype,ic2icg
   int cnt=0;
+  int inrequest_counter = 0;
   for (int p=0;p<FlowSol->nproc;p++)
+  {
+    if (inK[p] != 0)
     {
-      MPI_Irecv(new_c2v[cnt], MAX_V_PER_C*inK[p],MPI_INT,p,666+p,MPI_COMM_WORLD,inrequests+p);
-      MPI_Irecv(&new_c2n_v[cnt], inK[p],MPI_INT,p,666+MAX_PROCESSOR_AVAILABLE+p,MPI_COMM_WORLD,inrequests_c2n_v+p);
-      MPI_Irecv(&new_ctype[cnt], inK[p],MPI_INT,p,666+2*MAX_PROCESSOR_AVAILABLE+p,MPI_COMM_WORLD,inrequests_ctype+p);
-      MPI_Irecv(&new_ic2icg[cnt], inK[p],MPI_INT,p,666+3*MAX_PROCESSOR_AVAILABLE+p,MPI_COMM_WORLD,inrequests_ic2icg+p);
+      MPI_Irecv(new_c2v[cnt], MAX_V_PER_C*inK[p],MPI_INT,p,p,MPI_COMM_WORLD,inrequests+inrequest_counter);
+      MPI_Irecv(&new_c2n_v[cnt], inK[p],MPI_INT,p,MAX_PROCESSOR_AVAILABLE+p,MPI_COMM_WORLD,inrequests_c2n_v+inrequest_counter);
+      MPI_Irecv(&new_ctype[cnt], inK[p],MPI_INT,p,2*MAX_PROCESSOR_AVAILABLE+p,MPI_COMM_WORLD,inrequests_ctype+inrequest_counter);
+      MPI_Irecv(&new_ic2icg[cnt], inK[p],MPI_INT,p,3*MAX_PROCESSOR_AVAILABLE+p,MPI_COMM_WORLD,inrequests_ic2icg+inrequest_counter);
       cnt = cnt + inK[p];
+      inrequest_counter++;
     }
+  }
 
+  int outrequest_counter = 0;
   for (int p=0;p<FlowSol->nproc;p++)
+  {
+    if (outK[p] != 0) //if this processor have elements to send to processor p
     {
       int cnt = 0;
       int cnt2 = 0;
@@ -2362,38 +2382,40 @@ void repartition_mesh(int &out_n_cells, hf_array<int> &out_c2v, hf_array<int> &o
       outlist_ctype[p] = (int*) calloc(outK[p],sizeof(int));
       outlist_ic2icg[p] = (int*) calloc(outK[p],sizeof(int));
 
-      for (int i=0;i<klocal;i++)
+      for (int i=0;i<klocal;i++) //loop over all local elements
+      {
+        if (part[i]==p) //if this element send to processor p
         {
-          if (part[i]==p)
-            {
-              for (int v=0;v<MAX_V_PER_C;v++)
-                {
-                  outlist[p][cnt] = c2v_temp(i,v);
-                  ++cnt;
-                }
-              outlist_c2n_v[p][cnt2] = c2n_v_temp(i);
-              outlist_ctype[p][cnt2] = ctype_temp(i);
-              outlist_ic2icg[p][cnt2] = ic2icg_temp(i);
-              cnt2++;
-            }
+          for (int v=0;v<MAX_V_PER_C;v++)
+          {
+            outlist[p][cnt] = c2v_temp(i,v);
+            ++cnt;
+          }
+          outlist_c2n_v[p][cnt2] = c2n_v_temp(i);
+          outlist_ctype[p][cnt2] = ctype_temp(i);
+          outlist_ic2icg[p][cnt2] = ic2icg_temp(i);
+          cnt2++;
         }
-
-      MPI_Isend(outlist[p],MAX_V_PER_C*outK[p],MPI_INT,p,666+FlowSol->rank,MPI_COMM_WORLD,outrequests+p);
-      MPI_Isend(outlist_c2n_v[p],outK[p],MPI_INT,p,666+MAX_PROCESSOR_AVAILABLE+FlowSol->rank,MPI_COMM_WORLD,outrequests_c2n_v+p);
-      MPI_Isend(outlist_ctype[p],outK[p],MPI_INT,p,666+2*MAX_PROCESSOR_AVAILABLE+FlowSol->rank,MPI_COMM_WORLD,outrequests_ctype+p);
-      MPI_Isend(outlist_ic2icg[p],outK[p],MPI_INT,p,666+3*MAX_PROCESSOR_AVAILABLE+FlowSol->rank,MPI_COMM_WORLD,outrequests_ic2icg+p);
+      }
+      MPI_Isend(outlist[p], MAX_V_PER_C*outK[p],MPI_INT,p,FlowSol->rank,MPI_COMM_WORLD, outrequests+outrequest_counter);
+      MPI_Isend(outlist_c2n_v[p],outK[p],MPI_INT,p,MAX_PROCESSOR_AVAILABLE+FlowSol->rank, MPI_COMM_WORLD,outrequests_c2n_v+outrequest_counter);
+      MPI_Isend(outlist_ctype[p],outK[p],MPI_INT,p,2*MAX_PROCESSOR_AVAILABLE+FlowSol->rank, MPI_COMM_WORLD,outrequests_ctype+outrequest_counter);
+      MPI_Isend(outlist_ic2icg[p],outK[p],MPI_INT,p,3*MAX_PROCESSOR_AVAILABLE+FlowSol->rank, MPI_COMM_WORLD,outrequests_ic2icg+outrequest_counter);
+      outrequest_counter++;
     }
+  }
 
-  MPI_Waitall(FlowSol->nproc,inrequests,instatus);
-  MPI_Waitall(FlowSol->nproc,inrequests_c2n_v,instatus);
-  MPI_Waitall(FlowSol->nproc,inrequests_ctype,instatus);
-  MPI_Waitall(FlowSol->nproc,inrequests_ic2icg,instatus);
+  MPI_Waitall(num_inrequests,inrequests,instatus);
+  MPI_Waitall(num_inrequests,inrequests_c2n_v,instatus);
+  MPI_Waitall(num_inrequests,inrequests_ctype,instatus);
+  MPI_Waitall(num_inrequests,inrequests_ic2icg,instatus);
 
-  MPI_Waitall(FlowSol->nproc,outrequests,outstatus);
-  MPI_Waitall(FlowSol->nproc,outrequests_c2n_v,outstatus);
-  MPI_Waitall(FlowSol->nproc,outrequests_ctype,outstatus);
-  MPI_Waitall(FlowSol->nproc,outrequests_ic2icg,outstatus);
+  MPI_Waitall(num_outrequests,outrequests,outstatus);
+  MPI_Waitall(num_outrequests,outrequests_c2n_v,outstatus);
+  MPI_Waitall(num_outrequests,outrequests_ctype,outstatus);
+  MPI_Waitall(num_outrequests,outrequests_ic2icg,outstatus);
 
+  //setup final connectivity arrays
   out_c2v.setup(totalinK,MAX_V_PER_C);
   out_c2n_v.setup(totalinK);
   out_ctype.setup(totalinK);
@@ -2413,6 +2435,44 @@ void repartition_mesh(int &out_n_cells, hf_array<int> &out_c2v, hf_array<int> &o
 
   MPI_Barrier(MPI_COMM_WORLD);
 
+  //free memories
+  free(elmdist);
+  free(eptr);
+  free(eind);
+  free(elmwgt);
+  free(tpwgts);
+  free(ubvec);
+  free(part);
+
+  for(int i=0;i<FlowSol->nproc;i++){
+    free(outlist[i]);
+    free(outlist_c2n_v[i]);
+    free(outlist_ctype[i]);
+    free(outlist_ic2icg[i]);
+  }
+
+  free(outlist);
+  free(outlist_c2n_v);
+  free(outlist_ctype);
+  free(outlist_ic2icg);
+  free(outK);
+  free(inK);
+  free(newkprocs);
+  free(new_c2v[0]);
+  free(new_c2v);
+  free(new_c2n_v);
+  free(new_ctype);
+  free(new_ic2icg);
+  free(inrequests);
+  free(inrequests_c2n_v);
+  free(inrequests_ctype);
+  free(inrequests_ic2icg);
+  free(outrequests);
+  free(outrequests_c2n_v);
+  free(outrequests_ctype);
+  free(outrequests_ic2icg);
+  free(instatus);
+  free(outstatus);
 }
 
 #endif
@@ -3674,16 +3734,12 @@ bool check_cyclic(hf_array<double> &delta_cyclic, hf_array<double> &loc_center_i
 }
 
 #ifdef _MPI
-
+//try to find matched mpi interface across processors by comparing centroid of interfaces
 void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<double>& in_xv, hf_array<int>& inout_f_mpi2f, hf_array<int>& out_mpifaces_part, hf_array<double> &delta_cyclic, int n_mpi_faces, double tol, struct solution* FlowSol)
 {
 
-  // TODO: THIS IS NOT OPTIMAL: GOES AS N^2 operations, try sorting and searching instead (cost will be 2*N*log(N)
-  // TODO: TIDY UP
-
-  int i,iglob, k,v0,v1,v2,v3;
-  int icount,p,p2,rtag;
-  int iloc,irem;
+  int iglob,v0,v1,v2,v3;
+  int icount,p2,rtag;
 
   hf_array<int> matched(n_mpi_faces);
   hf_array<int> old_f_mpi2f;
@@ -3699,97 +3755,84 @@ void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<doub
   // Calculate the centroid of each face
   hf_array<double> loc_center_inter(FlowSol->n_dims,n_mpi_faces);
 
-  for(i=0;i<n_mpi_faces;i++)
+  for(int i=0;i<n_mpi_faces;i++)
     {
       for (int m=0;m<FlowSol->n_dims;m++)
         loc_center_inter(m,i) = 0.;
 
-      iglob = inout_f_mpi2f(i);
-      for (k=0;k<in_f2nv(iglob);k++)
+      iglob = old_f_mpi2f(i);//old index
+      for (int k=0;k<in_f2nv(iglob);k++)
         for (int m=0;m<FlowSol->n_dims;m++)
           loc_center_inter(m,i) += in_xv(in_f2v(iglob,k),m)/in_f2nv(iglob);
     }
 
   // Initialize hf_array matched with 0
-  for(i=0;i<n_mpi_faces;i++)
+  for(int i=0;i<n_mpi_faces;i++)
     matched(i) = 0;
 
   //Initialize hf_array mpifaces_part to 0
-  for(i=0;i<FlowSol->nproc;i++)
-    out_mpifaces_part(i) = 0;
+  out_mpifaces_part.initialize_to_zero();
 
   // Exchange the number of mpi_faces to receive
   // Create hf_array mpfaces_from
-  hf_array<int> mpifaces_from(FlowSol->nproc);
+  hf_array<int> mpifaces_from(FlowSol->nproc);//number of mpi interface on each processor
   MPI_Allgather( &n_mpi_faces,1,MPI_INT,mpifaces_from.get_ptr_cpu(),1,MPI_INT,MPI_COMM_WORLD);
 
-  int max_mpi_faces = 0;
-  for(i=0;i<FlowSol->nproc;i++)
-    if (mpifaces_from(i) >= max_mpi_faces) max_mpi_faces = mpifaces_from(i);
-
   // Allocate the xyz_cent with the max_mpi_faces size;
-  hf_array<double> in_loc_center_inter(FlowSol->n_dims,max_mpi_faces);
+  hf_array<double> in_loc_center_inter;
   hf_array<double> loc_center_1(FlowSol->n_dims);
   hf_array<double> loc_center_2(FlowSol->n_dims);
 
   // Begin the exchange
   icount = 0;
-  for(p=0;p<FlowSol->nproc;p++) {
-      if(p==FlowSol->rank) { // Send data
-          for (p2=0;p2<FlowSol->nproc;p2++) {
+  for (int p=0;p<FlowSol->nproc;p++)
+  {
+    if(p==FlowSol->rank)// Send data
+    {
+      in_loc_center_inter=loc_center_inter;//load data need to send to other processors
+    }
+    else
+      in_loc_center_inter.setup(FlowSol->n_dims,mpifaces_from(p));//prepare receive buffer
+    MPI_Bcast(in_loc_center_inter.get_ptr_cpu(),FlowSol->n_dims*mpifaces_from(p),MPI_DOUBLE,p,MPI_COMM_WORLD);//broadcast to other processors or receive broadcast from p
 
-              if (p2!=FlowSol->rank)  {
-                  //MPI_Send to processor p2
-                  MPI_Send(loc_center_inter.get_ptr_cpu(),FlowSol->n_dims*n_mpi_faces,MPI_DOUBLE,p2,100000*p+1000*p2,MPI_COMM_WORLD);
-                }
-
-            }
-          out_mpifaces_part(p) = 0; // Processor p won't send any edges to himself
-        }
-      else // Receive data
+    if (p < FlowSol->rank)//if p < FlowSol->rank
+    {
+      // Loop over local mpi_edges
+      for (int iloc=0;iloc<n_mpi_faces;iloc++)
         {
-          //MPI_Recv from processor p
-          MPI_Recv(in_loc_center_inter.get_ptr_cpu(),FlowSol->n_dims*mpifaces_from(p),MPI_DOUBLE,p,100000*p+1000*FlowSol->rank,MPI_COMM_WORLD,&instatus);
-
-          if (p<FlowSol->rank)
+          if (!matched(iloc)) // if local edge hasn't been matched yet
             {
-              // Loop over local mpi_edges
-              for (iloc=0;iloc<n_mpi_faces;iloc++) {
-                  if (!matched(iloc)) // if local edge hasn't been matched yet
+              // Loop over remote edges just received
+              for(int irem=0;irem<mpifaces_from(p);irem++)
+                  {
+                    for (int m=0;m<FlowSol->n_dims;m++)//load centroids
                     {
-                      // Loop over remote edges just received
-                      for(irem=0;irem<mpifaces_from(p);irem++)
-                        {
-                          for (int m=0;m<FlowSol->n_dims;m++) {
-                              loc_center_1(m) = in_loc_center_inter(m,irem);
-                              loc_center_2(m) = loc_center_inter(m,iloc);
-                            }
-
-                          if (check_cyclic(delta_cyclic,loc_center_1,loc_center_2,tol,FlowSol) ||
-                              check_cyclic(delta_zero  ,loc_center_1,loc_center_2,tol,FlowSol) )
-                            {
-                              matched(iloc) = 1;
-                              out_mpifaces_part(p)++;
-                              i = old_f_mpi2f(iloc);
-                              inout_f_mpi2f(icount) = i;
-
-                              icount++;
-                              break;
-                            }
-                        }
+                      loc_center_1(m) = in_loc_center_inter(m,irem);
+                      loc_center_2(m) = loc_center_inter(m,iloc);
+                    }
+                  if (check_cyclic(delta_cyclic,loc_center_1,loc_center_2,tol,FlowSol) ||
+                      check_cyclic(delta_zero  ,loc_center_1,loc_center_2,tol,FlowSol) )
+                    {
+                      matched(iloc) = 1;
+                      out_mpifaces_part(p)++;
+                      inout_f_mpi2f(icount) = old_f_mpi2f(iloc);;//old local prime, processor minor
+                      icount++;
+                      break;
                     }
                 }
             }
-          else // if p >= FlowSol->rank
+        }
+    }
+    else if(p>FlowSol->rank) // if p > FlowSol->rank
+        {
+          // Loop over remote edges
+          for (int irem=0;irem<mpifaces_from(p);irem++)
             {
-              // Loop over remote edges
-              for (irem=0;irem<mpifaces_from(p);irem++)
+              for (int iloc=0;iloc<n_mpi_faces;iloc++)
                 {
-                  for (iloc=0;iloc<n_mpi_faces;iloc++)
+                  if (!matched(iloc)) // if local edge hasn't been matched yet
                     {
-                      if (!matched(iloc)) // if local edge hasn't been matched yet
-                        {
-                          for (int m=0;m<FlowSol->n_dims;m++) {
+                      for (int m=0;m<FlowSol->n_dims;m++) {
                               loc_center_1(m) = in_loc_center_inter(m,irem);
                               loc_center_2(m) = loc_center_inter(m,iloc);
                             }
@@ -3799,23 +3842,18 @@ void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<doub
                             {
                               matched(iloc) = 1;
                               out_mpifaces_part(p)++;
-                              i = old_f_mpi2f(iloc);
-                              inout_f_mpi2f(icount) = i;
-
+                              inout_f_mpi2f(icount) = old_f_mpi2f(iloc);//old remote prime, processor minor
                               icount++;
                               break;
                             }
-                        }
-                    }
+                      }
                 }
             }
         }
-      MPI_Barrier(MPI_COMM_WORLD);
-    }
-
+  }
 
   // Check that every edge has been matched
-  for (i=0;i<n_mpi_faces;i++)
+  for (int i=0;i<n_mpi_faces;i++)
     {
       if (!matched(i))
         {
@@ -3829,15 +3867,12 @@ void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<doub
 void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<double>& in_xv, hf_array<int>& in_f_mpi2f, hf_array<int> &out_rot_tag_mpi, hf_array<int> &mpifaces_part, hf_array<double> delta_cyclic, int n_mpi_faces, double tol, struct solution* FlowSol)
 {
 
-  int Nout,i,i_mpi,p,iglob,k;
+  int Nout,iglob;
   int n_vert_out;
   int count1,count2,count3;
   int found,rtag;
 
-  hf_array<double> xvert1(MAX_V_PER_F,FlowSol->n_dims); // 4 is maximum number of vertices per face
-  hf_array<double> xvert2(MAX_V_PER_F,FlowSol->n_dims);
-
-  // Count the number of messages to send
+  // Count the number of messages(processor) to send
   int request_count = 0;
   for (int p=0;p<FlowSol->nproc;p++) {
       if (mpifaces_part(p)!=0) request_count++;
@@ -3846,36 +3881,35 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
   MPI_Request* mpi_in_requests = (MPI_Request*) malloc(request_count*sizeof(MPI_Request));
   MPI_Request* mpi_out_requests = (MPI_Request*) malloc(request_count*sizeof(MPI_Request));
 
-  // Count number of vertices to send
+  // Count total number of vertices to send
   n_vert_out=0;
-  for(i_mpi=0;i_mpi<n_mpi_faces;i_mpi++)
+  for(int i_mpi=0;i_mpi<n_mpi_faces;i_mpi++)
     {
       iglob = in_f_mpi2f(i_mpi);
-      for(k=0;k<in_f2nv(iglob);k++)
-        n_vert_out++;
+      n_vert_out+=in_f2nv(iglob);
     }
-
+  //create an hf_array contain all vertex on local mpi interface
   hf_array<double> xyz_vert_out(FlowSol->n_dims,n_vert_out);
   hf_array<double> xyz_vert_in(FlowSol->n_dims,n_vert_out);
 
-  int Nmess = 0;
-  int sk = 0;
+  int Nmess = 0;//number of message to wait
+  int sk = 0;//start index for each message
 
-  count2 = 0;
-  count3 = 0;
-  request_count=0;
+  count2 = 0;//start index of interface on each processor
+  count3 = 0;//index of vertex in sending buffer
+  request_count=0;//request counter
 
-  for (int p=0;p<FlowSol->nproc;p++)
+  for (int p=0;p<FlowSol->nproc;p++)//for each processor
     {
-      count1 = 0;
-      for(i=0;i<mpifaces_part(p);i++)
+      count1 = 0;//total number of vertex send to/receive from p
+      for(int i=0;i<mpifaces_part(p);i++)//for each interface send to/receive from p
         {
-          i_mpi = count2+i;
+          int i_mpi = count2+i;
           iglob = in_f_mpi2f(i_mpi);
-          for(k=0;k<in_f2nv(iglob);k++)
+          for(int k=0;k<in_f2nv(iglob);k++)//for each vertex on that interface
             {
               for (int m=0;m<FlowSol->n_dims;m++)
-                xyz_vert_out(m,count3) = in_xv(in_f2v(iglob,k),m);
+                xyz_vert_out(m,count3) = in_xv(in_f2v(iglob,k),m);//copy to sending buffer
               count3++;
             }
           count1 += in_f2nv(iglob);
@@ -3884,10 +3918,10 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
       Nout = count1;
       count2 += mpifaces_part(p);
 
-      if (Nout)
+      if (Nout)//if have common interface with p
         {
-          MPI_Isend(xyz_vert_out.get_ptr_cpu(0,sk),Nout*FlowSol->n_dims,MPI_DOUBLE,p,6666+p   ,MPI_COMM_WORLD,&mpi_out_requests[request_count]);
-          MPI_Irecv(xyz_vert_in.get_ptr_cpu(0,sk),Nout*FlowSol->n_dims,MPI_DOUBLE,p,6666+FlowSol->rank,MPI_COMM_WORLD,&mpi_in_requests[request_count]);
+          MPI_Isend(xyz_vert_out.get_ptr_cpu(0,sk),Nout*FlowSol->n_dims,MPI_DOUBLE,p,p,MPI_COMM_WORLD,&mpi_out_requests[request_count]);//from me to p tag p
+          MPI_Irecv(xyz_vert_in.get_ptr_cpu(0,sk),Nout*FlowSol->n_dims,MPI_DOUBLE,p,FlowSol->rank,MPI_COMM_WORLD,&mpi_in_requests[request_count]);//from p to me tag me
           sk+=Nout;
           Nmess++;
           request_count++;
@@ -3903,12 +3937,12 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
   hf_array<double> loc_vert_1(MAX_V_PER_F,FlowSol->n_dims);
 
   count1 = 0;
-  for(i_mpi=0;i_mpi<n_mpi_faces;i_mpi++)
+  for(int i_mpi=0;i_mpi<n_mpi_faces;i_mpi++)//for each local mpi interface
     {
       iglob = in_f_mpi2f(i_mpi);
-      for(k=0;k<in_f2nv(iglob);k++)
+      for(int k=0;k<in_f2nv(iglob);k++)//for each vertex of that interface
         {
-          for (int m=0;m<FlowSol->n_dims;m++)
+          for (int m=0;m<FlowSol->n_dims;m++)//compare vertex from received and local
             {
               loc_vert_0(k,m) = xyz_vert_out(m,count1);
               loc_vert_1(k,m) = xyz_vert_in(m,count1);
@@ -3919,6 +3953,8 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
       compare_mpi_faces(loc_vert_0,loc_vert_1,in_f2nv(iglob),rtag,delta_cyclic,tol,FlowSol);
       out_rot_tag_mpi(i_mpi) = rtag;
     }
+    free(mpi_in_requests);
+    free(mpi_out_requests);
 }
 
 

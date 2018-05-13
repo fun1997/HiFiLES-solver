@@ -125,16 +125,13 @@ int main(int argc, char *argv[]) {
 
     FlowSol.inv_force.setup(5);
     FlowSol.vis_force.setup(5);
-    FlowSol.norm_residual.setup(5);
+    FlowSol.norm_residual.setup(6);
     FlowSol.integral_quantities.setup(run_input.n_integral_quantities);
-
-    for (i=0; i<5; i++) {
-      FlowSol.inv_force(i)=0.0;
-      FlowSol.vis_force(i)=0.0;
-      FlowSol.norm_residual(i)=0.0;
-    }
-    for (i=0; i<run_input.n_integral_quantities; i++)
-      FlowSol.integral_quantities(i)=0.0;
+    //initialize to 0
+    FlowSol.inv_force.initialize_to_zero();
+    FlowSol.vis_force.initialize_to_zero();
+    FlowSol.norm_residual.initialize_to_zero();
+    FlowSol.integral_quantities.initialize_to_zero();
   }
 
   /*! Copy solution and gradients from GPU to CPU, ready for the following routines */

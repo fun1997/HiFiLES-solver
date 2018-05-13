@@ -119,6 +119,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
 
     first_time = true;
     n_eles=in_n_eles;
+    restart_counter=n_eles;
     max_n_spts_per_ele = in_max_n_spts_per_ele;
 
     if (n_eles!=0)
@@ -242,6 +243,10 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
                 Le.setup(1);
                 ue.setup(1);
             }
+            // Allocate SGS flux hf_array if using LES
+            temp_sgsf.setup(n_fields,n_dims);
+            if(motion)
+                temp_sgsf_ref.setup(n_fields,n_dims);
         }
         // Dummy arrays to pass to GPU kernel wrapper
         else
@@ -277,13 +282,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             twall.setup(1);
         }
 
-        // Allocate SGS flux hf_array if using LES or wall model
-        if(LES != 0 || wall_model != 0)
-        {
-            temp_sgsf.setup(n_fields,n_dims);
-            if(motion)
-                temp_sgsf_ref.setup(n_fields,n_dims);
-        }
 
         // Initialize source term
         src_upts.setup(n_upts_per_ele, n_eles, n_fields);
@@ -305,25 +303,24 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         ele2global_ele.setup(n_eles);
         bctype.setup(n_eles,n_inters_per_ele);
 
-        // TODO: reduce unused allocation space (i.e. more spts alloc'd than needed)
-        nodal_s_basis_fpts.setup(in_max_n_spts_per_ele,n_fpts_per_ele,n_eles);
-        nodal_s_basis_upts.setup(in_max_n_spts_per_ele,n_upts_per_ele,n_eles);
-        nodal_s_basis_ppts.setup(in_max_n_spts_per_ele,n_ppts_per_ele,n_eles);
-        //d_nodal_s_basis_fpts.setup(n_fpts_per_ele,n_eles,n_dims,in_max_n_spts_per_ele);
-        //d_nodal_s_basis_upts.setup(n_upts_per_ele,n_eles,n_dims,in_max_n_spts_per_ele);
-        d_nodal_s_basis_upts.setup(n_dims,in_max_n_spts_per_ele,n_upts_per_ele,n_eles);
-        d_nodal_s_basis_fpts.setup(n_dims,in_max_n_spts_per_ele,n_fpts_per_ele,n_eles);
-
-        nodal_s_basis_vol_cubpts.setup(in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);//must be specified for prism ele
-        d_nodal_s_basis_vol_cubpts.setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);
-        nodal_s_basis_inters_cubpts.setup(n_inters_per_ele);
-        d_nodal_s_basis_inters_cubpts.setup(n_inters_per_ele);
-        for (int iface=0; iface<n_inters_per_ele; iface++)
+        if (run_input.motion)
         {
-            nodal_s_basis_inters_cubpts(iface).setup(in_max_n_spts_per_ele,n_cubpts_per_inter(iface),n_eles);
-            d_nodal_s_basis_inters_cubpts(iface).setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_inter(iface),n_eles);
-        }
+            nodal_s_basis_fpts.setup(in_max_n_spts_per_ele,n_fpts_per_ele,n_eles);
+            nodal_s_basis_upts.setup(in_max_n_spts_per_ele,n_upts_per_ele,n_eles);
+            nodal_s_basis_ppts.setup(in_max_n_spts_per_ele,n_ppts_per_ele,n_eles);
+            d_nodal_s_basis_upts.setup(n_dims,in_max_n_spts_per_ele,n_upts_per_ele,n_eles);
+            d_nodal_s_basis_fpts.setup(n_dims,in_max_n_spts_per_ele,n_fpts_per_ele,n_eles);
 
+            nodal_s_basis_vol_cubpts.setup(in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);
+            d_nodal_s_basis_vol_cubpts.setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);
+            nodal_s_basis_inters_cubpts.setup(n_inters_per_ele);
+            d_nodal_s_basis_inters_cubpts.setup(n_inters_per_ele);
+            for (int iface=0; iface<n_inters_per_ele; iface++)
+            {
+                nodal_s_basis_inters_cubpts(iface).setup(in_max_n_spts_per_ele,n_cubpts_per_inter(iface),n_eles);
+                d_nodal_s_basis_inters_cubpts(iface).setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_inter(iface),n_eles);
+            }
+        }
         // for mkl sparse blas
         matdescra[0]='G';
         matdescra[3]='F';
@@ -381,6 +378,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         {
             delta_disu_fpts.setup(n_fpts_per_ele,n_eles,n_fields);
             grad_disu_upts.setup(n_upts_per_ele,n_eles,n_fields,n_dims);
+            grad_disu_upts.initialize_to_zero();
             grad_disu_fpts.setup(n_fpts_per_ele,n_eles,n_fields,n_dims);
         }
 
@@ -444,7 +442,6 @@ void eles::set_ics(double& time)
     double gamma=run_input.gamma;
     time = 0.;
 
-    hf_array<double> loc(n_dims);
     hf_array<double> pos(n_dims);
     hf_array<double> ics(n_fields);
 
@@ -919,7 +916,7 @@ void eles::read_restart_data(ifstream& restart_file)
                     disu_upts(0)(j,index,m) = value;
                 }
             }
-
+            restart_counter--;
         }
         else // Skip the data (doesn't belong to current processor)
         {
@@ -2665,7 +2662,7 @@ void eles::evaluate_viscFlux(int in_disu_upts_from)
                 }
 
                 // If LES or wall model, calculate SGS viscous flux
-                if(LES != 0 || wall_model != 0)
+                if(LES)
                 {
 
                     calc_sgsf_upts(temp_u,temp_grad_u,detjac,i,j,temp_sgsf);
@@ -5162,12 +5159,15 @@ void eles::set_transforms(void)
             for(j=0; j<n_upts_per_ele; j++)
             {
                 // get coordinates of the solution point
-
-                //for(k=0;k<n_dims;k++)
-                //{
-                //loc(k)=loc_upts(k,j);
-                //}
-
+            if(!motion)
+            {
+                for(k=0;k<n_dims;k++)
+                {
+                    loc(k)=loc_upts(k,j);
+                }
+                calc_pos(loc,i,pos);
+            }
+            else
                 calc_pos_upts(j,i,pos);
 
                 for(k=0; k<n_dims; k++)
@@ -5176,7 +5176,10 @@ void eles::set_transforms(void)
                 }
 
                 // calculate first derivatives of shape functions at the solution point
-                calc_d_pos_upt(j,i,d_pos);
+                if(!motion)
+                    calc_d_pos(loc,i,d_pos);
+                else
+                    calc_d_pos_upt(j,i,d_pos);
 
                 // store quantities at the solution point
 
@@ -5269,12 +5272,16 @@ void eles::set_transforms(void)
             {
                 // get coordinates of the flux point
 
-                //for(k=0;k<n_dims;k++)
-                //{
-                //loc(k)=tloc_fpts(k,j);
-                //}
-
-                calc_pos_fpts(j,i,pos);
+                if(!motion)
+                {
+                    for(k=0;k<n_dims;k++)
+                    {
+                        loc(k)=tloc_fpts(k,j);
+                    }
+                    calc_pos(loc,i,pos);
+                }
+                else
+                    calc_pos_fpts(j,i,pos);
 
                 for(k=0; k<n_dims; k++)
                 {
@@ -5282,9 +5289,11 @@ void eles::set_transforms(void)
                 }
 
                 // calculate first derivatives of shape functions at the flux points
-
-                calc_d_pos_fpt(j,i,d_pos);
-
+                if(!motion)
+                    calc_d_pos(loc,i,d_pos);
+                else
+                    calc_d_pos_fpt(j,i,d_pos);
+                    
                 // store quantities at the flux point
 
                 if(n_dims==2)
@@ -6406,7 +6415,7 @@ void eles::calc_pos_dyn_upt(int in_upt, int in_ele, hf_array<double>& out_pos)
     {
         for(j=0; j<n_spts_per_ele(in_ele); j++)
         {
-            out_pos(i)+=nodal_s_basis_fpts(j,in_upt,in_ele)*shape_dyn(i,j,in_ele);
+            out_pos(i)+=nodal_s_basis_upts(j,in_upt,in_ele)*shape_dyn(i,j,in_ele);
         }
     }
 }

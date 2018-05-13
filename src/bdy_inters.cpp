@@ -1128,24 +1128,20 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                 FatalError("No boundary Parameters given");
             double c_star;
             double vn_star;
-            double vn_bound;
+            double vn_bound;//normal velocity from outside
             double r_plus,r_minus;
 
             double one_over_s;
             double h_free_stream;
             double mach;
 
-            //computer local mach number
-            v_sq = 0.;
-            for (int i=0; i<n_dims; i++)
-                v_sq += (v_l[i]*v_l[i]);
-            mach=sqrt(v_sq/(gamma*R_ref*T_l));
 
-            // Compute normal velocity on left side
+            // Compute normal velocity on left side, >0 out, <0 in
             vn_l = 0.;
             for (int i=0; i<n_dims; i++)
                 vn_l += v_l[i]*norm[i];
 
+            //compute normal velocity on right side, >0 in,<0 out
             vn_bound = 0;
             for (int i=0; i<n_dims; i++)
                 vn_bound += v_bound_Far_Field[i]*norm[i];
@@ -1159,10 +1155,13 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             // Inflow
             if (vn_l<0)
             {
+                mach = fabs(vn_l) /sqrt((gamma * p_bound_Far_Field / rho_bound_Far_Field));
                 //if supersonic set the outgoing Riemann invariant to be far field value
                 if (mach>1)
                 {
                     r_plus  = vn_bound + 2./(gamma-1.)*sqrt(gamma*p_bound_Far_Field/rho_bound_Far_Field);
+                    c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
+                    vn_star = 0.5 * (r_plus + r_minus);
                 }
                 //extrapolate entropy
                 one_over_s = pow(rho_bound_Far_Field,gamma)/p_bound_Far_Field;
@@ -1192,10 +1191,13 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             else
             {
 
+                mach = fabs(vn_l) / sqrt((gamma * R_ref * T_l));
                 //if supersonic set the incoming Riemann invariant to be local value
                 if (mach>1)
                 {
                     r_minus = vn_l - 2./(gamma-1.)*sqrt(gamma*p_l/rho_l);
+                    c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
+                    vn_star = 0.5 * (r_plus + r_minus);
                 }
                 one_over_s = pow(rho_l,gamma)/p_l;
 

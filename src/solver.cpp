@@ -146,7 +146,8 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     }
 #endif
 
-  if (FlowSol->viscous) {
+    if (FlowSol->viscous)
+    {
       /*! Compute corrected gradient of the solution at the solution and flux points. */
       for(i=0; i<FlowSol->n_ele_types; i++)
         FlowSol->mesh_eles(i)->correct_gradient();
@@ -156,37 +157,44 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
 
 #ifdef _MPI
       /*! Send the corrected value and SGS flux across the MPI interface. */
-      if (FlowSol->nproc>1) {
-          for(i=0; i<FlowSol->n_mpi_inter_types; i++)
-            FlowSol->mesh_mpi_inters(i).send_corrected_gradient();
-
-          if (run_input.LES) {
-            for(i=0; i<FlowSol->n_mpi_inter_types; i++)
-              FlowSol->mesh_mpi_inters(i).send_sgsf_fpts();
-          }
-        }
+      if (FlowSol->nproc>1)
+      {
+        for(i=0; i<FlowSol->n_mpi_inter_types; i++)
+          FlowSol->mesh_mpi_inters(i).send_corrected_gradient();
+      }
 #endif
 
       /*! Compute discontinuous viscous flux at upts and add to inviscid flux at upts. */
       for(i=0; i<FlowSol->n_ele_types; i++)
         FlowSol->mesh_eles(i)->evaluate_viscFlux(in_disu_upts_from);
+
+      /*! If using LES, compute the SGS flux at flux points. */
+      if (run_input.LES)
+      {
+        for(i=0; i<FlowSol->n_ele_types; i++)
+          FlowSol->mesh_eles(i)->evaluate_sgsFlux();
+      }
+
+#ifdef _MPI
+      if (FlowSol->nproc > 1)
+      {
+        if (run_input.LES)
+        {
+          for (i = 0; i < FlowSol->n_mpi_inter_types; i++)
+            FlowSol->mesh_mpi_inters(i).send_sgsf_fpts();
+        }
+      }
+#endif
     }
+    /*! For viscous or inviscid, compute the normal discontinuous flux at flux points. */
+    for(i=0; i<FlowSol->n_ele_types; i++)
+      FlowSol->mesh_eles(i)->extrapolate_totalFlux();
 
-  /*! If using LES, compute the SGS flux at flux points. */
-  if (run_input.LES) {
-	  for(i=0; i<FlowSol->n_ele_types; i++)
-			FlowSol->mesh_eles(i)->evaluate_sgsFlux();
-  }
+    /*! For viscous or inviscid, compute the divergence of flux at solution points. */
+    for(i=0; i<FlowSol->n_ele_types; i++)
+      FlowSol->mesh_eles(i)->calculate_divergence(in_div_tconf_upts_to);
 
-  /*! For viscous or inviscid, compute the normal discontinuous flux at flux points. */
-  for(i=0; i<FlowSol->n_ele_types; i++)
-    FlowSol->mesh_eles(i)->extrapolate_totalFlux();
-
-  /*! For viscous or inviscid, compute the divergence of flux at solution points. */
-  for(i=0; i<FlowSol->n_ele_types; i++)
-    FlowSol->mesh_eles(i)->calculate_divergence(in_div_tconf_upts_to);
-
-  if (FlowSol->viscous) {
+    if (FlowSol->viscous) {
       /*! Compute normal interface viscous flux and add to normal inviscid flux. */
       for(i=0; i<FlowSol->n_int_inter_types; i++)
         FlowSol->mesh_int_inters(i).calculate_common_viscFlux();
@@ -398,7 +406,6 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
 {
 
   char file_name_s[50];
-  char *file_name;
   ifstream restart_file;
   restart_file.precision(15);
 
@@ -413,8 +420,7 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
                   sprintf(file_name_s,"Rest_%.09d/Rest_%.09d_p%.04d.dat",in_file_num,in_file_num,j);//in folder
               else
                   sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,j);
-              file_name = &file_name_s[0];
-              restart_file.open(file_name);
+              restart_file.open(file_name_s);
               if (!restart_file)
                 FatalError("Could not open restart file ");
 
@@ -438,11 +444,10 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
           sprintf(file_name_s,"Rest_%.09d/Rest_%.09d_p%.04d.dat",in_file_num,in_file_num,j);//in folder
       else
           sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,j);
-      file_name = &file_name_s[0];
-      restart_file.open(file_name);
+      restart_file.open(file_name_s);
 
       if (restart_file.fail())
-        FatalError(strcat((char *)"Could not open restart file ",file_name));
+        FatalError(strcat((char *)"Could not open restart file ",file_name_s));
 
       for (int i=0;i<FlowSol->n_ele_types;i++)  {
           if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
@@ -453,7 +458,14 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
         }
       restart_file.close();
     }
-  cout << "Rank=" << FlowSol->rank << " Done reading restart files" << endl;
+
+    //check if all elements are read into the program
+    for (int i = 0; i < FlowSol->n_ele_types; i++)
+    {
+      if (FlowSol->mesh_eles(i)->get_n_eles() != 0 && FlowSol->mesh_eles(i)->restart_counter)
+        FatalError("Some elements are not found in the restart files, check n_restart_files");
+    }
+    cout << "Rank=" << FlowSol->rank << " Done reading restart files" << endl;
 }
 
 void calc_global_time_step(int in_rk_stage, struct solution* FlowSol)

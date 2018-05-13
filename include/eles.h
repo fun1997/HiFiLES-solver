@@ -616,6 +616,9 @@ public:
   //global time step
   static double dt_globe;
 
+  /*! restart counter */
+  int restart_counter;
+  
 protected:
 
   // #### members ####

@@ -88,7 +88,8 @@ void write_tec(int in_file_num, struct solution* FlowSol)
   int n_average_fields;
   int num_pts, num_elements;
 
-  char  file_name_s[256] ;
+  char  file_name_s[256];
+  char  dumpnum_s[256];
   char *file_name;
   string fields("");
 
@@ -102,12 +103,27 @@ void write_tec(int in_file_num, struct solution* FlowSol)
   n_average_fields = run_input.n_average_fields;
 
 #ifdef _MPI
+//create a folder if there're more than one processors
+  if(FlowSol->nproc!=1)
+  {
+    sprintf(dumpnum_s,"%s_%.09d",run_input.data_file_name.c_str(),in_file_num);//folder name
+    sprintf(file_name_s,"%s_%.09d/%s_%.09d_p%.04d.plt",run_input.data_file_name.c_str(),in_file_num,run_input.data_file_name.c_str(),in_file_num,FlowSol->rank);//file name
+      /*! Master node creates a subdirectory to store .plt files */
+    if (FlowSol->rank == 0) 
+      {
+        struct stat st = {0};
+        if (stat(dumpnum_s, &st) == -1) {
+            mkdir(dumpnum_s, 0755);
+          }
+      }
+  }
+  else
+      sprintf(file_name_s,"%s_%.09d_p%.04d.plt",run_input.data_file_name.c_str(),in_file_num,FlowSol->rank);
   MPI_Barrier(MPI_COMM_WORLD);
-  sprintf(file_name_s,"%s_%.09d_p%.04d.plt",run_input.data_file_name.c_str(),in_file_num,FlowSol->rank);
-  if (FlowSol->rank==0) cout << "Writing Tecplot file number " << in_file_num << " ...." << endl;
+  if (FlowSol->rank==0) cout << "Writing Tecplot file number " << in_file_num << " ...." << flush;
 #else
   sprintf(file_name_s,"%s_%.09d_p%.04d.plt",run_input.data_file_name.c_str(),in_file_num,0);
-  cout << "Writing Tecplot file number " << in_file_num << " on rank " << FlowSol->rank << endl;
+  cout << "Writing Tecplot file number " << in_file_num << " ...." << flush;
 #endif
 
   file_name = &file_name_s[0];
@@ -558,9 +574,9 @@ void write_tec(int in_file_num, struct solution* FlowSol)
 
 #ifdef _MPI
   MPI_Barrier(MPI_COMM_WORLD);
-  if (FlowSol->rank==0) cout << "Done writing Tecplot file number " << in_file_num << " ...." << endl;
+  if (FlowSol->rank==0) cout << "done." << endl;
 #else
-  cout << "Done writing Tecplot file number " << in_file_num << " ...." << endl;
+  cout << "done." << endl;
 #endif
 
 }
@@ -683,7 +699,7 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
 
   /*! Master node writes the .pvtu file */
   if (my_rank == 0) {
-      cout << "Writing Paraview file " << dumpnum << " ...." << endl;
+      cout << "Writing Paraview file " << dumpnum << " ...." << flush;
 
       write_pvtu.open(pvtu);
       write_pvtu << "<?xml version=\"1.0\" ?>" << endl;
@@ -1042,7 +1058,7 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
   write_vtu.close();
 
 #ifdef _MPI
-
+if(my_rank==0) cout<<"done."<<endl;
 #else
   cout << "done." << endl;
 #endif
@@ -1636,8 +1652,8 @@ void compute_error(int in_file_num, struct solution* FlowSol)
 
 void CalcNormResidual(struct solution* FlowSol) {
 
-  int i, j, n_upts = 0, n_fields;
-  double sum[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}, norm[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  int n_upts = 0;
+  int n_fields;
 
   if (FlowSol->n_dims==2) n_fields = 4;
   else n_fields = 5;
@@ -1646,27 +1662,29 @@ void CalcNormResidual(struct solution* FlowSol) {
     n_fields++;
   }
 
+  double sum[6]={0.0,0.0,0.0,0.0,0.0,0.0};
+  
   if (run_input.res_norm_type == 0) {
     // Infinity Norm
-    for(i=0; i<FlowSol->n_ele_types; i++) {
+    for(int i=0; i<FlowSol->n_ele_types; i++) {
       if (FlowSol->mesh_eles(i)->get_n_eles() != 0) {
         FlowSol->mesh_eles(i)->cp_div_tconf_upts_gpu_cpu();
         FlowSol->mesh_eles(i)->cp_src_upts_gpu_cpu();
 
-        for(j=0; j<n_fields; j++)
+        for(int j=0; j<n_fields; j++)
           sum[j] = max(sum[j], FlowSol->mesh_eles(i)->compute_res_upts(run_input.res_norm_type, j));
       }
     }
   }
   else {
     // 1- or 2-Norm
-    for(i=0; i<FlowSol->n_ele_types; i++) {
+    for(int i=0; i<FlowSol->n_ele_types; i++) {
       if (FlowSol->mesh_eles(i)->get_n_eles() != 0) {
         FlowSol->mesh_eles(i)->cp_div_tconf_upts_gpu_cpu();
         FlowSol->mesh_eles(i)->cp_src_upts_gpu_cpu();
         n_upts += FlowSol->mesh_eles(i)->get_n_eles()*FlowSol->mesh_eles(i)->get_n_upts_per_ele();
 
-        for(j=0; j<n_fields; j++)
+        for(int j=0; j<n_fields; j++)
           sum[j] += FlowSol->mesh_eles(i)->compute_res_upts(run_input.res_norm_type, j);
       }
     }
@@ -1676,25 +1694,25 @@ void CalcNormResidual(struct solution* FlowSol) {
   double sum_global[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   if (run_input.res_norm_type == 0) {
     // Get maximum
-    MPI_Reduce(sum, sum_global, 5, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(sum, sum_global, 6, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   }
   else {
     // Get sum
     int n_upts_global = 0;
     MPI_Reduce(&n_upts, &n_upts_global, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(sum, sum_global, 5, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(sum, sum_global, 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     n_upts = n_upts_global;
   }
 
-  for(i=0; i<n_fields; i++) sum[i] = sum_global[i];
+  for(int i=0; i<n_fields; i++) sum[i] = sum_global[i];
 
 #endif
 
   if (FlowSol->rank == 0) {
 
     // Compute the norm
-    for(i=0; i<n_fields; i++) {
+    for(int i=0; i<n_fields; i++) {
       if (run_input.res_norm_type==0) { FlowSol->norm_residual(i) = sum[i]; } // Infinity Norm
       else if (run_input.res_norm_type==1) { FlowSol->norm_residual(i) = sum[i] / n_upts; } // L1 norm
       else if (run_input.res_norm_type==2) { FlowSol->norm_residual(i) = sqrt(sum[i]) / n_upts; } // L2 norm

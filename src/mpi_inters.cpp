@@ -63,17 +63,17 @@ void mpi_inters::setup(int in_n_inters, int in_inters_type)
   (*this).setup_inters(in_n_inters,in_inters_type);
 
       // Allocate memory for out_buffer etc
-      out_buffer_disu.setup(in_n_inters*n_fpts_per_inter*n_fields);
-      in_buffer_disu.setup(in_n_inters*n_fpts_per_inter*n_fields);
+      out_buffer_disu.setup(n_fpts_per_inter,n_fields,in_n_inters);
+      in_buffer_disu.setup(n_fpts_per_inter,n_fields,in_n_inters);
 
       if (viscous) {
-          out_buffer_grad_disu.setup(in_n_inters*n_fpts_per_inter*n_fields*n_dims);
-          in_buffer_grad_disu.setup(in_n_inters*n_fpts_per_inter*n_fields*n_dims);
+          out_buffer_grad_disu.setup(n_fpts_per_inter,n_fields,n_dims,in_n_inters);
+          in_buffer_grad_disu.setup(n_fpts_per_inter,n_fields,n_dims,in_n_inters);
         }
 
       if (LES) {
-          out_buffer_sgsf.setup(in_n_inters*n_fpts_per_inter*n_fields*n_dims);
-          in_buffer_sgsf.setup(in_n_inters*n_fpts_per_inter*n_fields*n_dims);
+          out_buffer_sgsf.setup(n_fpts_per_inter,n_fields,n_dims,in_n_inters);
+          in_buffer_sgsf.setup(n_fpts_per_inter,n_fields,n_dims,in_n_inters);
         }
 
 #ifdef _GPU
@@ -193,9 +193,9 @@ void mpi_inters::set_mpi(int in_inter, int in_ele_type_l, int in_ele_l, int in_l
               disu_fpts_l(j,in_inter,i)=get_disu_fpts_ptr(in_ele_type_l,in_ele_l,i,in_local_inter_l,j,FlowSol);
 
 #ifdef _GPU
-              disu_fpts_r(j,in_inter,i)=in_buffer_disu.get_ptr_gpu(in_inter*n_fpts_per_inter*n_fields+i*n_fpts_per_inter+j_rhs);
+              disu_fpts_r(j,in_inter,i)=in_buffer_disu.get_ptr_gpu(j_rhs,i,in_inter);
 #else
-              disu_fpts_r(j,in_inter,i)=in_buffer_disu.get_ptr_cpu(in_inter*n_fpts_per_inter*n_fields+i*n_fpts_per_inter+j_rhs);
+              disu_fpts_r(j,in_inter,i)=in_buffer_disu.get_ptr_cpu(j_rhs,i,in_inter);
 #endif
 
               norm_tconf_fpts_l(j,in_inter,i)=get_norm_tconf_fpts_ptr(in_ele_type_l,in_ele_l,i,in_local_inter_l,j,FlowSol);
@@ -208,9 +208,9 @@ void mpi_inters::set_mpi(int in_inter, int in_ele_type_l, int in_ele_l, int in_l
 
                       grad_disu_fpts_l(j,in_inter,i,k) = get_grad_disu_fpts_ptr(in_ele_type_l,in_ele_l,in_local_inter_l,i,k,j,FlowSol);
 #ifdef _GPU
-                      grad_disu_fpts_r(j,in_inter,i,k) = in_buffer_grad_disu.get_ptr_gpu(in_inter*n_fpts_per_inter*n_fields*n_dims+k*n_fpts_per_inter*n_fields+i*n_fpts_per_inter+j_rhs);
+                      grad_disu_fpts_r(j,in_inter,i,k) = in_buffer_grad_disu.get_ptr_gpu(j_rhs,i,k,in_inter);
 #else
-                      grad_disu_fpts_r(j,in_inter,i,k) = in_buffer_grad_disu.get_ptr_cpu(in_inter*n_fpts_per_inter*n_fields*n_dims+k*n_fpts_per_inter*n_fields+i*n_fpts_per_inter+j_rhs);
+                      grad_disu_fpts_r(j,in_inter,i,k) = in_buffer_grad_disu.get_ptr_cpu(j_rhs,i,k,in_inter);
 #endif
                     }
 
@@ -219,9 +219,9 @@ void mpi_inters::set_mpi(int in_inter, int in_ele_type_l, int in_ele_l, int in_l
                     {
                       sgsf_fpts_l(j,in_inter,i,k) = get_sgsf_fpts_ptr(in_ele_type_l,in_ele_l,in_local_inter_l,i,k,j,FlowSol);
 #ifdef _GPU
-                      sgsf_fpts_r(j,in_inter,i,k) = in_buffer_sgsf.get_ptr_gpu(in_inter*n_fpts_per_inter*n_fields*n_dims+k*n_fpts_per_inter*n_fields+i*n_fpts_per_inter+j_rhs);
+                      sgsf_fpts_r(j,in_inter,i,k) = in_buffer_sgsf.get_ptr_gpu(j_rhs,i,k,in_inter);
 #else
-                      sgsf_fpts_r(j,in_inter,i,k) = in_buffer_sgsf.get_ptr_cpu(in_inter*n_fpts_per_inter*n_fields*n_dims+k*n_fpts_per_inter*n_fields+i*n_fpts_per_inter+j_rhs);
+                      sgsf_fpts_r(j,in_inter,i,k) = in_buffer_sgsf.get_ptr_cpu(j_rhs,i,k,in_inter);
 #endif
                     }
                 }
