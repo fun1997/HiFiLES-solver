@@ -373,6 +373,8 @@ public:
     int perturb_ic;
 
     double time, rk_time;
+  /*! constansts for RK time-stepping */
+  hf_array<double> RK_a, RK_b, RK_c;
 };
 
 /*! \class fileReader

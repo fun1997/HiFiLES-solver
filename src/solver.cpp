@@ -69,7 +69,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
   int i;                            /*!< Loop iterator */
 
   /*! If at first RK step and using certain LES models, compute some model-related quantities. */
-  if(run_input.LES==1 && in_disu_upts_from==0) {
+  if(run_input.LES==1 && in_rk_stage==0) {
       if(run_input.SGS_model==2 || run_input.SGS_model==3 || run_input.SGS_model==4) {//similarity and svv
           for(i=0; i<FlowSol->n_ele_types; i++)
             FlowSol->mesh_eles(i)->calc_sgs_terms(in_disu_upts_from);
@@ -79,20 +79,19 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
   /*! Shock capturing part - only concentration method and on quads for now */
   /*! TO be added: Persson's method for triangles with artificial viscosity structure */
 
-  if(run_input.ArtifOn) {
-
-
-      if(run_input.artif_type == 1){
-          /*! This routine does shock detection. For concentration method filter is also applied in this routine itself */
-          for(i=0;i<FlowSol->n_ele_types;i++)
-            FlowSol->mesh_eles(i)->shock_capture_concentration(in_disu_upts_from);
+    if(run_input.ArtifOn)
+    {
+      if(run_input.artif_type == 1)
+      {
+        /*! This routine does shock detection. For concentration method filter is also applied in this routine itself */
+        for(i=0;i<FlowSol->n_ele_types;i++)
+          FlowSol->mesh_eles(i)->shock_capture_concentration(in_disu_upts_from);
       }
+    }
 
-  }
-
-  /*! Compute the solution at the flux points. */
-  for(i=0; i<FlowSol->n_ele_types; i++)
-    FlowSol->mesh_eles(i)->extrapolate_solution(in_disu_upts_from);
+    /*! Compute the solution at the flux points. */
+    for(i=0; i<FlowSol->n_ele_types; i++)
+      FlowSol->mesh_eles(i)->extrapolate_solution(in_disu_upts_from);
 
 #ifdef _MPI
   /*! Send the solution at the flux points across the MPI interfaces. */
@@ -133,7 +132,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     FlowSol->mesh_int_inters(i).calculate_common_invFlux();
 
   for(i=0; i<FlowSol->n_bdy_inter_types; i++)
-    FlowSol->mesh_bdy_inters(i).evaluate_boundaryConditions_invFlux(FlowSol->time);
+    FlowSol->mesh_bdy_inters(i).evaluate_boundaryConditions_invFlux(FlowSol->time);//HACK:use RK_time instead
 
 #ifdef _MPI
   /*! Send the previously computed values across the MPI interfaces. */
@@ -200,7 +199,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
         FlowSol->mesh_int_inters(i).calculate_common_viscFlux();
 
       for(i=0; i<FlowSol->n_bdy_inter_types; i++)
-        FlowSol->mesh_bdy_inters(i).evaluate_boundaryConditions_viscFlux(FlowSol->time);
+        FlowSol->mesh_bdy_inters(i).evaluate_boundaryConditions_viscFlux(FlowSol->time);//HACK: use RK_time instead
 
 #if _MPI
       /*! Evaluate the MPI interfaces. */
@@ -376,7 +375,6 @@ void InitSolution(struct solution* FlowSol)
             FlowSol->mesh_eles(i)->set_ics(FlowSol->time);
         }
 
-      FlowSol->time = 0.;
     }
   else
     {
@@ -468,40 +466,56 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
     cout << "Rank=" << FlowSol->rank << " Done reading restart files" << endl;
 }
 
-void calc_global_time_step(int in_rk_stage, struct solution* FlowSol)
+void calc_time_step(int in_rk_stage, struct solution* FlowSol)
 {
-    // If using global minimum timestep based on CFL, determine
-    // global minimum
-    if (in_rk_stage == 0)//for first stage only
+  if (in_rk_stage == 0)
+  {
+    if (run_input.dt_type == 1) //global time step
     {
-        double dt_globe_new;
-        //eles::dt_globe = 1e12; // reset to large value
-        for (int j=0; j<FlowSol->n_ele_types; j++)//for each type of element
+      // If using global minimum timestep based on CFL, determine
+      // global minimum
+      double dt_globe_new;
+      for (int j = 0; j < FlowSol->n_ele_types; j++) //for each type of element
+      {
+        if (FlowSol->mesh_eles(j)->get_n_eles() != 0) //if have element
         {
-            if (FlowSol->mesh_eles(j)->get_n_eles()!=0)
-            {
-                for (int ic=0; ic<FlowSol->mesh_eles(j)->get_n_eles(); ic++)//loop over each element
-                {
-                    dt_globe_new =  FlowSol-> mesh_eles(j)->calc_dt_local(ic);
-                    if (dt_globe_new < eles::dt_globe)
-                        eles::dt_globe = dt_globe_new;
-                }
-            }
+          for (int ic = 0; ic < FlowSol->mesh_eles(j)->get_n_eles(); ic++) //loop over each element
+          {
+            dt_globe_new = FlowSol->mesh_eles(j)->calc_dt_local(ic);
+            if (dt_globe_new < eles::dt_globe)
+              eles::dt_globe = dt_globe_new;
+          }
         }
+      }
 
-
-        // If running in parallel, gather minimum timestep values from
-        // each partition and find global minumum across partitions
+      // If running in parallel, gather minimum timestep values from
+      // each partition and find global minumum across partitions
 #ifdef _MPI
-        // If in parallel and using global minumum timestep, allocate storage
-        // for minimum timesteps in each partition
-        hf_array<double> dt_globe_mpi;
-        dt_globe_mpi.setup(FlowSol->nproc);
-        dt_globe_mpi.initialize_to_zero();
-        MPI_Allgather(&eles::dt_globe,1,MPI_DOUBLE,dt_globe_mpi.get_ptr_cpu(),
-                      1, MPI_DOUBLE, MPI_COMM_WORLD);
-        eles::dt_globe = dt_globe_mpi.get_min();
+      // If in parallel and using global minumum timestep, allocate storage
+      // for minimum timesteps in each partition
+      if (FlowSol->nproc > 1)
+      {
+        double dt_globe_mpi;
+        MPI_Allreduce(&eles::dt_globe, &dt_globe_mpi, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        eles::dt_globe = dt_globe_mpi;
+      }
 #endif
-
+      run_input.dt = eles::dt_globe;//copy to run_input.dt
     }
+    // If using local timestepping, just compute and store all local
+    // timesteps
+    else if (run_input.dt_type == 2)
+    {
+      for (int j = 0; j < FlowSol->n_ele_types; j++) //for each type of element
+      {
+        if (FlowSol->mesh_eles(j)->get_n_eles() != 0) //if have element
+        {
+          for (int ic = 0; ic < FlowSol->mesh_eles(j)->get_n_eles(); ic++) //loop over each element
+          {
+            FlowSol->mesh_eles(j)->dt_local(ic) = FlowSol->mesh_eles(j)->calc_dt_local(ic);
+          }
+        }
+      }
+    }
+  }
 }

@@ -134,7 +134,7 @@ void eles_quads::setup_ele_type_specific()
       temp_grad_u.setup(n_fields,n_dims);
 
       // Compute quad filter matrix
-      if(filter) compute_filter_upts();
+      if(LES_filter) compute_filter_upts();
     }
 
   temp_u.setup(n_fields);
@@ -780,7 +780,6 @@ void eles_quads::set_filter_array()
 {
   sigma.setup(n_upts_per_ele);
 
-  // create the vandermonde matrix
   for (int i=0;i<n_upts_per_ele;i++)
      sigma(i) = exponential_filter(i,order);
      //sigma.print();

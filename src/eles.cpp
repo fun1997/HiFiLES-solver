@@ -86,36 +86,6 @@ double eles::dt_globe = 1e12;
 
 void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
 {
-    if (run_input.adv_type==0)
-    {
-        RK_a.setup(1);
-        RK_b.setup(1);
-        RK_c.setup(1);
-    }
-    else if (run_input.adv_type==3)
-    {
-        RK_a.setup(5);
-        RK_b.setup(5);
-        RK_c.setup(5);
-
-        RK_a(0) = 0.0;
-        RK_a(1) = -0.417890474499852;
-        RK_a(2) = -1.192151694642677;
-        RK_a(3) = -1.697784692471528;
-        RK_a(4) = -1.514183444257156;
-
-        RK_b(0) = 0.149659021999229;
-        RK_b(1) = 0.379210312999627;
-        RK_b(2) = 0.822955029386982;
-        RK_b(3) = 0.699450455949122;
-        RK_b(4) = 0.153057247968152;
-
-        RK_c(0) = 0.0;
-        RK_c(1) = 1432997174477/9575080441755;
-        RK_c(2) = 2526269341429/6820363962896;
-        RK_c(3) = 2006345519317/3224310063776;
-        RK_c(4) = 2802321613138/2924317926251;
-    }
 
     first_time = true;
     n_eles=in_n_eles;
@@ -134,10 +104,10 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         wall_model = run_input.wall_model;
 
         // Set filter flag before calling setup_ele_type_specific
-        filter = 0;
+        LES_filter = 0;
         if(LES)
             if(sgs_model==3 || sgs_model==2 || sgs_model==4)
-                filter = 1;
+                LES_filter = 1;
 
         inters_cub_order = run_input.inters_cub_order;
         volume_cub_order = run_input.volume_cub_order;
@@ -1245,7 +1215,7 @@ void eles::AdvanceSolution(int in_step, int adv_type)
 
         if (adv_type == 0)
         {
-
+            
             /*!
              Performs B = B + (alpha*A) where: \n
              alpha = -run_input.dt \n
@@ -1253,36 +1223,17 @@ void eles::AdvanceSolution(int in_step, int adv_type)
              B = disu_upts(0)
              */
 #ifdef _CPU
-            // If using local timestepping, just compute and store all local
-            // timesteps
-            if (run_input.dt_type == 2)
-            {
-                for (int ic=0; ic<n_eles; ic++)
-                    dt_local(ic) = calc_dt_local(ic);
-            }
 
             for (int i=0; i<n_fields; i++)
             {
                 for (int ic=0; ic<n_eles; ic++)
                 {
+                    double dt_temp;
+                    if (run_input.dt_type == 2) dt_temp=dt_local(ic);
+                    else dt_temp=run_input.dt;
                     for (int inp=0; inp<n_upts_per_ele; inp++)
                     {
-                        // User supplied timestep
-                        if (run_input.dt_type != 0)
-                        {
-                            // Global minimum timestep
-                            if (run_input.dt_type == 1)
-                                run_input.dt = dt_globe;
-
-                            // Element local timestep
-                            else if (run_input.dt_type == 2)
-                                run_input.dt = dt_local(ic);
-
-                            else
-                                FatalError("ERROR: dt_type not recognized!")
-                            }
-
-                        disu_upts(0)(inp,ic,i) -= run_input.dt*(div_tconf_upts(0)(inp,ic,i)/detjac_upts(inp,ic) - run_input.const_src - src_upts(inp,ic,i));
+                        disu_upts(0)(inp,ic,i) -= dt_temp*(div_tconf_upts(0)(inp,ic,i)/detjac_upts(inp,ic) - run_input.const_src - src_upts(inp,ic,i));
                     }
                 }
             }
@@ -1296,73 +1247,27 @@ void eles::AdvanceSolution(int in_step, int adv_type)
 
         }
 
-        /*! Time integration using a RK45 method. */
+        /*! Time integration using a RK45(2N) method. */
 
         else if (adv_type == 3)
         {
 
-            double rk4a, rk4b;
-            if (in_step==0)
-            {
-                rk4a=    0.0;
-                rk4b=   0.149659021999229;
-            }
-            else if (in_step==1)
-            {
-                rk4a=   -0.417890474499852;
-                rk4b=   0.379210312999627;
-            }
-            else if (in_step==2)
-            {
-                rk4a=   -1.192151694642677;
-                rk4b=   0.822955029386982;
-            }
-            else if (in_step==3)
-            {
-                rk4a=   -1.697784692471528;
-                rk4b=   0.699450455949122;
-            }
-            else if (in_step==4)
-            {
-                rk4a=   -1.514183444257156;
-                rk4b=   0.153057247968152;
-            }
-
 #ifdef _CPU
-            // for first stage only, compute timestep
-            if (in_step == 0)
-            {
-                // For local timestepping, find element local timesteps
-                if (run_input.dt_type == 2)
-                {
-                    for (int ic=0; ic<n_eles; ic++)
-                    {
-                        dt_local(ic) = calc_dt_local(ic);
-                    }
-                }
-            }
 
             double res, rhs;
             for (int ic=0; ic<n_eles; ic++)
             {
+                double dt_temp;
+                if (run_input.dt_type == 2) dt_temp=dt_local(ic);
+                else dt_temp=run_input.dt;
                 for (int i=0; i<n_fields; i++)
                 {
                     for (int inp=0; inp<n_upts_per_ele; inp++)
                     {
-                        rhs = -div_tconf_upts(0)(inp,ic,i)/detjac_upts(inp,ic) + run_input.const_src + src_upts(inp,ic,i);
-                        res = disu_upts(1)(inp,ic,i);
+                        rhs = -div_tconf_upts(0)(inp,ic,i)/detjac_upts(inp,ic) + run_input.const_src + src_upts(inp,ic,i);//function
 
-                        if (run_input.dt_type != 0)
-                        {
-                            if (run_input.dt_type == 1)
-                                run_input.dt = dt_globe;
-                            else if (run_input.dt_type == 2)
-                                run_input.dt = dt_local(ic);
-                        }
-
-                        res = rk4a*res + run_input.dt*rhs;
-                        disu_upts(1)(inp,ic,i) = res;
-                        disu_upts(0)(inp,ic,i) += rk4b*res;
+                        disu_upts(1)(inp,ic,i) = run_input.RK_a(in_step)*disu_upts(1)(inp,ic,i) + dt_temp*rhs;//new delta x
+                        disu_upts(0)(inp,ic,i) += run_input.RK_b(in_step)*disu_upts(1)(inp,ic,i);//new x
                     }
                 }
             }
@@ -7115,10 +7020,8 @@ void eles::evaluate_body_force(int in_file_num)
             mdot_old = mass_flux;
 
         // get timestep
-        if (run_input.dt_type == 0)
+        if (run_input.dt_type == 0||run_input.dt_type==1)
             dt = run_input.dt;
-        else if (run_input.dt_type == 1)
-            dt = dt_globe;
         else if (run_input.dt_type == 2)
             FatalError("Not sure what value of timestep to use in body force term when using local timestepping.");
 
@@ -7357,48 +7260,40 @@ void eles::CalcTimeAverageQuantities(double& time)
             {
 
                 rho = disu_upts(0)(j,k,0);
-
+                average_value = disu_average_upts(j,k,i);
                 if(run_input.average_fields(i)=="rho_average")
                 {
                     current_value = rho;
-                    average_value = disu_average_upts(j,k,0);
                 }
                 else if(run_input.average_fields(i)=="u_average")
                 {
                     current_value = disu_upts(0)(j,k,1)/rho;
-                    average_value = disu_average_upts(j,k,1);
                 }
                 else if(run_input.average_fields(i)=="v_average")
                 {
                     current_value = disu_upts(0)(j,k,2)/rho;
-                    average_value = disu_average_upts(j,k,2);
                 }
                 else if(run_input.average_fields(i)=="w_average")
                 {
                     current_value = disu_upts(0)(j,k,3)/rho;
-                    average_value = disu_average_upts(j,k,3);
                 }
                 else if(run_input.average_fields(i)=="e_average")//e only
                 {
                     if(n_dims==2)
                     {
                         current_value = disu_upts(0)(j,k,3)/rho;
-                        average_value = disu_average_upts(j,k,3);
                     }
                     else
                     {
                         current_value = disu_upts(0)(j,k,4)/rho;
-                        average_value = disu_average_upts(j,k,4);
                     }
                 }
 
                 // get timestep
-                if (run_input.dt_type == 0)
+                if (run_input.dt_type == 0||run_input.dt_type == 1)
                     dt = run_input.dt;
-                else if (run_input.dt_type == 1)
-                    dt = dt_globe;
                 else if (run_input.dt_type == 2)
-                    FatalError("Not sure what value of timestep to use in time average calculation when using local timestepping.");
+                    dt=dt_local(k);//cell local time step
 
                 // set average value to current value if before spinup time
                 // and prevent division by a very small number if time = spinup time
@@ -7415,33 +7310,8 @@ void eles::CalcTimeAverageQuantities(double& time)
                 }
 
                 // Set new average value for next timestep
-                if(run_input.average_fields(i)=="rho_average")
-                {
-                    disu_average_upts(j,k,0) = a*average_value + b*current_value;
-                }
-                else if(run_input.average_fields(i)=="u_average")
-                {
-                    disu_average_upts(j,k,1) = a*average_value + b*current_value;
-                }
-                else if(run_input.average_fields(i)=="v_average")
-                {
-                    disu_average_upts(j,k,2) = a*average_value + b*current_value;
-                }
-                else if(run_input.average_fields(i)=="w_average")
-                {
-                    disu_average_upts(j,k,3) = a*average_value + b*current_value;
-                }
-                else if(run_input.average_fields(i)=="e_average")
-                {
-                    if(n_dims==2)
-                    {
-                        disu_average_upts(j,k,3) = a*average_value + b*current_value;
-                    }
-                    else
-                    {
-                        disu_average_upts(j,k,4) = a*average_value + b*current_value;
-                    }
-                }
+                disu_average_upts(j,k,i) = a*average_value + b*current_value;
+                if(isnan(disu_average_upts(j,k,i))) FatalError("NaN in average value, exiting...")
             }
         }
     }

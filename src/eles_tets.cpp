@@ -133,7 +133,7 @@ void eles_tets::setup_ele_type_specific()
       temp_grad_u.setup(n_fields,n_dims);
 
       // Compute tet filter matrix
-      if(filter) compute_filter_upts();
+      if(LES_filter) compute_filter_upts();
     }
 
   temp_u.setup(n_fields);

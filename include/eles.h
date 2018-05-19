@@ -616,6 +616,9 @@ public:
   //global time step
   static double dt_globe;
 
+  /*! element local timestep */
+  hf_array<double> dt_local;
+
   /*! restart counter */
   int restart_counter;
   
@@ -639,7 +642,7 @@ protected:
   int sgs_model;
 
   /*! LES filter flag */
-  int filter;
+  int LES_filter;
 
   /*! near-wall model */
   int wall_model;
@@ -831,9 +834,6 @@ protected:
 
   /*! temporary flux storage for GCL at a single solution point (transformed to static frame) */
   hf_array<double> temp_f_ref_GCL;
-
-  /*! constansts for RK time-stepping */
-  hf_array<double> RK_a, RK_b, RK_c;
 
 	/*! temporary solution gradient storage */
 	hf_array<double> temp_grad_u;
@@ -1214,8 +1214,6 @@ protected:
   /*! reference element length */
   hf_array<double> h_ref;
 
-  /*! element local timestep */
-  hf_array<double> dt_local;
 
   /*! Artificial Viscosity variables */
   hf_array<double> vandermonde;

@@ -183,6 +183,7 @@ void input::read_input_file(string fileName, int rank)
     }
     else
     {
+        dt=0.;
         opts.getScalarValue("CFL",CFL);
     }
 
@@ -543,15 +544,50 @@ void input::setup_params(int rank)
     if (LES && turb_model)
         FatalError("Cannot turn on RANS and LES at same time");
 
-    if (rank==0)
-        cout << endl << "---------------------- Non-dimensionalization ---------------------" << endl;
+    // --------------------------
+    // SETTING UP RK COEFFICIENTS
+    // --------------------------
 
+    if (adv_type==0)//forward Euler
+    {
+        RK_a.setup(1);
+        RK_b.setup(1);
+        RK_c.setup(1);
+    }
+    else if (adv_type==3)//RK45 two-register Williamson
+    {
+        RK_a.setup(5);
+        RK_b.setup(5);
+        RK_c.setup(5);
+
+        RK_a(0) = 0.0;
+        RK_a(1) = -567301805773.0/1357537059087.0;
+        RK_a(2) = -2404267990393.0/2016746695238.0;
+        RK_a(3) = -3550918686646.0/2091501179385.0;
+        RK_a(4) = -1275806237668.0/842570457699.0;
+
+        RK_b(0) = 1432997174477.0/9575080441755.0;
+        RK_b(1) = 5161836677717.0/13612068292357.0;
+        RK_b(2) = 1720146321549.0/2090206949498.0;
+        RK_b(3) = 3134564353537.0/4481467310338.0;
+        RK_b(4) = 2277821191437.0/14882151754819.0;
+
+        RK_c(0) = 0.0;
+        RK_c(1) = 1432997174477.0/9575080441755.0;
+        RK_c(2) = 2526269341429.0/6820363962896.0;
+        RK_c(3) = 2006345519317.0/3224310063776.0;
+        RK_c(4) = 2802321613138.0/2924317926251.0;
+    }
+    else
+    FatalError("Time advancement scheme not implemented yet!");
 
     if(viscous)
     {
 
-        // If we have chosen an isentropic vortex case as the initial condition, set R_ref and mu_inf, and don't do non-dimensionalization
-
+        if (rank == 0)
+            cout << endl
+                 << "---------------------- Non-dimensionalization ---------------------" << endl;
+                 
         if(ic_form == 0)
         {
 

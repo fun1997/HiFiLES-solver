@@ -134,36 +134,9 @@ void mesh::setup(struct solution *in_FlowSol,hf_array<double> &in_xv,hf_array<in
 //  grid_vel(1).setup(xv.get_dim(0),Mesh.n_dims);
 //  grid_vel(0).initialize_to_zero();
 //  grid_vel(1).initialize_to_zero();
-
-  if (run_input.adv_type==0) {
-    RK_a.setup(1);
-    RK_c.setup(1);
-    RK_b.setup(1);
-    RK_a(0) = 0.0;
-    RK_b(0) = 0.0;
-    RK_c(0) = 0.0;
-  }else if (run_input.adv_type==3) {
-    RK_a.setup(5);
-    RK_a(0) = 0.0;
-    RK_a(1) = -0.417890474499852;
-    RK_a(2) = -1.192151694642677;
-    RK_a(3) = -1.697784692471528;
-    RK_a(4) = -1.514183444257156;
-
-    RK_b.setup(5);
-    RK_b(0) = 0.149659021999229;
-    RK_b(1) = 0.379210312999627;
-    RK_b(2) = 0.822955029386982;
-    RK_b(3) = 0.699450455949122;
-    RK_b(4) = 0.153057247968152;
-
-    RK_c.setup(5);
-    RK_c(0) = 0.0;
-    RK_c(1) = 1432997174477/9575080441755;
-    RK_c(2) = 2526269341429/6820363962896;
-    RK_c(3) = 2006345519317/3224310063776;
-    RK_c(4) = 2802321613138/2924317926251;
-  }
+  RK_a = run_input.RK_a;
+  RK_b = run_input.RK_b;
+  RK_c = run_input.RK_c;
 }
 
 void mesh::move(int _iter, int in_rk_step, solution *FlowSol) {

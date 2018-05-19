@@ -128,7 +128,7 @@ void eles_hexas::setup_ele_type_specific()
   if(viscous)
     {
       // Compute hex filter matrix
-      if(filter) compute_filter_upts();
+      if(LES_filter) compute_filter_upts();
 
       set_opp_4(run_input.sparse_hexa);
       set_opp_5(run_input.sparse_hexa);

@@ -162,6 +162,9 @@ int main(int argc, char *argv[]) {
 
     for(i=0; i < RKSteps; i++) {
 
+      //compute time step if using automatic time step and at first RK stage else do nothing
+      calc_time_step(i, &FlowSol);
+
       /* If using moving mesh, need to advance the Geometric Conservation Law
        * (GCL) first to get updated Jacobians. Necessary to preserve freestream
        * on arbitrarily deforming mesh. See Kui Ou's Ph.D. thesis for details. */
@@ -176,10 +179,7 @@ int main(int argc, char *argv[]) {
 
       CalcResidual(FlowSol.ini_iter+i_steps, i, &FlowSol);
 
-      /*! Time integration usign a RK scheme */
-
-      if (run_input.dt_type == 1)
-        calc_global_time_step(i, &FlowSol);
+      /*! Time integration using a RK scheme */
 
       for(j=0; j<FlowSol.n_ele_types; j++) {
 
@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
 
     /*! Update total time, and increase the iteration index. */
 
-    FlowSol.time += run_input.dt;
+    FlowSol.time += run_input.dt;//if local time step then time always equals to 0
     run_input.time = FlowSol.time;
     i_steps++;
     if(run_input.Pressure_Ramp)
