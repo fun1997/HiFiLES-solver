@@ -475,6 +475,7 @@ void calc_time_step(int in_rk_stage, struct solution* FlowSol)
       // If using global minimum timestep based on CFL, determine
       // global minimum
       double dt_globe_new;
+      eles::dt_globe=1e12;//reset to large value at the beginning of each time step
       for (int j = 0; j < FlowSol->n_ele_types; j++) //for each type of element
       {
         if (FlowSol->mesh_eles(j)->get_n_eles() != 0) //if have element
@@ -506,6 +507,9 @@ void calc_time_step(int in_rk_stage, struct solution* FlowSol)
     // timesteps
     else if (run_input.dt_type == 2)
     {
+      double dt_local_min=1e12;//initialize to large number
+      double dt_local_min_new;
+      
       for (int j = 0; j < FlowSol->n_ele_types; j++) //for each type of element
       {
         if (FlowSol->mesh_eles(j)->get_n_eles() != 0) //if have element
@@ -514,8 +518,22 @@ void calc_time_step(int in_rk_stage, struct solution* FlowSol)
           {
             FlowSol->mesh_eles(j)->dt_local(ic) = FlowSol->mesh_eles(j)->calc_dt_local(ic);
           }
+          //get local minimum time step
+          dt_local_min_new = FlowSol->mesh_eles(j)->dt_local.get_min();
+          if (dt_local_min_new < dt_local_min)
+            dt_local_min = dt_local_min_new;
         }
       }
+      //if run in parallel, find out global minimum time step
+#ifdef _MPI
+      if (FlowSol->nproc > 1)
+      {
+        double dt_local_mpi;
+        MPI_Allreduce(&dt_local_min, &dt_local_mpi, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        dt_local_min = dt_local_mpi;
+      }
+#endif
+      run_input.dt=dt_local_min;//copy to run_input.dt
     }
   }
 }

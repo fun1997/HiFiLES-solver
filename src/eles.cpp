@@ -7293,7 +7293,7 @@ void eles::CalcTimeAverageQuantities(double& time)
                 if (run_input.dt_type == 0||run_input.dt_type == 1)
                     dt = run_input.dt;
                 else if (run_input.dt_type == 2)
-                    dt=dt_local(k);//cell local time step
+                    FatalError("Not sure what value of timestep to use to calculate average values when using local timestepping.");
 
                 // set average value to current value if before spinup time
                 // and prevent division by a very small number if time = spinup time

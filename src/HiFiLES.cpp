@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
 
     /*! Update total time, and increase the iteration index. */
 
-    FlowSol.time += run_input.dt;//if local time step then time always equals to 0
+    FlowSol.time += run_input.dt;
     run_input.time = FlowSol.time;
     i_steps++;
     if(run_input.Pressure_Ramp)
