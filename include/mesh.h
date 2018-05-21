@@ -92,15 +92,15 @@ public:
   // #### members ####
 
   /** Basic parameters of mesh */
-  //unsigned long
+    //copied from FlowSol
   int n_eles, n_verts, n_dims, n_verts_global, n_cells_global;
   int iter;
 
   /** arrays which define the basic mesh geometry */
-  hf_array<double> xv_0;//, xv;
+  hf_array<double> xv_0;//, the xv in geometry, contains the coordinates of local vertics;
   hf_array< hf_array<double> > xv;
-  hf_array<int> c2v,c2n_v,ctype,bctype_c,ic2icg,iv2ivg,ic2loc_c,
-  f2c,f2loc_f,c2f,c2e,f2v,f2n_v,e2v,v2n_e;
+  hf_array<int> c2v, c2n_v, ctype, bctype_c, ic2icg, iv2ivg, ic2loc_c,//ic2loc_c is local cell index to typewise local cell index
+      icvsta, icvert, f2c, f2loc_f, c2f, c2e, f2v, f2n_v, e2v, v2n_e;
   hf_array<hf_array<int> > v2e;
 
   /** #### Boundary information #### */
@@ -131,7 +131,7 @@ public:
 
   hf_array< hf_array<double> > grid_vel;
 
-  void setup(solution *in_FlowSol, hf_array<double> &in_xv, hf_array<int> &in_c2v, hf_array<int> &in_c2n_v, hf_array<int> &in_iv2ivg, hf_array<int> &in_ctype);
+  void setup(solution *in_FlowSol, hf_array<double> &in_xv, hf_array<int> &in_c2v, hf_array<int> &in_c2n_v, hf_array<int> &in_iv2ivg, hf_array<int> &in_ctype,hf_array<int> &ic2icg);
 
 private:
   bool start;
@@ -154,8 +154,6 @@ private:
   double time, rk_time;
   int rk_step;
 
-  // Coefficients for LS-RK45 time-stepping
-  hf_array<double> RK_a, RK_b, RK_c;
 
   /** create individual-element stiffness matrix - triangles */
   bool set_2D_StiffMat_ele_tri(hf_array<double> &stiffMat_ele,int ele_id);

@@ -42,36 +42,30 @@
 #include "mpi_inters.h"
 #endif
 
-class int_inters; /*!< Forwards declaration */
-class bdy_inters; /*!< Forwards declaration */
-class mpi_inters; /*!< Forwards declaration */
-
 struct solution {
 
-  int viscous;
-  double time;
-  double ene_hist;
-  double grad_ene_hist;
+  //basic parameters
+  int rank;//defined in SetInput
+  int viscous;//defined in SetInput
+  double time;//defined in InitSolution
+  int n_ele_types;//defined in Initializing Elements
+  int n_dims;//defined in mesh reading
+  int n_steps;//defined in SetInput
+  int adv_type;//defined in SetInput
 
+  //mesh parameters
   hf_array<int> num_f_per_c;
+  int num_eles;//defined in mesh reading, number of local cells
+  int num_verts;//defined in mesh reading, number of local vertics
+  int num_edges;//defined in CompConnectivity
+  int num_inters;//defined in CompConnectivity
+  int num_cells_global;//defined in mesh reading
 
-  int n_ele_types;
-  int n_dims;
+  //restart/initialization parameter
+  int restart_dump_freq;//defined in SetInput
+  int ini_iter;//defined in InitSolution
 
-  int num_eles;
-  int num_verts;
-  int num_edges;
-  int num_inters;
-  int num_cells_global;
-
-  int n_steps;
-  int adv_type;
-  int plot_freq;
-  int restart_dump_freq;
-  int ini_iter;
-
-  int write_type;
-
+  //element parameters
   hf_array<eles*> mesh_eles;
   eles_quads mesh_eles_quads;
   eles_tris mesh_eles_tris;
@@ -79,20 +73,17 @@ struct solution {
   eles_tets mesh_eles_tets;
   eles_pris mesh_eles_pris;
 
+  //interfaces
   int n_int_inter_types;
   int n_bdy_inter_types;
-
   hf_array<int_inters> mesh_int_inters;
   hf_array<bdy_inters> mesh_bdy_inters;
-
-  int rank;
 
   /*! No-slip wall flux point coordinates for wall models. */
 
 	hf_array< hf_array<double> > loc_noslip_bdy;
 
-  /*! Diagnostic output quantities. */
-
+  //Diagnostic output quantities
   hf_array<double> body_force;
   hf_array<double> inv_force;
   hf_array<double> vis_force;
@@ -101,18 +92,21 @@ struct solution {
   double coeff_lift;
   double coeff_drag;
 
-  /*! Plotting resolution. */
+  //Plotting parameters
+  int plot_freq;//defined in setInput
+  int write_type;//defined in SetInput
 
-  int p_res;
+  //others
+  double ene_hist;
+  double grad_ene_hist;
 
+//mpi parameters
 #ifdef _MPI
 
-  int nproc;
-
+  int nproc;//defined in SetInput
   int n_mpi_inter_types;
   hf_array<mpi_inters> mesh_mpi_inters;
   hf_array<int> error_states;
-
   int n_mpi_inters;
 
   /*! No-slip wall flux point coordinates for wall models. */

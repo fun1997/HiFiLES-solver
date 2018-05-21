@@ -158,9 +158,8 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   /*! Reading vertices and cells. */
   ReadMesh(run_input.mesh_file, xv, c2v, c2n_v, ctype, ic2icg, iv2ivg, FlowSol->num_eles, FlowSol->num_verts, Mesh.n_verts_global, FlowSol);
 
-  // ** TODO: clean up duplicate/redundant data between Mesh and FlowSol **
-  if (run_input.motion!=STATIC_MESH)
-  Mesh.setup(FlowSol,xv,c2v,c2n_v,iv2ivg,ctype);
+  //store necesary mesh data into mesh object
+  Mesh.setup(FlowSol,xv,c2v,c2n_v,iv2ivg,ctype,ic2icg);//todo: see if is needed by limiter
 
   /////////////////////////////////////////////////
   /// Set connectivity
@@ -201,6 +200,10 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   CompConnectivity(c2v, c2n_v, ctype, c2f, c2e, f2c, f2loc_f, f2v, f2nv, Mesh.e2v, Mesh.v2n_e, Mesh.v2e, rot_tag,
                    unmatched_inters, n_unmatched_inters, icvsta, icvert, FlowSol->num_inters, FlowSol->num_edges, FlowSol);
 
+  //store cell to vertex arrays in Mesh
+  Mesh.icvsta=icvsta;
+  Mesh.icvert=icvert;
+
   if (FlowSol->rank==0) cout << "Done setting up mesh connectivity" << endl;
 
   // Reading boundaries
@@ -208,9 +211,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   ReadBound(run_input.mesh_file,c2v,c2n_v,c2f,f2v,f2nv,ctype,bctype_c,Mesh.boundPts,Mesh.bc_list,Mesh.bound_flags,ic2icg,
             icvsta,icvert,iv2ivg,FlowSol->num_eles,FlowSol->num_verts,FlowSol);
 
-  // ** TODO: clean up duplicate/redundant data **
-    if (run_input.motion!=STATIC_MESH)
-    {
+  // ** TODO: see id needed by limiter **
         Mesh.c2f = c2f;
         Mesh.c2e = c2e;
         Mesh.f2c = f2c;
@@ -222,7 +223,6 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
         {
             Mesh.nBndPts(i) = Mesh.boundPts(i).get_dim(0);
         }
-    }
   /////////////////////////////////////////////////
   /// Initializing Elements
   /////////////////////////////////////////////////
@@ -1743,6 +1743,9 @@ void read_connectivity_gambit(string& in_file_name, int &out_n_cells, hf_array<i
             >> dummy              // num boundary groups
             >> FlowSol->n_dims;  // num space dimensions
 
+//copy to solution structure
+FlowSol->num_cells_global=n_cells_global;
+
   if (FlowSol->n_dims != 2 && FlowSol->n_dims != 3) {
       FatalError("Invalid mesh dimensionality. Expected 2D or 3D.");
     }
@@ -1970,6 +1973,9 @@ void read_connectivity_gmsh(string& in_file_name, int &out_n_cells, hf_array<int
 
   }
   n_cells_global=icount;
+
+//copy to solution structure
+FlowSol->num_cells_global=n_cells_global;
 
   // Now assign kstart to each processor
   int kstart;

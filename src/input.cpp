@@ -54,42 +54,11 @@ input::~input()
 {
 }
 
-void input::set_order(int in_order)
-{
-    order=in_order;
-}
-
-void input::set_dt(double in_dt)
-{
-    dt=in_dt;
-}
-
-void input::set_c(double in_c_tri, double in_c_quad)
-{
-    c_tri = in_c_tri;
-    c_quad = in_c_quad;
-
-    double a_k = eval_gamma(2*order+1)/( pow(2.,order)*pow(eval_gamma(order+1),2) );
-    eta_quad=in_c_quad*0.5*(2.*order+1.)*a_k*eval_gamma(order+1)*a_k*eval_gamma(order+1);
-}
-
-void input::set_vcjh_scheme_tri(int in_vcjh_scheme_tri)
-{
-    vcjh_scheme_tri = in_vcjh_scheme_tri;
-}
-void input::set_vcjh_scheme_hexa(int in_vcjh_scheme_hexa)
-{
-    vcjh_scheme_hexa= in_vcjh_scheme_hexa;
-}
-void input::set_vcjh_scheme_pri_1d(int in_vcjh_scheme_pri_1d)
-{
-    vcjh_scheme_pri_1d= in_vcjh_scheme_pri_1d;
-}
-
 void input::read_input_file(string fileName, int rank)
 {
     fileReader opts(fileName);
 
+    /*---initialize necessary arries to hold parameters---*/
     v_bound_Sub_In_Simp.setup(3);
     v_bound_Sub_In_Simp2.setup(3);
     v_bound_Sup_In.setup(3);
@@ -146,7 +115,7 @@ void input::read_input_file(string fileName, int rank)
     n_integral_quantities = integral_quantities.get_dim(0);
     n_diagnostic_fields = diagnostic_fields.get_dim(0);
     n_average_fields = average_fields.get_dim(0);
-
+    //transform to lower cases
     for (int i=0; i<n_integral_quantities; i++)
     {
         std::transform(integral_quantities(i).begin(), integral_quantities(i).end(),
@@ -183,9 +152,12 @@ void input::read_input_file(string fileName, int rank)
     }
     else
     {
-        dt=0.;
+        dt=0.;//todo: for local time step use it to hold minimum time step
         opts.getScalarValue("CFL",CFL);
     }
+
+    opts.getScalarValue("tau",tau,0.);
+    opts.getScalarValue("pen_fact",pen_fact,0.5);
 
     /* ---- Turbulence Modeling Parameters ---- */
 
@@ -238,9 +210,11 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("T_gas",T_gas,291.15);
     opts.getScalarValue("R_gas",R_gas,286.9);
     opts.getScalarValue("mu_gas",mu_gas,1.827E-5);
+    opts.getScalarValue("fix_vis",fix_vis,1.);
 
     /* ---- Boundary Conditions ---- */
 
+    //cyclic boundary parameters
     opts.getScalarValue("dx_cyclic",dx_cyclic,(double)INFINITY);
     opts.getScalarValue("dy_cyclic",dy_cyclic,(double)INFINITY);
     opts.getScalarValue("dz_cyclic",dz_cyclic,(double)INFINITY);
@@ -255,6 +229,7 @@ void input::read_input_file(string fileName, int rank)
         opts.getScalarValue("ny_sub_in_simp",ny_sub_in_simp,0.);
         opts.getScalarValue("nz_sub_in_simp",nz_sub_in_simp,0.);
     }
+
     //Sub_In_Simp2
     opts.getScalarValue("Sub_In_Simp2",Sub_In_Simp2,0);
     if (Sub_In_Simp2)
@@ -270,10 +245,9 @@ void input::read_input_file(string fileName, int rank)
         else
         {
             FatalError("Sub_In_Simp has to be set");
-
         }
-
     }
+
     //Sub_In_Char
     opts.getScalarValue("Sub_In_Char", Sub_In_char,0);
     if(Sub_In_char)
@@ -292,6 +266,7 @@ void input::read_input_file(string fileName, int rank)
             opts.getScalarValue("T_Total_Old",T_Total_Old,T_free_stream);
         }
     }
+
     //Sub_Out
     opts.getScalarValue("Sub_Out",Sub_Out,0);
     if (Sub_Out)
@@ -299,6 +274,7 @@ void input::read_input_file(string fileName, int rank)
         opts.getScalarValue("P_Sub_Out",P_Sub_Out);
         opts.getScalarValue("T_total_Sub_Out",T_total_Sub_Out);
     }
+
     //Sup_In
     opts.getScalarValue("Sup_In",Sup_In,0);
     if (Sup_In)
@@ -310,6 +286,7 @@ void input::read_input_file(string fileName, int rank)
         opts.getScalarValue("nz_sup_in",nz_sup_in,0.);
         opts.getScalarValue("T_sup_in",T_sup_in);
     }
+
     //Sup_In2
     opts.getScalarValue("Sup_In2",Sup_In2,0);
     if (Sup_In2)
@@ -328,6 +305,7 @@ void input::read_input_file(string fileName, int rank)
             FatalError("Sup_In has to be set");
         }
     }
+
     //Sup_In3
     opts.getScalarValue("Sup_In3",Sup_In3,0);
     if (Sup_In3)
@@ -346,6 +324,7 @@ void input::read_input_file(string fileName, int rank)
             FatalError("Sup_In and Sup_In2 has to be set");
         }
     }
+
 //Far_Field
     opts.getScalarValue("Far_Field",Far_Field,0);
     if (Far_Field)
@@ -358,23 +337,19 @@ void input::read_input_file(string fileName, int rank)
         opts.getScalarValue("T_far_field",T_far_field);
     }
 
-//free_stream values are used for reference values
+    //free_stream values are used for reference values
     opts.getScalarValue("Mach_free_stream",Mach_free_stream,1.);
     opts.getScalarValue("L_free_stream",L_free_stream,1.);
     opts.getScalarValue("T_free_stream",T_free_stream,300.);
     opts.getScalarValue("rho_free_stream",rho_free_stream,1.17723946);
 
 
-//Wall
+    //Wall
     opts.getScalarValue("Mach_wall",Mach_wall,0.);
     opts.getScalarValue("nx_wall",nx_wall,0.);
     opts.getScalarValue("ny_wall",ny_wall,0.);
     opts.getScalarValue("nz_wall",nz_wall,0.);
     opts.getScalarValue("T_wall",T_wall,300.);
-
-    opts.getScalarValue("fix_vis",fix_vis,1.);
-    opts.getScalarValue("tau",tau,0.);
-    opts.getScalarValue("pen_fact",pen_fact,0.5);
 
     /* ---- Initial Conditions ---- */
     if(viscous)
@@ -468,10 +443,10 @@ void input::read_input_file(string fileName, int rank)
     if (equation == 1)
     {
         opts.getScalarValue("wave_speed_x",wave_speed(0));
-        opts.getScalarValue("wave_speed_y",wave_speed(1));
-        opts.getScalarValue( "wave_speed_z",wave_speed(2));
+        opts.getScalarValue("wave_speed_y",wave_speed(1),0.);
+        opts.getScalarValue( "wave_speed_z",wave_speed(2),0.);
         opts.getScalarValue("diff_coeff",diff_coeff,0.);
-        opts.getScalarValue("lambda",lambda);
+        opts.getScalarValue("lambda",lambda);//coeff for lax-fredrich flux
     }
 
     /* ---- Uncategorized / Other ---- */
@@ -517,7 +492,7 @@ void input::setup_params(int rank)
 
     if (equation==0)
     {
-        if (riemann_solve_type==1)
+        if (riemann_solve_type==1)//todo: maybe we can implement lax-fredrich flux for NS/Euler equation
             FatalError("Lax-Friedrich flux not supported with NS/RANS equation");
         if (ic_form==2 || ic_form==3 || ic_form==4)
             FatalError("Initial condition not supported with NS/RANS equation");
@@ -526,23 +501,22 @@ void input::setup_params(int rank)
     {
         if (riemann_solve_type==0)
             FatalError("Rusanov flux not supported with Advection-Diffusion equation");
-        if (ic_form==0 || ic_form==1)
+        if (ic_form != 2 && ic_form != 3 && ic_form != 4 && ic_form != 5)
             FatalError("Initial condition not supported with Advection-Diffusion equation");
     }
 
-    if (turb_model>0)
+    if (turb_model)
     {
         if (riemann_solve_type==2)
-            FatalError("Roe flux not supported with RANS equation");
+            FatalError("Roe flux not supported with RANS turbulent models");
         if (!viscous)
             FatalError("turbulent model not supported with inviscid flow");
+        if (LES)
+            FatalError("Cannot turn on RANS and LES at same time");
     }
 
     if (LES && !viscous)
         FatalError("LES not supported with inviscid flow");
-
-    if (LES && turb_model)
-        FatalError("Cannot turn on RANS and LES at same time");
 
     // --------------------------
     // SETTING UP RK COEFFICIENTS
@@ -579,7 +553,7 @@ void input::setup_params(int rank)
         RK_c(4) = 2802321613138.0/2924317926251.0;
     }
     else
-    FatalError("Time advancement scheme not implemented yet!");
+        FatalError("Time advancement scheme not implemented yet!");
 
     if(viscous)
     {
@@ -590,13 +564,20 @@ void input::setup_params(int rank)
                  
         if(ic_form == 0)
         {
-
             fix_vis  = 1.;
             R_ref     = 1.;
             c_sth     = 1.;
             rt_inf    = 1.;
             mu_inf    = 0.1;
 
+            if (rank == 0)
+            {
+                cout << "Using Isentropic vortex initial condition." << endl;
+                cout << "R_ref: " << R_ref << endl;
+                cout << "c_sth: " << c_sth << endl;
+                cout << "rt_inf: " << rt_inf << endl;
+                cout << "mu_inf: " << mu_inf << endl;
+            }
         }
         else     // Any other type of initial condition
         {
@@ -606,20 +587,9 @@ void input::setup_params(int rank)
             T_ref = T_free_stream;
             L_ref = L_free_stream;
 
-            // Compute the reference velocity from the "freestream Mach number"
+            // Compute the reference velocity from the mach_free_stream
 
-            uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream); //set to 347.128m/s
-
-            // Set either a fixed value for the viscosity or a value from Sutherland's law
-
-//            if(fix_vis)
-//            {
-//                mu_free_stream = mu_gas;
-//            }
-//            else
-//            {
-//                mu_free_stream = mu_gas*pow(T_free_stream/T_gas, 1.5)*( (T_gas + S_gas)/(T_free_stream + S_gas));//for free_stream
-//            }
+            uvw_ref = Mach_free_stream*sqrt(gamma*R_gas*T_free_stream);
 
             // set the corresponding density from the input file.
 
@@ -650,7 +620,6 @@ void input::setup_params(int rank)
 
             // non-dimensionalize sutherland law parameters
             c_sth     = S_gas/T_gas;
-
             mu_inf    = mu_gas/mu_ref;//non-dimensionalized mu_gas for sutherland law
             rt_inf    = T_gas*R_gas/(uvw_ref*uvw_ref);
 
@@ -774,10 +743,15 @@ void input::setup_params(int rank)
             // Master node outputs information about the I.C.s to the console
             if (rank==0)
             {
-                cout << "uvw_ref: " << uvw_ref << " m/s"<< endl;
-                cout << "rho_ref: " << rho_ref << " kg/m^3"<< endl;
-                cout << "p_ref: " << p_ref << " Pa"<< endl;
-                cout << "T_ref: " << T_ref << "k" << endl;
+                cout << "Reference Values" << endl;
+                cout << "uvw_ref: " << uvw_ref << " m/s" << endl;
+                cout << "rho_ref: " << rho_ref << " kg/m^3" << endl;
+                cout << "p_ref: " << p_ref << " Pa" << endl;
+                cout << "T_ref: " << T_ref << " k" << endl;
+                cout << "L_ref: " << L_ref << " m" << endl;
+                cout << "time: " << time_ref << " sec" << endl;
+                cout << "mu_ref: " << mu_ref << " kg/(m*s)" << endl;
+                cout << "Initial Values" << endl;
                 cout << "rho_c_ic=" << rho_c_ic << endl;
                 cout << "u_c_ic=" << u_c_ic << endl;
                 cout << "v_c_ic=" << v_c_ic << endl;
@@ -785,22 +759,27 @@ void input::setup_params(int rank)
                 cout << "p_c_ic=" << p_c_ic << endl;
                 cout << "T_c_ic=" << T_c_ic << endl;
                 cout << "mu_c_ic=" << mu_c_ic << endl;
-                cout << "Boundary Conditions: " << "Sub_In_Simp: " << Sub_In_Simp << Sub_In_Simp2 << " ; Sub_In_Char: " << Sub_In_char <<" ; Sub_Out: " << Sub_Out << " ; Sup_In: " << Sup_In << Sup_In2 << Sup_In3 << " ; Far_Field: " << Far_Field <<endl;
-                if(Pressure_Ramp)
+                cout << "Boundary Conditions" << endl;
+                cout << "Sub_In_Simp: " << Sub_In_Simp << " " << Sub_In_Simp2 << endl;
+                cout << "Sub_In_Char: " << Sub_In_char << endl;
+                if (Pressure_Ramp)
                 {
                     cout << "Pressure Ramp On" << endl;
-                    cout << "Pressure Ramping From " << P_Total_Old << " Pa to "<< P_Total_Nozzle << " Pa" << endl;
+                    cout << "Pressure Ramping From " << P_Total_Old << " Pa to " << P_Total_Nozzle << " Pa" << endl;
                     cout << "Pressure Ramp Rate=" << P_Ramp_Coeff << endl;
-                    if (T_Ramp_Coeff==-1)
+                    if (T_Ramp_Coeff == -1)
                     {
-                        cout<<"Isentropic Temperature"<<endl;
+                        cout << "Isentropic Temperature" << endl;
                     }
                     else
                     {
-                        cout << "Temperature Ramping From " << T_Total_Old << " k to "<< T_Total_Nozzle << " k" << endl;
+                        cout << "Temperature Ramping From " << T_Total_Old << " k to " << T_Total_Nozzle << " k" << endl;
                         cout << "Temperature Ramp Rate=" << T_Ramp_Coeff << endl;
                     }
                 }
+                cout << "Sub_Out: " << Sub_Out << endl;
+                cout << "Sup_In: " << Sup_In << Sup_In2 << Sup_In3 << endl;
+                cout << "Far_Field: " << Far_Field << endl;
             }
         }
     }

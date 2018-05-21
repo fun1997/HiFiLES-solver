@@ -43,11 +43,6 @@ void displayMatrix(hf_array<T> matrix) {
 mesh::mesh(void)
 {
   start = true;
-  n_eles = 0;
-  n_verts = 0;
-  n_dims = 2;
-  n_verts_global = 0;
-  n_cells_global = 0;
   n_bnds = 0;
   n_faces = 0;
   LinSolIters = 0;
@@ -102,41 +97,39 @@ mesh::~mesh(void)
   // not currently needed
 }
 
-void mesh::setup(struct solution *in_FlowSol,hf_array<double> &in_xv,hf_array<int> &in_c2v,hf_array<int> &in_c2n_v,hf_array<int> &in_iv2ivg,hf_array<int> &in_ctype)
+void mesh::setup(struct solution *in_FlowSol,hf_array<double> &in_xv,hf_array<int> &in_c2v,hf_array<int> &in_c2n_v,hf_array<int> &in_iv2ivg,hf_array<int> &in_ctype,hf_array<int> &in_ic2icg)
 {
+  //store basic mesh parameters
   FlowSol = in_FlowSol;
   n_dims = FlowSol->n_dims;
   n_eles = FlowSol->num_eles;
   n_verts = FlowSol->num_verts;
   n_cells_global = FlowSol->num_cells_global;
-
-  // Setup for 4th-order backward difference
-  xv.setup(5);
-  xv(0) = in_xv;
-  xv(1) = in_xv;
-  xv(2) = in_xv;
-  xv(3) = in_xv;
-  xv(4) = in_xv;
-
   xv_0 = in_xv;
-
   c2v = in_c2v;
   c2n_v = in_c2n_v;
   iv2ivg = in_iv2ivg;
   ctype = in_ctype;
-
-  vel_old.setup(in_xv.get_dim(0),n_dims);
-  vel_new.setup(in_xv.get_dim(0),n_dims);
-  vel_old.initialize_to_zero();
-  vel_new.initialize_to_zero();
-//  grid_vel.setup(2);
-//  grid_vel(0).setup(xv.get_dim(0),Mesh.n_dims);
-//  grid_vel(1).setup(xv.get_dim(0),Mesh.n_dims);
-//  grid_vel(0).initialize_to_zero();
-//  grid_vel(1).initialize_to_zero();
-  RK_a = run_input.RK_a;
-  RK_b = run_input.RK_b;
-  RK_c = run_input.RK_c;
+  ic2icg=in_ic2icg;
+  if (run_input.motion != STATIC_MESH)
+  {
+    // Setup for 4th-order backward difference
+    xv.setup(5);
+    xv(0) = in_xv;
+    xv(1) = in_xv;
+    xv(2) = in_xv;
+    xv(3) = in_xv;
+    xv(4) = in_xv;
+    vel_old.setup(in_xv.get_dim(0), n_dims);
+    vel_new.setup(in_xv.get_dim(0), n_dims);
+    vel_old.initialize_to_zero();
+    vel_new.initialize_to_zero();
+    //  grid_vel.setup(2);
+    //  grid_vel(0).setup(xv.get_dim(0),Mesh.n_dims);
+    //  grid_vel(1).setup(xv.get_dim(0),Mesh.n_dims);
+    //  grid_vel(0).initialize_to_zero();
+    //  grid_vel(1).initialize_to_zero();
+  }
 }
 
 void mesh::move(int _iter, int in_rk_step, solution *FlowSol) {

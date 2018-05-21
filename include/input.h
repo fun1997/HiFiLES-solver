@@ -45,15 +45,6 @@ public:
 
     // #### methods ####
 
-
-    void set_vcjh_scheme_tri(int in_vcjh_scheme_tri);
-    void set_vcjh_scheme_hexa(int in_vcjh_scheme_hexa);
-    void set_vcjh_scheme_pri_1d(int in_vcjh_scheme_pri_1d);
-
-    void set_order(int in_order);
-    void set_c(double in_c_tri, double in_c_quad);
-    void set_dt(double in_dt);
-
     /*! Load input file & prepare all simulation parameters */
     void setup(char *fileNameC, int rank);
 
@@ -65,42 +56,46 @@ public:
 
     // #### members ####
 
-    double gamma;
-
+    /*--- basic solver parameters ---*/
     int viscous;
     int equation;
-
-    int n_diagnostic_fields;
-    hf_array<string> diagnostic_fields;
-    int n_average_fields;
-    hf_array<string> average_fields;
-    int n_integral_quantities;
-    hf_array<string> integral_quantities;
-
-    double prandtl;
-
     double tau;
     double pen_fact;
     double fix_vis;
-    double diff_coeff;
     double const_src;
-
     int order;
-    int inters_cub_order;
-    int volume_cub_order;
-
     int test_case;
-    hf_array<double> wave_speed;
-    double lambda;
 
+    //parameters for time-stepping
+    double time, rk_time;
+    hf_array<double> RK_a, RK_b, RK_c;
     double dt;
     int dt_type;
     double CFL;
+    
     int n_steps;
-    int plot_freq;
     string data_file_name;
     int restart_dump_freq;
     int adv_type;
+    int riemann_solve_type;
+    int vis_riemann_solve_type;
+    int ic_form;
+
+    //wave equation
+    hf_array<double> wave_speed;
+    double lambda;
+    double diff_coeff;
+
+    //gas parameter
+    double gamma;
+    double prandtl;
+    double S_gas;
+    double T_gas;
+    double R_gas;
+    double mu_gas;
+    double c_sth;
+    double mu_inf;
+    double rt_inf;
 
     /* ---LES options --- */
     int LES;
@@ -110,25 +105,15 @@ public:
     int wall_model;
     double wall_layer_t;
 
-    /* --- output options --- */
-    double spinup_time;
-    int monitor_res_freq;
-    int calc_force;
-    int monitor_cp_freq;
-    int res_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
-    int error_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
-    int res_norm_field;
-    int probe;
-    string probe_file_name;
-    /* -------------------------------- */
-
     /* ------- restart options -------- */
     int restart_flag;
     int restart_iter;
     int n_restart_files;
     int restart_mesh_out; // Print out separate restart file with X,Y,Z of all sol'n points?
-    /* -------------------------------- */
-    int ic_form;
+
+    /*--- mesh parameters ---*/
+    int mesh_format;
+    string mesh_file;
 
     /* --- Mesh deformation options --- */
     int n_moving_bnds, motion;
@@ -139,35 +124,35 @@ public:
     hf_array<string> boundary_flags;
     hf_array<hf_array<double> > bound_vel_simple;
     hf_array<int> motion_type;
-    /* -------------------------------- */
 
     /* --- Shock Capturing options --- */
     int artif_type, ArtifOn;
     double s0;
     double con_fact,con_exp;
-    /* -------------------------------- */
 
-    // boundary_conditions
-    double p_bound;
-    hf_array<double> v_bound_Sub_In_Simp;
-    hf_array<double> v_bound_Sup_In;
-    hf_array<double> v_bound_Sub_In_Simp2;
-    hf_array<double> v_bound_Sup_In2;
-    hf_array<double> v_bound_Sup_In3;
-    hf_array<double> v_bound_Far_Field;
-    int mesh_format;
-    string mesh_file;
-
-//cyclic interfaces
-    double dx_cyclic;
-    double dy_cyclic;
-    double dz_cyclic;
-
-//moniter parameters
+    /*--- moniter and output ---*/
     int p_res;
     int write_type;
+    int plot_freq;
+    int n_diagnostic_fields;
+    hf_array<string> diagnostic_fields;
+    int n_average_fields;
+    hf_array<string> average_fields;
+    int n_integral_quantities;
+    hf_array<string> integral_quantities;
+    double spinup_time;
+    int monitor_res_freq;
+    int calc_force;
+    int monitor_cp_freq;
+    int res_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
+    int error_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
+    int res_norm_field;
+    int probe;
+    string probe_file_name;
+    int inters_cub_order;
+    int volume_cub_order;
 
-//flux reconstruction parameters
+    /*--- flux reconstruction parameters ---*/
     int upts_type_tri;
     int fpts_type_tri;
     int vcjh_scheme_tri;
@@ -198,22 +183,21 @@ public:
     double eta_pri;
     int sparse_pri;
 
-    int riemann_solve_type;
-    int vis_riemann_solve_type;
+    /*---- boundary_conditions ---- */
+    double p_bound;
+    hf_array<double> v_bound_Sub_In_Simp;
+    hf_array<double> v_bound_Sup_In;
+    hf_array<double> v_bound_Sub_In_Simp2;
+    hf_array<double> v_bound_Sup_In2;
+    hf_array<double> v_bound_Sup_In3;
+    hf_array<double> v_bound_Far_Field;
 
-    //new
-    double S_gas;
-    double T_gas;
-    double R_gas;
-    double mu_gas;
+    //cyclic interfaces
+    double dx_cyclic;
+    double dy_cyclic;
+    double dz_cyclic;
 
-    double c_sth;
-    double mu_inf;
-    double rt_inf;
-
-    /* --- boundary conditions2 ----*/
-
-//Sub_In_Simp
+    //Sub_In_Simp
     int Sub_In_Simp;
     double Mach_Sub_In_Simp;
     double Rho_Sub_In_Simp;
@@ -221,7 +205,7 @@ public:
     double nx_sub_in_simp;
     double ny_sub_in_simp;
     double nz_sub_in_simp;
-//Sub_In_Simp2
+    //Sub_In_Simp2
     int Sub_In_Simp2;
     double Mach_Sub_In_Simp2;
     double Rho_Sub_In_Simp2;
@@ -229,7 +213,7 @@ public:
     double nx_sub_in_simp2;
     double ny_sub_in_simp2;
     double nz_sub_in_simp2;
-//Sub_In_Char
+    //Sub_In_Char
     int Sub_In_char;
     double P_Total_Nozzle;
     double T_Total_Nozzle;
@@ -246,13 +230,13 @@ public:
     double P_Total_Old_Bound;
     double T_Total_Old_Bound;
     int ramp_counter;
-//Sub_Out
+    //Sub_Out
     int Sub_Out;
     double P_Sub_Out;
     double p_bound_Sub_Out;
     double T_total_Sub_Out;
     double T_total_Sub_Out_bound;
-//Sup_In
+    //Sup_In
     int Sup_In;
     double Rho_Sup_In;
     double P_Sup_In;
@@ -263,7 +247,7 @@ public:
     double ny_sup_in;
     double nz_sup_in;
     double T_sup_in;
-//Sup_In2
+    //Sup_In2
     int Sup_In2;
     double Rho_Sup_In2;
     double P_Sup_In2;
@@ -285,7 +269,7 @@ public:
     double ny_sup_in3;
     double nz_sup_in3;
     double T_sup_in3;
-//Far_Field
+    //Far_Field
     int Far_Field;
     double Rho_Far_Field;
     double P_Far_Field;
@@ -297,7 +281,7 @@ public:
     double nz_far_field;
     double T_far_field;
 
-//public values
+    //public values
     double Mach_free_stream;
     double rho_free_stream;
     double L_free_stream;
@@ -306,17 +290,7 @@ public:
     double v_free_stream;
     double w_free_stream;
     double mu_free_stream;
-
-//reference values
-    double T_ref;
-    double L_ref;
-    double R_ref;
-    double uvw_ref;
-    double rho_ref;
-    double p_ref;
-    double mu_ref;
-    double time_ref;
-
+    //wall
     double Mach_wall;
     double nx_wall;
     double ny_wall;
@@ -325,6 +299,16 @@ public:
     hf_array<double> v_wall;
     double uvw_wall;
     double T_wall;
+
+    /*--- reference values ---*/
+    double T_ref;
+    double L_ref;
+    double R_ref;
+    double uvw_ref;
+    double rho_ref;
+    double p_ref;
+    double mu_ref;
+    double time_ref;
 
     /* --- Initial Conditions ---*/
     double Mach_c_ic;
@@ -348,6 +332,7 @@ public:
     int patch_freq;
     double Mv,ra,rb,xc,yc;
     double patch_x;
+
     /* --- SA turblence model parameters ---*/
     int turb_model;
     double c_v1;
@@ -371,10 +356,6 @@ public:
     hf_array<double> y_coeffs;
     hf_array<double> z_coeffs;
     int perturb_ic;
-
-    double time, rk_time;
-  /*! constansts for RK time-stepping */
-  hf_array<double> RK_a, RK_b, RK_c;
 };
 
 /*! \class fileReader
