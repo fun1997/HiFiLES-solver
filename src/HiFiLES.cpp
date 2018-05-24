@@ -108,7 +108,6 @@ int main(int argc, char *argv[]) {
   if(run_input.probe)//for no motion only
           run_probe.setup(run_input.probe_file_name,&FlowSol,rank);
 
-    init_time = clock();
   /////////////////////////////////////////////////
   /// Pre-processing
   /////////////////////////////////////////////////
@@ -153,12 +152,16 @@ int main(int argc, char *argv[]) {
   /// Flow solver
   /////////////////////////////////////////////////
 
+  init_time = clock();
+  
   /*! Main solver loop (outer loop). */
 
   while(i_steps < FlowSol.n_steps) {
 
     if (FlowSol.adv_type == 0) RKSteps = 1;
-    if (FlowSol.adv_type == 3) RKSteps = 5;
+    else if (FlowSol.adv_type==1||FlowSol.adv_type==2) RKSteps=4;
+    else if (FlowSol.adv_type == 3) RKSteps = 5;
+    else if (FlowSol.adv_type == 4) RKSteps = 14;
 
     for(i=0; i < RKSteps; i++) {
 

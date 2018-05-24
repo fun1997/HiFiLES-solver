@@ -50,6 +50,272 @@ extern "C"
 
 using namespace std;
 
+// #### BLAS functions ####
+
+/*! Routine to multiply matrices similar to BLAS's dgemm */
+int dgemm(int Arows, int Bcols, int Acols, double alpha, double beta, double *a, double *b, double *c)
+{
+  /* Routine similar to blas dgemm but does not allow for transposes.
+
+     Performs C := alpha*A*B + beta*C
+
+     Just as an alternative to the BLAS routines in case a standalone implementation is required
+
+     Arows - No. of rows of matrices A and C
+     Bcols - No. of columns of matrices B and C
+     Acols - No. of columns of A or No. of rows of B
+  */
+
+#define A(I, J) a[(I) + (J)*Arows]
+#define B(I, J) b[(I) + (J)*Acols]
+#define C(I, J) c[(I) + (J)*Arows]
+
+  int i, j, l;
+  double temp;
+
+  // Quick return if possible
+  if (Arows == 0 || Bcols == 0 || ((alpha == 0. || Acols == 0) && beta == 1.))
+  {
+    return 0;
+  }
+
+  // If alpha is zero.
+
+  if (alpha == 0.)
+  {
+    if (beta == 0.)
+    {
+      for (j = 0; j < Bcols; j++)
+        for (i = 0; i < Arows; i++)
+          C(i, j) = 0.;
+    }
+
+    else
+    {
+      for (j = 0; j < Bcols; j++)
+        for (i = 0; i < Arows; i++)
+          C(i, j) = beta * C(i, j);
+    }
+    return 0;
+  }
+
+  // Otherwise, perform full operation
+  for (j = 0; j < Bcols; j++)
+  {
+
+    if (beta == 0.)
+    {
+      for (i = 0; i < Arows; i++)
+        C(i, j) = 0.;
+    }
+
+    else if (beta != 1.)
+    {
+      for (i = 0; i < Arows; i++)
+        C(i, j) = beta * C(i, j);
+    }
+
+    for (l = 0; l < Acols; l++)
+    {
+      temp = alpha * B(l, j);
+
+      for (i = 0; i < Arows; i++)
+        C(i, j) += temp * A(i, l);
+    }
+  }
+
+  return 0;
+#undef A
+#undef B
+#undef C
+}
+
+/*! wrapper function to compute alpha*x + y for vectors x and y */
+int daxpy_wrapper(int n, double alpha, double *x, int incx, double *y, int incy)
+{
+    daxpy_(&n, &alpha, x, &incx, y, &incy);
+    return 0;
+}
+int daxpy_(int *n, double *da, double *dx, int *incx, double *dy, int *incy)
+{
+
+    /* System generated locals */
+    int i__1;
+
+    /* Local variables */
+    static int i, m, ix, iy, mp1;
+
+/*     constant times a vector plus a vector.   
+       uses unrolled loops for increments equal to one.   
+       jack dongarra, linpack, 3/11/78.   
+       modified 12/3/93, array(1) declarations changed to array(*)   
+
+
+    
+   Parameter adjustments   
+       Function Body */
+#define DY(I) dy[(I)-1]
+#define DX(I) dx[(I)-1]
+
+    if (*n <= 0)
+    {
+        return 0;
+    }
+    if (*da == 0.)
+    {
+        return 0;
+    }
+    if (*incx == 1 && *incy == 1)
+    {
+        goto L20;
+    }
+
+    /*        code for unequal increments or equal increments   
+            not equal to 1 */
+
+    ix = 1;
+    iy = 1;
+    if (*incx < 0)
+    {
+        ix = (-(*n) + 1) * *incx + 1;
+    }
+    if (*incy < 0)
+    {
+        iy = (-(*n) + 1) * *incy + 1;
+    }
+    i__1 = *n;
+    for (i = 1; i <= *n; ++i)
+    {
+        DY(iy) += *da * DX(ix);
+        ix += *incx;
+        iy += *incy;
+        /* L10: */
+    }
+    return 0;
+
+    /*        code for both increments equal to 1   
+
+
+          clean-up loop */
+
+L20:
+    m = *n % 4;
+    if (m == 0)
+    {
+        goto L40;
+    }
+    i__1 = m;
+    for (i = 1; i <= m; ++i)
+    {
+        DY(i) += *da * DX(i);
+        /* L30: */
+    }
+    if (*n < 4)
+    {
+        return 0;
+    }
+L40:
+    mp1 = m + 1;
+    i__1 = *n;
+    for (i = mp1; i <= *n; i += 4)
+    {
+        DY(i) += *da * DX(i);
+        DY(i + 1) += *da * DX(i + 1);
+        DY(i + 2) += *da * DX(i + 2);
+        DY(i + 3) += *da * DX(i + 3);
+        /* L50: */
+    }
+    return 0;
+    #undef DX
+    #undef DY
+} /* daxpy_ */
+
+//wrapper function to perform vector scales by scalar
+int dscal_wrapper(int n, double alpha, double *x, int incx)
+{
+    dscal_(&n, &alpha, x, &incx);
+    return 0;
+}
+int dscal_(int *n, double *da, double *dx, int *incx)
+{
+
+  /* System generated locals */
+  int i__1, i__2;
+
+  /* Local variables */
+  static int i, m, nincx, mp1;
+
+/*     scales a vector by a constant.   
+       uses unrolled loops for increment equal to one.   
+       jack dongarra, linpack, 3/11/78.   
+       modified 3/93 to return if incx .le. 0.   
+       modified 12/3/93, array(1) declarations changed to array(*)   
+
+
+    
+   Parameter adjustments   
+       Function Body */
+#define DX(I) dx[(I)-1]
+
+  if (*n <= 0 || *incx <= 0)
+  {
+    return 0;
+  }
+  if (*incx == 1)
+  {
+    goto L20;
+  }
+
+  /*        code for increment not equal to 1 */
+
+  nincx = *n * *incx;
+  i__1 = nincx;
+  i__2 = *incx;
+  for (i = 1; *incx < 0 ? i >= nincx : i <= nincx; i += *incx)
+  {
+    DX(i) = *da * DX(i);
+    /* L10: */
+  }
+  return 0;
+
+  /*        code for increment equal to 1   
+
+
+          clean-up loop */
+
+L20:
+  m = *n % 5;
+  if (m == 0)
+  {
+    goto L40;
+  }
+  i__2 = m;
+  for (i = 1; i <= m; ++i)
+  {
+    DX(i) = *da * DX(i);
+    /* L30: */
+  }
+  if (*n < 5)
+  {
+    return 0;
+  }
+L40:
+  mp1 = m + 1;
+  i__2 = *n;
+  for (i = mp1; i <= *n; i += 5)
+  {
+    DX(i) = *da * DX(i);
+    DX(i + 1) = *da * DX(i + 1);
+    DX(i + 2) = *da * DX(i + 2);
+    DX(i + 3) = *da * DX(i + 3);
+    DX(i + 4) = *da * DX(i + 4);
+    /* L50: */
+  }
+  return 0;
+#undef DX
+} /* dscal_ */
+
+
 // #### global functions ####
 
 // evaluate lagrange basis

@@ -116,19 +116,12 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         // Initialize the element specific static members
         (*this).setup_ele_type_specific();
 
-        if(run_input.adv_type==0)
+        if(run_input.adv_type==0)//Euler
         {
             n_adv_levels=1;
         }
-        else if(run_input.adv_type==1)
-        {
-            n_adv_levels=3;
-        }
-        else if(run_input.adv_type==2)
-        {
-            n_adv_levels=4;
-        }
-        else if(run_input.adv_type==3)
+
+        else if(run_input.adv_type==1||run_input.adv_type==2||run_input.adv_type==3||run_input.adv_type==4)//SSP-RK24/SSP-RK34/RK45/SSP-RK414
         {
             n_adv_levels=2;
         }
@@ -301,14 +294,14 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         n_fields_mul_n_eles=n_fields*n_eles;
         n_dims_mul_n_upts_per_ele=n_dims*n_upts_per_ele;
 
-        div_tconf_upts.setup(n_adv_levels);
-        for(int i=0; i<n_adv_levels; i++)
+        div_tconf_upts.setup(1);
+        for(int i=0; i<1; i++)
         {
             div_tconf_upts(i).setup(n_upts_per_ele,n_eles,n_fields);
         }
 
         // Initialize to zero
-        for (int m=0; m<n_adv_levels; m++)
+        for (int m=0; m<1; m++)
             div_tconf_upts(m).initialize_to_zero();
 
         disu_fpts.setup(n_fpts_per_ele,n_eles,n_fields);
@@ -984,10 +977,7 @@ void eles::mv_all_cpu_gpu(void)
         src_upts.cp_cpu_gpu();
 
         for(int i=1; i<n_adv_levels; i++)
-        {
             disu_upts(i).cp_cpu_gpu();
-            div_tconf_upts(i).mv_cpu_gpu();
-        }
 
         disu_fpts.mv_cpu_gpu();
         tdisf_upts.mv_cpu_gpu();
@@ -1210,12 +1200,14 @@ void eles::AdvanceSolution(int in_step, int adv_type)
 
     if (n_eles!=0)
     {
+        int i, ic, inp;
+        double rhs;
 
-        /*! Time integration using a forwards Euler integration. */
-
+        /*! Time integration using a forwards Euler integration. */        
+      
         if (adv_type == 0)
-        {
-            
+        {  
+
             /*!
              Performs B = B + (alpha*A) where: \n
              alpha = -run_input.dt \n
@@ -1224,16 +1216,16 @@ void eles::AdvanceSolution(int in_step, int adv_type)
              */
 #ifdef _CPU
 
-            for (int i=0; i<n_fields; i++)
+            for (i=0; i<n_fields; i++)
             {
-                for (int ic=0; ic<n_eles; ic++)
+                for (ic=0; ic<n_eles; ic++)
                 {
-                    double dt_temp;
-                    if (run_input.dt_type == 2) dt_temp=dt_local(ic);
-                    else dt_temp=run_input.dt;
-                    for (int inp=0; inp<n_upts_per_ele; inp++)
+                    for(inp=0; inp<n_upts_per_ele; inp++)
                     {
-                        disu_upts(0)(inp,ic,i) -= dt_temp*(div_tconf_upts(0)(inp,ic,i)/detjac_upts(inp,ic) - run_input.const_src - src_upts(inp,ic,i));
+                        if (run_input.dt_type == 2)//local time step
+                            disu_upts(0)(inp, ic, i) -= dt_local(ic) * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                        else//global time step
+                            disu_upts(0)(inp, ic, i) -= run_input.dt * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
                     }
                 }
             }
@@ -1241,33 +1233,50 @@ void eles::AdvanceSolution(int in_step, int adv_type)
 #endif
 
 #ifdef _GPU
-            FatalError("GPU version unavailable!");
-            RK11_update_kernel_wrapper(n_upts_per_ele,n_dims,n_fields,n_eles,disu_upts(0).get_ptr_gpu(),div_tconf_upts(0).get_ptr_gpu(),detjac_upts.get_ptr_gpu(),src_upts.get_ptr_gpu(),h_ref.get_ptr_gpu(),run_input.dt,run_input.const_src,run_input.CFL,run_input.gamma,run_input.mu_inf,run_input.order,viscous,run_input.dt_type);
+            FatalError("GPU version of Euler method unavailable!");
+            //RK11_update_kernel_wrapper(n_upts_per_ele,n_dims,n_fields,n_eles,disu_upts(0).get_ptr_gpu(),div_tconf_upts(0).get_ptr_gpu(),detjac_upts.get_ptr_gpu(),src_upts.get_ptr_gpu(),h_ref.get_ptr_gpu(),run_input.dt,run_input.const_src,run_input.CFL,run_input.gamma,run_input.mu_inf,run_input.order,viscous,run_input.dt_type);
 #endif
-
         }
 
-        /*! Time integration using a RK45(2N) method. */
-
-        else if (adv_type == 3)
+        /*! Time integration using a SSP-RK24(2N) method. */
+        else if (adv_type==1)
         {
-
 #ifdef _CPU
 
-            double res, rhs;
-            for (int ic=0; ic<n_eles; ic++)
+            if (in_step == 0)
+                disu_upts(1) = disu_upts(0); //copy solution to register 2
+            if (in_step < 3) //first 3 stages
             {
-                double dt_temp;
-                if (run_input.dt_type == 2) dt_temp=dt_local(ic);
-                else dt_temp=run_input.dt;
-                for (int i=0; i<n_fields; i++)
+                //u=u+(-dt/3*F)
+                for (i = 0; i < n_fields; i++)
                 {
-                    for (int inp=0; inp<n_upts_per_ele; inp++)
+                    for (ic = 0; ic < n_eles; ic++)
                     {
-                        rhs = -div_tconf_upts(0)(inp,ic,i)/detjac_upts(inp,ic) + run_input.const_src + src_upts(inp,ic,i);//function
-
-                        disu_upts(1)(inp,ic,i) = run_input.RK_a(in_step)*disu_upts(1)(inp,ic,i) + dt_temp*rhs;//new delta x
-                        disu_upts(0)(inp,ic,i) += run_input.RK_b(in_step)*disu_upts(1)(inp,ic,i);//new x
+                        for (inp = 0; inp < n_upts_per_ele; inp++)
+                        {
+                            if (run_input.dt_type == 2)//local time step
+                                disu_upts(0)(inp, ic, i) -= dt_local(ic) / 3.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                            else//global time step
+                                disu_upts(0)(inp, ic, i) -= run_input.dt / 3.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                        }
+                    }
+                }
+            }
+            else //the last stage
+            {
+                //u=3/4*u+u1/4+(-dt/4*F)
+                for (i = 0; i < n_fields; i++)
+                {
+                    for (ic = 0; ic < n_eles; ic++)
+                    {
+                        for (inp = 0; inp < n_upts_per_ele; inp++)
+                        {
+                            rhs = -div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) + run_input.const_src + src_upts(inp, ic, i); //function
+                            if (run_input.dt_type == 2)//local time steo
+                                disu_upts(0)(inp, ic, i) = 3.0 / 4.0 * disu_upts(0)(inp, ic, i) + 1.0 / 4.0 * disu_upts(1)(inp, ic, i) + dt_local(ic) / 4.0 * rhs;
+                            else//global time step
+                                disu_upts(0)(inp, ic, i)= 3.0 / 4.0 * disu_upts(0)(inp, ic, i) + 1.0 / 4.0 * disu_upts(1)(inp, ic, i) + run_input.dt / 4.0 * rhs;
+                        }
                     }
                 }
             }
@@ -1275,10 +1284,87 @@ void eles::AdvanceSolution(int in_step, int adv_type)
 #endif
 
 #ifdef _GPU
+            FatalError("GPU version of SSP-RK24 unavailable!");
+#endif
+        }
 
-            FatalError("GPU version unavailable!");
-            RK45_update_kernel_wrapper(n_upts_per_ele,n_dims,n_fields,n_eles,disu_upts(0).get_ptr_gpu(),disu_upts(1).get_ptr_gpu(),div_tconf_upts(0).get_ptr_gpu(),detjac_upts.get_ptr_gpu(),src_upts.get_ptr_gpu(),h_ref.get_ptr_gpu(),rk4a,rk4b,run_input.dt,run_input.const_src,run_input.CFL,run_input.gamma,run_input.mu_inf,run_input.order,viscous,run_input.dt_type,in_step);
+        /*! Time integration using a RK34(2N) method. */
+        else if (adv_type == 2)
+        {
+#ifdef _CPU
 
+            if (in_step == 0)//first stage only
+                disu_upts(1) = disu_upts(0); //copy to register 2
+            if (in_step < 2||in_step==3)//stage 1 && 2 && 4
+            {
+                //u=u+(-dt/2*F)
+                for (i = 0; i < n_fields; i++)
+                {
+                    for (ic = 0; ic < n_eles; ic++)
+                    {
+                        for (inp = 0; inp < n_upts_per_ele; inp++)
+                        {
+                            if (run_input.dt_type == 2)//local time step
+                                disu_upts(0)(inp, ic, i) -= dt_local(ic) / 2.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                            else//global time step
+                                disu_upts(0)(inp, ic, i) -= run_input.dt / 2.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                        }
+                    }
+                }
+            }
+            else if (in_step == 2) //stage 3
+            {
+                //u=1/3*u+2/3*u1+(-dt/6*F)
+                for (i = 0; i < n_fields; i++)
+                {
+                    for (ic = 0; ic < n_eles; ic++)
+                    {
+                        for (inp = 0; inp < n_upts_per_ele; inp++)
+                        {
+                            rhs = -div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) + run_input.const_src + src_upts(inp, ic, i); //function
+                            if (run_input.dt_type == 2)//local time step
+                                disu_upts(0)(inp, ic, i) = 1.0 / 3.0 * disu_upts(0)(inp, ic, i) + 2.0 / 3.0 * disu_upts(1)(inp, ic, i) + dt_local(ic) / 6.0 * rhs;
+                            else//global time step
+                                disu_upts(0)(inp, ic, i) = 1.0 / 3.0 * disu_upts(0)(inp, ic, i) + 2.0 / 3.0 * disu_upts(1)(inp, ic, i) + run_input.dt / 6.0 * rhs;
+                        }
+                    }
+                }
+            }
+
+#endif
+
+#ifdef _GPU
+                    FatalError("GPU version of SSP-RK34 unavailable!");
+#endif
+        }
+        /*! Time integration using a RK45(2N)/RK414(2N) method. */
+
+        else if (adv_type == 3||adv_type == 4)
+        {
+#ifdef _CPU
+
+            for (i=0; i<n_fields; i++)
+            {
+                for (ic=0; ic<n_eles; ic++)
+                {
+                    for (inp=0; inp<n_upts_per_ele; inp++)
+                    {
+                        rhs = -div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) + run_input.const_src + src_upts(inp, ic, i); //function
+                        if (run_input.dt_type == 2)
+                            disu_upts(1)(inp, ic, i) = run_input.RK_a(in_step) * disu_upts(1)(inp, ic, i) + dt_local(ic) * rhs; //new delta x
+                        else
+                            disu_upts(1)(inp, ic, i) = run_input.RK_a(in_step) * disu_upts(1)(inp, ic, i) + run_input.dt * rhs; //new delta x
+
+                        disu_upts(0)(inp, ic, i) += run_input.RK_b(in_step) * disu_upts(1)(inp, ic, i); //new x
+                    }
+                }
+            }
+
+#endif
+
+#ifdef _GPU
+            FatalError("GPU version of RK45 unavailable!");
+            //RK45_update_kernel_wrapper(n_upts_per_ele,n_dims,n_fields,n_eles,disu_upts(0).get_ptr_gpu(),disu_upts(1).get_ptr_gpu(),div_tconf_upts(0).get_ptr_gpu(),detjac_upts.get_ptr_gpu(),src_upts.get_ptr_gpu(),h_ref.get_ptr_gpu(),rk4a,rk4b,run_input.dt,run_input.const_src,run_input.CFL,run_input.gamma,run_input.mu_inf,run_input.order,viscous,run_input.dt_type,in_step);
 #endif
 
         }
@@ -1286,12 +1372,9 @@ void eles::AdvanceSolution(int in_step, int adv_type)
         /*! Time integration not implemented. */
 
         else
-        {
-            cout << "ERROR: Time integration type not recognised ... " << endl;
-        }
-
+            FatalError("ERROR: Time integration type not recognised ... ");
     }
-
+    
 }
 
 double eles::calc_dt_local(int in_ele)
@@ -1758,7 +1841,7 @@ void eles::calculate_corrected_divergence(int in_div_tconf_upts_to)
 
 #elif defined _NO_BLAS
 
-        daxpy(n_eles*n_fields*n_fpts_per_ele,-1.0,norm_tdisf_fpts.get_ptr_cpu(),norm_tconf_fpts.get_ptr_cpu());
+        daxpy_wrapper(n_eles*n_fields*n_fpts_per_ele,-1.0,norm_tdisf_fpts.get_ptr_cpu(),1,norm_tconf_fpts.get_ptr_cpu(),1);
 
 #endif
 

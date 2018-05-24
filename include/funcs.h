@@ -33,6 +33,15 @@
 #include "cusparse_v2.h"
 #endif
 
+/*! routine that mimics BLAS dgemm, perform C= alpha*A*B + beta*C*/
+int dgemm(int Arows, int Bcols, int Acols, double alpha, double beta, double *a, double *b, double *c);
+/*! routine that mimics BLAS daxpy, perform Y=alpha*X+Y */
+int daxpy_wrapper(int n, double alpha, double *x, int incx, double *y, int incy);
+int daxpy_(int *n, double *da, double *dx, int *incx, double *dy, int *incy);
+/*! routine that mimics BLAS dscal,perform X=alpha*X */
+int dscal_wrapper(int n, double alpha, double *x, int incx);
+int dscal_(int *n, double *da, double *dx, int *incx);
+
 /*! evaluate lagrange basis */
 double eval_lagrange(double in_r, int in_mode, hf_array<double>& in_loc_pts);
 
