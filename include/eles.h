@@ -124,7 +124,7 @@ public:
   void extrapolate_totalFlux(void);
 
   /*! calculate subgrid-scale flux at flux points */
-  void evaluate_sgsFlux(void);
+  void extrapolate_sgsFlux(void);
 
   /*! calculate divergence of transformed continuous flux at solution points */
   void calculate_corrected_divergence(int in_div_tconf_upts_to);

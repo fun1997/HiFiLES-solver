@@ -164,12 +164,14 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         {
 
             sgsf_upts.setup(n_upts_per_ele,n_eles,n_fields,n_dims);
+            sgsf_upts.initialize_to_zero();
             sgsf_fpts.setup(n_fpts_per_ele,n_eles,n_fields,n_dims);
-
+            sgsf_fpts.initialize_to_zero();
             // SVV model requires filtered solution
             if(sgs_model==3 || sgs_model==2 || sgs_model==4)
             {
                 disuf_upts.setup(n_upts_per_ele,n_eles,n_fields);
+                disuf_upts.initialize_to_zero();
             }
             // allocate dummy hf_array for passing to GPU routine
             else
@@ -192,11 +194,11 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
                     Lu.setup(n_upts_per_ele,n_eles,6);
                     uu.setup(n_upts_per_ele,n_eles,6);
                 }
-
+                Lu.initialize_to_zero();
                 // Leonard tensor and velocity-energy product for energy SGS term
                 Le.setup(n_upts_per_ele,n_eles,n_dims);
                 ue.setup(n_upts_per_ele,n_eles,n_dims);
-
+                Le.initialize_to_zero();
             }
             // allocate dummy arrays
             else
@@ -305,8 +307,10 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             div_tconf_upts(m).initialize_to_zero();
 
         disu_fpts.setup(n_fpts_per_ele,n_eles,n_fields);
+        disu_fpts.initialize_to_zero();
         tdisf_upts.setup(n_upts_per_ele,n_eles,n_fields,n_dims);
         norm_tdisf_fpts.setup(n_fpts_per_ele,n_eles,n_fields);
+        norm_tdisf_fpts.initialize_to_zero();
         norm_tconf_fpts.setup(n_fpts_per_ele,n_eles,n_fields);
 
         if (motion && run_input.GCL)
@@ -343,6 +347,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             grad_disu_upts.setup(n_upts_per_ele,n_eles,n_fields,n_dims);
             grad_disu_upts.initialize_to_zero();
             grad_disu_fpts.setup(n_fpts_per_ele,n_eles,n_fields,n_dims);
+            grad_disu_fpts.initialize_to_zero();
         }
 
         if(run_input.ArtifOn)
@@ -2352,7 +2357,7 @@ void eles::calc_sgs_terms(int in_disu_upts_from)
             {
                 for(k=0; k<n_fields; k++)
                 {
-                    disuf_upts(i,j,k) = 0.0;
+                    disuf_upts(i,j,k) = 0.0;//initialize to 0
                     for(l=0; l<n_upts_per_ele; l++)
                     {
                         disuf_upts(i,j,k) += filter_upts(i,l)*disu_upts(in_disu_upts_from)(l,j,k);
@@ -2372,10 +2377,7 @@ void eles::calc_sgs_terms(int in_disu_upts_from)
 
         /*! If SVV model, copy filtered solution back to solution */
         if(sgs_model==3)
-            for(i=0; i<n_upts_per_ele; i++)
-                for(j=0; j<n_eles; j++)
-                    for(k=0; k<n_fields; k++)
-                        disu_upts(in_disu_upts_from)(i,j,k) = disuf_upts(i,j,k);
+            disu_upts(in_disu_upts_from) = disuf_upts;
 
         /*! If Similarity model, compute product terms and Leonard tensors */
         else if(sgs_model==2 || sgs_model==4)
@@ -2456,6 +2458,9 @@ void eles::calc_sgs_terms(int in_disu_upts_from)
 #else
 
             /*! slow matrix multiplication */
+            //initialize to 0
+            Lu.initialize_to_zero();
+            Le.initialize_to_zero();
             for(i=0; i<n_upts_per_ele; i++)
             {
                 for(j=0; j<n_eles; j++)
@@ -3684,7 +3689,7 @@ double eles::wallfn_br(double yplus, double A, double B, double E, double kappa)
 }
 
 /*! Calculate SGS flux at solution points */
-void eles::evaluate_sgsFlux(void)
+void eles::extrapolate_sgsFlux(void)
 {
     if (n_eles!=0)
     {

@@ -171,7 +171,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
       if (run_input.LES)
       {
         for(i=0; i<FlowSol->n_ele_types; i++)
-          FlowSol->mesh_eles(i)->evaluate_sgsFlux();
+          FlowSol->mesh_eles(i)->extrapolate_sgsFlux();
       }
 
 #ifdef _MPI
