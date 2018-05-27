@@ -33,7 +33,6 @@
 
 #if defined _MKL_BLAS
 #include "mkl.h"
-#include "mkl_spblas.h"
 #endif
 
 #if defined _STANDARD_BLAS

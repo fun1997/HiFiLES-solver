@@ -205,10 +205,12 @@ void write_tec(int in_file_num, struct solution* FlowSol)
 
           pos_ppts_temp.setup(n_ppts_per_ele,n_dims);
           disu_ppts_temp.setup(n_ppts_per_ele,n_fields);
+          disu_ppts_temp.initialize_to_zero();
           grad_disu_ppts_temp.setup(n_ppts_per_ele,n_fields,n_dims);
+          grad_disu_ppts_temp.initialize_to_zero();
           diag_ppts_temp.setup(n_ppts_per_ele,n_diag_fields);
           disu_average_ppts_temp.setup(n_ppts_per_ele,n_average_fields);
-
+          disu_average_ppts_temp.initialize_to_zero();
           /*! Temporary field for sensor hf_array at plot points */
           sensor_ppts_temp.setup(n_ppts_per_ele);
 
@@ -798,16 +800,17 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
 
           /*! Temporary solution hf_array at plot points */
           disu_ppts_temp.setup(n_points,n_fields);
-
+          disu_ppts_temp.initialize_to_zero();
           /*! Temporary hf_array of time averaged fields at the plot points */
           if(n_average_fields > 0) {
             disu_average_ppts_temp.setup(n_points,n_average_fields);
+            disu_average_ppts_temp.setup(n_points, n_average_fields);
           }
 
           if(n_diag_fields > 0) {
             /*! Temporary solution hf_array at plot points */
             grad_disu_ppts_temp.setup(n_points,n_fields,n_dims);
-
+            grad_disu_ppts_temp.initialize_to_zero();
             /*! Temporary diagnostic field hf_array at plot points */
             diag_ppts_temp.setup(n_points,n_diag_fields);
 
@@ -1116,6 +1119,7 @@ void write_probe(struct solution* FlowSol)
             //copy probe point property
             n_fields=FlowSol->mesh_eles(run_probe.p2t(i))->get_n_fields();//number of computing fields
             disu_probe_point_temp.setup(n_fields);
+            disu_probe_point_temp.initialize_to_zero();
             for (int j=0;j<n_dims;j++)
                 loc_probe_point_temp(j)=run_probe.loc_probe(j,i);
 

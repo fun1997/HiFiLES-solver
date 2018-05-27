@@ -358,43 +358,43 @@ then
   BLAS_LD=
 elif test "$with_BLAS" == "STANDARD"
 then
-    AC_CHECK_FILE([$with_BLAS_lib/libcblas.a],[have_BLAS="YES"],[have_BLAS="NO"]) 
+  AC_CHECK_FILES([$with_BLAS_lib/libcblas.a $with_BLAS_lib/libblas.a],[have_BLAS="YES"],[have_BLAS="NO"]) 
 	if test "$have_BLAS" != "NO"
 	then
-		BLAS_CXX="-I $with_BLAS_include -D_STANDARD_BLAS"
-        BLAS_LD="$with_BLAS_lib/libcblas.a"
-        BLAS_LDFLAGS=
-	fi
-	if test "$have_BLAS" == "NO"
-	then
-		AC_MSG_ERROR([BLAS linking requested but library file not found (libcblas.a).])
+		  BLAS_CXX="-I $with_BLAS_include -D_STANDARD_BLAS"
+      BLAS_LDFLAGS=
+      BLAS_LD="$with_BLAS_lib/libcblas.a $with_BLAS_lib/libblas.a -lgfortran"
+	else
+		AC_MSG_ERROR([BLAS linking requested but library file not found (libcblas.a libblas.a).])
 	fi
 elif test "$with_BLAS" == "ATLAS"
 then
     AC_CHECK_FILE([$with_BLAS_lib/libcblas.a],[have_BLAS="YES"],[have_BLAS="NO"]) 
-	if test "$have_BLAS" != "NO"
-	then
+	  if test "$have_BLAS" != "NO"
+	  then
 	    AC_CHECK_FILE([$with_BLAS_lib/libatlas.a],[have_BLAS="YES"],[have_BLAS="NO"]) 
-	fi
-	if test "$have_BLAS" != "NO"
-	then
+	  fi
+	  if test "$have_BLAS" != "NO"
+	  then
        	BLAS_CXX="-I $with_BLAS_include -D_STANDARD_BLAS"
         BLAS_LD="$with_BLAS_lib/libcblas.a $with_BLAS_lib/libatlas.a"
         BLAS_LDFLAGS=
-	else
+	  else
 		AC_MSG_ERROR([BLAS linking requested but library files not found (libcblas.a, libatlas.a).])
 	fi
 # needs more work here (not terribly familiar with our MKL usage)
 elif test "$with_BLAS" == "MKL"
 then
-    if test "$CXX" == "icpc"
-    then
-        BLAS_CXX="-mkl=parallel -D_MKL_BLAS"
-        BLAS_LD=
-        BLAS_INCLUDE=
+    AC_CHECK_FILES([$with_BLAS_lib/libmkl_intel_lp64.a $with_BLAS_lib/libmkl_sequential.a $with_BLAS_lib/libmkl_core.a],[have_BLAS="YES"],[have_BLAS="NO"]) 
+    if test "$have_BLAS" != "NO"
+	  then
+        BLAS_CXX="  -m64 -I $with_BLAS_include -D_MKL_BLAS"
+        BLAS_LD=" -Wl,--start-group $with_BLAS_lib/libmkl_intel_lp64.a $with_BLAS_lib/libmkl_sequential.a $with_BLAS_lib/libmkl_core.a -Wl,--end-group -lpthread -lm -ldl"
         BLAS_LDFLAGS=
+    else
+		AC_MSG_ERROR([MKL linking requested but library files not found.])
     fi
-elif [test "$with_BLAS" == "NO"] || [test "$with_BLAS" == "NO"]
+elif [test "$with_BLAS" == "NO"] || [test "$have_BLAS" == "NO"]
 then
     BLAS_CXX="-D_NO_BLAS"
     BLAS_LD=

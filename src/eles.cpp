@@ -33,7 +33,6 @@
 
 #if defined _MKL_BLAS
 #include "mkl.h"
-#include "mkl_spblas.h"
 #endif
 
 #if defined _STANDARD_BLAS
@@ -1243,7 +1242,12 @@ void eles::AdvanceSolution(int in_step, int adv_type)
 #endif
         }
 
-        /*! Time integration using a SSP-RK24(2N) method. */
+        /*!Time integration using a SSP-RK24(2N) method.
+        RK24/RK34
+        Ketcheson D I. 
+        Highly efficient strong stability-preserving 
+        Runge–Kutta methods with low-storage implementations
+        SIAM Journal on Scientific Computing, 2008*/
         else if (adv_type==1)
         {
 #ifdef _CPU
@@ -1342,8 +1346,14 @@ void eles::AdvanceSolution(int in_step, int adv_type)
                     FatalError("GPU version of SSP-RK34 unavailable!");
 #endif
         }
-        /*! Time integration using a RK45(2N)/RK414(2N) method. */
-
+        /*!Time integration using a RK45(2N)/RK414(2N) method. 
+        RK45:
+        Carpenter M H, Kennedy C A. 
+        Fourth-order 2N-storage Runge-Kutta schemes[J]. 1994.
+        RK414
+        Niegemann J, Diehl R, Busch K.
+        Efficient low-storage Runge–Kutta schemes with optimized stability regions.
+        Journal of Computational Physics, 2012*/
         else if (adv_type == 3||adv_type == 4)
         {
 #ifdef _CPU
@@ -1522,7 +1532,7 @@ void eles::extrapolate_solution(int in_disu_upts_from)
         else if(opp_0_sparse==1) // mkl blas four-hf_array csr format
         {
 #if defined _MKL_BLAS
-            mkl_dcsrmm(&transa,&n_fpts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_0_data.get_ptr_cpu(),opp_0_cols.get_ptr_cpu(),opp_0_b.get_ptr_cpu(),opp_0_e.get_ptr_cpu(),disu_upts(in_disu_upts_from).get_ptr_cpu(),&n_upts_per_ele,&zero,disu_fpts.get_ptr_cpu(),&n_fpts_per_ele);
+            //mkl_dcsrmm(&transa,&n_fpts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_0_data.get_ptr_cpu(),opp_0_cols.get_ptr_cpu(),opp_0_b.get_ptr_cpu(),opp_0_e.get_ptr_cpu(),disu_upts(in_disu_upts_from).get_ptr_cpu(),&n_upts_per_ele,&zero,disu_fpts.get_ptr_cpu(),&n_fpts_per_ele);
 
 #endif
         }
@@ -1688,11 +1698,11 @@ void eles::extrapolate_totalFlux()
         {
 #if defined _MKL_BLAS
 
-            mkl_dcsrmm(&transa,&n_fpts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_1_data(0).get_ptr_cpu(),opp_1_cols(0).get_ptr_cpu(),opp_1_b(0).get_ptr_cpu(),opp_1_e(0).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,0),&n_upts_per_ele,&zero,norm_tdisf_fpts.get_ptr_cpu,&n_fpts_per_ele);
+            //mkl_dcsrmm(&transa,&n_fpts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_1_data(0).get_ptr_cpu(),opp_1_cols(0).get_ptr_cpu(),opp_1_b(0).get_ptr_cpu(),opp_1_e(0).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,0),&n_upts_per_ele,&zero,norm_tdisf_fpts.get_ptr_cpu,&n_fpts_per_ele);
 
             for (int i=1; i<n_dims; i++)
             {
-                mkl_dcsrmm(&transa,&n_fpts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_1_data(i).get_ptr_cpu(),opp_1_cols(i).get_ptr_cpu(),opp_1_b(i).get_ptr_cpu(),opp_1_e(i).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,i),&n_upts_per_ele,&one,norm_tdisf_fpts.get_ptr_cpu(),&n_fpts_per_ele);
+                //mkl_dcsrmm(&transa,&n_fpts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_1_data(i).get_ptr_cpu(),opp_1_cols(i).get_ptr_cpu(),opp_1_b(i).get_ptr_cpu(),opp_1_e(i).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,i),&n_upts_per_ele,&one,norm_tdisf_fpts.get_ptr_cpu(),&n_fpts_per_ele);
             }
 
 #endif
@@ -1784,10 +1794,10 @@ void eles::calculate_divergence(int in_div_tconf_upts_to)
         {
 #if defined _MKL_BLAS
 
-            mkl_dcsrmm(&transa,&n_upts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_2_data(0).get_ptr_cpu(),opp_2_cols(0).get_ptr_cpu(),opp_2_b(0).get_ptr_cpu(),opp_2_e(0).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,0),&n_upts_per_ele,&zero,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),&n_upts_per_ele);
+            //mkl_dcsrmm(&transa,&n_upts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_2_data(0).get_ptr_cpu(),opp_2_cols(0).get_ptr_cpu(),opp_2_b(0).get_ptr_cpu(),opp_2_e(0).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,0),&n_upts_per_ele,&zero,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),&n_upts_per_ele);
             for (int i=1; i<n_dims; i++)
             {
-                mkl_dcsrmm(&transa,&n_upts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_2_data(i).get_ptr_cpu(),opp_2_cols(i).get_ptr_cpu(),opp_2_b(i).get_ptr_cpu(),opp_2_e(i).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,i),&n_upts_per_ele,&one,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),&n_upts_per_ele);
+                //mkl_dcsrmm(&transa,&n_upts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_2_data(i).get_ptr_cpu(),opp_2_cols(i).get_ptr_cpu(),opp_2_b(i).get_ptr_cpu(),opp_2_e(i).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,i),&n_upts_per_ele,&one,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),&n_upts_per_ele);
             }
 
 #endif
@@ -1865,7 +1875,7 @@ void eles::calculate_corrected_divergence(int in_div_tconf_upts_to)
         {
 #if defined _MKL_BLAS
 
-            mkl_dcsrmm(&transa,&n_upts_per_ele,&n_fields_mul_n_eles,&n_fpts_per_ele,&one,matdescra,opp_3_data.get_ptr_cpu(),opp_3_cols.get_ptr_cpu(),opp_3_b.get_ptr_cpu(),opp_3_e.get_ptr_cpu(),norm_tconf_fpts.get_ptr_cpu(),&n_fpts_per_ele,&one,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),&n_upts_per_ele);
+            //mkl_dcsrmm(&transa,&n_upts_per_ele,&n_fields_mul_n_eles,&n_fpts_per_ele,&one,matdescra,opp_3_data.get_ptr_cpu(),opp_3_cols.get_ptr_cpu(),opp_3_b.get_ptr_cpu(),opp_3_e.get_ptr_cpu(),norm_tconf_fpts.get_ptr_cpu(),&n_fpts_per_ele,&one,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),&n_upts_per_ele);
 
 #endif
         }
@@ -3738,7 +3748,7 @@ void eles::extrapolate_sgsFlux(void)
 
             for (int i=0; i<n_dims; i++)
             {
-                mkl_dcsrmm(&transa, &n_fpts_per_ele, &n_fields_mul_n_eles, &n_upts_per_ele, &one, matdescra, opp_0_data.get_ptr_cpu(), opp_0_cols.get_ptr_cpu(), opp_0_b.get_ptr_cpu(), opp_0_e.get_ptr_cpu(), sgsf_upts.get_ptr_cpu(0,0,0,i), &n_upts_per_ele, &zero, sgsf_fpts.get_ptr_cpu(0,0,0,i), &n_fpts_per_ele);
+                //mkl_dcsrmm(&transa, &n_fpts_per_ele, &n_fields_mul_n_eles, &n_upts_per_ele, &one, matdescra, opp_0_data.get_ptr_cpu(), opp_0_cols.get_ptr_cpu(), opp_0_b.get_ptr_cpu(), opp_0_e.get_ptr_cpu(), sgsf_upts.get_ptr_cpu(0,0,0,i), &n_upts_per_ele, &zero, sgsf_fpts.get_ptr_cpu(0,0,0,i), &n_fpts_per_ele);
             }
 
 #endif
