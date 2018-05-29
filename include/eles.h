@@ -24,7 +24,20 @@
  */
 
 #pragma once
+#if defined _ACCELERATE_BLAS
+#include <Accelerate/Accelerate.h>
+#endif
 
+#if defined _MKL_BLAS
+#include "mkl.h"
+#endif // _MKL_BLAS
+
+#if defined _STANDARD_BLAS
+extern "C"
+{
+#include "cblas.h"
+}
+#endif
 #include "hf_array.h"
 #include "input.h"
 
@@ -1084,9 +1097,12 @@ protected:
   /*! operator to go from transformed discontinuous solution at the solution points to transformed discontinuous solution at the flux points */
   hf_array<double> opp_0;
   hf_array<double> opp_0_data;
+  hf_array<int> opp_0_rows;
   hf_array<int> opp_0_cols;
-  hf_array<int> opp_0_b;
-  hf_array<int> opp_0_e;
+  #if defined _MKL_BLAS
+  sparse_matrix_t opp_0_mkl;
+  struct matrix_descr opp_0_descr;
+  #endif
   int opp_0_sparse;
 
 #ifdef _GPU
@@ -1096,11 +1112,14 @@ protected:
 #endif
 
   /*! operator to go from transformed discontinuous inviscid flux at the solution points to divergence of transformed discontinuous inviscid flux at the solution points */
-  hf_array< hf_array<double> > opp_1;
-  hf_array< hf_array<double> > opp_1_data;
-  hf_array< hf_array<int> > opp_1_cols;
-  hf_array< hf_array<int> > opp_1_b;
-  hf_array< hf_array<int> > opp_1_e;
+  hf_array<hf_array<double>> opp_1;
+  hf_array<hf_array<double>> opp_1_data;
+  hf_array<hf_array<int>> opp_1_rows;
+  hf_array<hf_array<int>> opp_1_cols;
+  #if defined _MKL_BLAS
+  hf_array<sparse_matrix_t> opp_1_mkl;
+  hf_array<struct matrix_descr> opp_1_descr;
+#endif
   int opp_1_sparse;
 #ifdef _GPU
   hf_array< hf_array<double> > opp_1_ell_data;
@@ -1111,9 +1130,12 @@ protected:
   /*! operator to go from transformed discontinuous inviscid flux at the solution points to normal transformed discontinuous inviscid flux at the flux points */
   hf_array< hf_array<double> > opp_2;
   hf_array< hf_array<double> > opp_2_data;
-  hf_array< hf_array<int> > opp_2_cols;
-  hf_array< hf_array<int> > opp_2_b;
-  hf_array< hf_array<int> > opp_2_e;
+  hf_array< hf_array<int> > opp_2_rows;
+  hf_array<hf_array<int>> opp_2_cols;
+  #if defined _MKL_BLAS
+  hf_array<sparse_matrix_t> opp_2_mkl;
+  hf_array<struct matrix_descr> opp_2_descr;
+#endif
   int opp_2_sparse;
 #ifdef _GPU
   hf_array< hf_array<double> > opp_2_ell_data;
@@ -1124,9 +1146,12 @@ protected:
   /*! operator to go from normal correction inviscid flux at the flux points to divergence of correction inviscid flux at the solution points*/
   hf_array<double> opp_3;
   hf_array<double> opp_3_data;
+  hf_array<int> opp_3_rows;
   hf_array<int> opp_3_cols;
-  hf_array<int> opp_3_b;
-  hf_array<int> opp_3_e;
+#if defined _MKL_BLAS
+  sparse_matrix_t opp_3_mkl;
+  struct matrix_descr opp_3_descr;
+#endif
   int opp_3_sparse;
 #ifdef _GPU
   hf_array<double> opp_3_ell_data;
@@ -1137,9 +1162,12 @@ protected:
   /*! operator to go from transformed solution at solution points to transformed gradient of transformed solution at solution points */
   hf_array< hf_array<double> >  opp_4;
   hf_array< hf_array<double> >  opp_4_data;
+  hf_array< hf_array<int> > opp_4_rows;
   hf_array< hf_array<int> > opp_4_cols;
-  hf_array< hf_array<int> > opp_4_b;
-  hf_array< hf_array<int> > opp_4_e;
+#if defined _MKL_BLAS
+  hf_array<sparse_matrix_t> opp_4_mkl;
+  hf_array  <struct matrix_descr> opp_4_descr;
+#endif
   int opp_4_sparse;
 #ifdef _GPU
   hf_array< hf_array<double> > opp_4_ell_data;
@@ -1150,9 +1178,12 @@ protected:
   /*! operator to go from transformed solution at flux points to transformed gradient of transformed solution at solution points */
   hf_array< hf_array<double> > opp_5;
   hf_array< hf_array<double> > opp_5_data;
+  hf_array< hf_array<int> > opp_5_rows;
   hf_array< hf_array<int> > opp_5_cols;
-  hf_array< hf_array<int> > opp_5_b;
-  hf_array< hf_array<int> > opp_5_e;
+#if defined _MKL_BLAS
+  hf_array<sparse_matrix_t> opp_5_mkl;
+  hf_array<struct matrix_descr> opp_5_descr;
+#endif
   int opp_5_sparse;
 #ifdef _GPU
   hf_array< hf_array<double> > opp_5_ell_data;
@@ -1163,9 +1194,12 @@ protected:
   /*! operator to go from transformed solution at solution points to transformed gradient of transformed solution at flux points */
   hf_array<double> opp_6;
   hf_array<double> opp_6_data;
+  hf_array<int> opp_6_rows;
   hf_array<int> opp_6_cols;
-  hf_array<int> opp_6_b;
-  hf_array<int> opp_6_e;
+#if defined _MKL_BLAS
+  sparse_matrix_t opp_6_mkl;
+  struct matrix_descr opp_6_descr;
+  #endif
   int opp_6_sparse;
 #ifdef _GPU
   hf_array<double> opp_6_ell_data;
@@ -1181,11 +1215,6 @@ protected:
 
   /*! operator to go from discontinuous solution at the restart points to discontinuous solution at the solutoin points */
   hf_array<double> opp_r;
-
-  /*! dimensions for blas calls */
-  int Arows, Acols;
-  int Brows, Bcols;
-  int Astride, Bstride, Cstride;
 
   /*! general settings for mkl sparse blas */
   char matdescra[6];

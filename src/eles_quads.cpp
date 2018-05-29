@@ -27,21 +27,6 @@
 #include <iostream>
 #include <cmath>
 
-#if defined _ACCELERATE_BLAS
-#include <Accelerate/Accelerate.h>
-#endif
-
-#if defined _MKL_BLAS
-#include "mkl.h"
-#endif
-
-#if defined _STANDARD_BLAS
-extern "C"
-{
-#include "cblas.h"
-}
-#endif
-
 #include "../include/global.h"
 #include "../include/eles.h"
 #include "../include/eles_quads.h"
@@ -92,6 +77,7 @@ void eles_quads::setup_ele_type_specific()
   set_loc_upts();
   set_vandermonde();
   set_vandermonde2D();
+  //shock capturing
   set_concentration_array();
   set_filter_array();
 

@@ -100,7 +100,7 @@ AC_ARG_ENABLE(release,
 if test "$code_type" == "RELEASE" ; then
   CXXFLAGS="-O3"
 else
-  CXXFLAGS="-g -O2"
+  CXXFLAGS="-g -O0"
 fi
 
 # --------------------------------------------------------------
@@ -389,7 +389,7 @@ then
     if test "$have_BLAS" != "NO"
 	  then
         BLAS_CXX="  -m64 -I $with_BLAS_include -D_MKL_BLAS"
-        BLAS_LD=" -Wl,--start-group $with_BLAS_lib/libmkl_intel_lp64.a $with_BLAS_lib/libmkl_sequential.a $with_BLAS_lib/libmkl_core.a -Wl,--end-group -lpthread -lm -ldl"
+        BLAS_LD="  -L$with_BLAS_lib -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl"
         BLAS_LDFLAGS=
     else
 		AC_MSG_ERROR([MKL linking requested but library files not found.])

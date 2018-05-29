@@ -81,8 +81,8 @@ void compute_filt_matrix_tri(hf_array<double>& Filt, hf_array<double>& vandermon
 /*! evaluate divergenge of vcjh basis on triangle */
 double eval_div_dg_tri(hf_array<double> &in_loc , int in_edge, int in_edge_fpt, int in_order, hf_array<double> &in_loc_fpts_1d);
 
-/*! get intel mkl csr 4 hf_array format (1 indexed column major) */
-void array_to_mklcsr(hf_array<double>& in_array, hf_array<double>& out_data, hf_array<int>& out_cols, hf_array<int>& out_b, hf_array<int>& out_e);
+/*! get intel mkl coo 4 hf_array format (1 indexed column major) */
+void array_to_mklcoo(hf_array<double>& in_array, hf_array<double>& out_data, hf_array<int>& out_row, hf_array<int>& out_col);
 
 void array_to_ellpack(hf_array<double>& in_array, hf_array<double>& out_data, hf_array<int>& out_cols, int& nnz_per_row);
 

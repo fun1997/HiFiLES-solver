@@ -33,7 +33,7 @@
 
 #if defined _MKL_BLAS
 #include "mkl.h"
-#endif
+#endif // _MKL_BLAS
 
 #if defined _STANDARD_BLAS
 extern "C"
@@ -1157,70 +1157,44 @@ double eval_div_dg_tri(hf_array<double> &in_loc , int in_edge, int in_edge_fpt, 
 
 }
 
-// get intel mkl csr 4 hf_array format
-void array_to_mklcsr(hf_array<double>& in_array, hf_array<double>& out_data, hf_array<int>& out_cols, hf_array<int>& out_b, hf_array<int>& out_e)
+// get intel mkl 1 based coo 4 hf_array format
+void array_to_mklcoo(hf_array<double>& in_array, hf_array<double>& out_data, hf_array<int>& out_row, hf_array<int>& out_col)
 {
   int i,j;
-
-  double tol=1e-24;
   int nnz=0;
   int pos=0;
-  int new_row=0;
-
   hf_array<double> temp_data;
-  hf_array<int> temp_cols, temp_b, temp_e;
+  hf_array<int> temp_row, temp_col;
 
-  for(j=0;j<in_array.get_dim(0);j++)
-    {
-      for(i=0;i<in_array.get_dim(1);i++)
-        {
-          if((in_array(j,i)*in_array(j,i))>tol)
-            {
-              nnz++;
-            }
-        }
-    }
+for(i=0;i<in_array.get_dim(0)*in_array.get_dim(1);i++)
+{
+  if(in_array(i)!=0)
+  nnz++;
+}
 
   temp_data.setup(nnz);
-  temp_cols.setup(nnz);
-  temp_b.setup(in_array.get_dim(0));
-  temp_e.setup(in_array.get_dim(0));
+  temp_row.setup(nnz);
+  temp_col.setup(nnz);
 
   pos=0;
 
-  for(j=0;j<in_array.get_dim(0);j++)
+  for (j = 0; j < in_array.get_dim(1); j++)//column
+  {
+    for (i = 0; i < in_array.get_dim(0); i++)//row
     {
-      for(i=0;i<in_array.get_dim(1);i++)
-        {
-          if((in_array(j,i)*in_array(j,i))>tol)
-            {
-              temp_data(pos)=in_array(j,i);
-              temp_cols(pos)=i+1;
-
-              if(new_row==0)
-                {
-                  temp_b(j)=pos+1;
-                  new_row=1;
-                }
-
-              pos++;
-            }
-        }
-
-      new_row=0;
+      if (in_array(i, j) != 0)
+      {
+        temp_data(pos) = in_array(i, j);
+        temp_row(pos) = i+1; //1 based
+        temp_col(pos) = j+1; //1 based
+        pos++;
+      }
     }
-
-  for(i=0;i<temp_e.get_dim(0)-1;i++)
-    {
-      temp_e(i)=temp_b(i+1);
-    }
-
-  temp_e(temp_e.get_dim(0)-1)=pos+1;
+  }
 
   out_data=temp_data;
-  out_cols=temp_cols;
-  out_b=temp_b;
-  out_e=temp_e;
+  out_row=temp_row;
+  out_col=temp_col;
 }
 
 void array_to_ellpack(hf_array<double>& in_array, hf_array<double>& out_data, hf_array<int>& out_cols, int& nnz_per_row)
@@ -1297,7 +1271,7 @@ hf_array<double> rs_to_ab(double in_r, double in_s)
 
 #ifdef _GPU
 /*
-void array_to_cusparse_csr(hf_array<double>& in_array, cusparseHybMat_t &hyb_array, cusparseHandle_t& handle)
+void array_to_cusparse_coo(hf_array<double>& in_array, cusparseHybMat_t &hyb_array, cusparseHandle_t& handle)
 {
   int n_rows = in_array.get_dim(0);
   int n_cols = in_array.get_dim(1);
@@ -1324,7 +1298,7 @@ void array_to_cusparse_csr(hf_array<double>& in_array, cusparseHybMat_t &hyb_arr
 
   const double* gpu_ptr = in_array.get_ptr_gpu();
 
-  cusparseDdense2csr(handle,n_rows,n_cols,mat_description,gpu_ptr,n_rows,nnz_per_row.get_ptr_cpu(),hyb_array,NULL,CUSPARSE_HYB_PARTITION_AUTO);
+  cusparseDdense2coo(handle,n_rows,n_cols,mat_description,gpu_ptr,n_rows,nnz_per_row.get_ptr_cpu(),hyb_array,NULL,CUSPARSE_HYB_PARTITION_AUTO);
 }
 */
 #endif

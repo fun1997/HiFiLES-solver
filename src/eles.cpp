@@ -27,21 +27,6 @@
 #include <iomanip>
 #include <cmath>
 
-#if defined _ACCELERATE_BLAS
-#include <Accelerate/Accelerate.h>
-#endif
-
-#if defined _MKL_BLAS
-#include "mkl.h"
-#endif
-
-#if defined _STANDARD_BLAS
-extern "C"
-{
-#include "cblas.h"
-}
-#endif
-
 #ifdef _MPI
 #include "mpi.h"
 #include "metis.h"
@@ -285,12 +270,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
                 d_nodal_s_basis_inters_cubpts(iface).setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_inter(iface),n_eles);
             }
         }
-        // for mkl sparse blas
-        matdescra[0]='G';
-        matdescra[3]='F';
-        transa='N';
-        one=1.0;
-        zero=0.0;
 
         n_fields_mul_n_eles=n_fields*n_eles;
         n_dims_mul_n_upts_per_ele=n_dims*n_upts_per_ele;
@@ -1507,33 +1486,26 @@ void eles::extrapolate_solution(int in_disu_upts_from)
          (vector of solution values at flux points) = opp_0 * (vector of solution values at nodes)
          */
 
-        Arows =  n_fpts_per_ele;
-        Acols = n_upts_per_ele;
-
-        Brows = Acols;
-        Bcols = n_fields*n_eles;
-
-        Astride = Arows;
-        Bstride = Brows;
-        Cstride = Arows;
-
 #ifdef _CPU
 
         if(opp_0_sparse==0) // dense
         {
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,Arows,Bcols,Acols,1.0,opp_0.get_ptr_cpu(),Astride,disu_upts(in_disu_upts_from).get_ptr_cpu(),Bstride,0.0,disu_fpts.get_ptr_cpu(),Cstride);
+            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_0.get_ptr_cpu(),n_fpts_per_ele,disu_upts(in_disu_upts_from).get_ptr_cpu(),n_upts_per_ele,0.0,disu_fpts.get_ptr_cpu(),n_fpts_per_ele);
 
 #elif defined _NO_BLAS
-            dgemm(Arows,Bcols,Acols,1.0,0.0,opp_0.get_ptr_cpu(),disu_upts(in_disu_upts_from).get_ptr_cpu(),disu_fpts.get_ptr_cpu());
+            dgemm(n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,0.0,opp_0.get_ptr_cpu(),disu_upts(in_disu_upts_from).get_ptr_cpu(),disu_fpts.get_ptr_cpu());
 
 #endif
         }
-        else if(opp_0_sparse==1) // mkl blas four-hf_array csr format
+        else if(opp_0_sparse==1) // mkl blas four-hf_array coo format
         {
 #if defined _MKL_BLAS
-            //mkl_dcsrmm(&transa,&n_fpts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_0_data.get_ptr_cpu(),opp_0_cols.get_ptr_cpu(),opp_0_b.get_ptr_cpu(),opp_0_e.get_ptr_cpu(),disu_upts(in_disu_upts_from).get_ptr_cpu(),&n_upts_per_ele,&zero,disu_fpts.get_ptr_cpu(),&n_fpts_per_ele);
-
+            mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_0_mkl,
+                            opp_0_descr, SPARSE_LAYOUT_COLUMN_MAJOR,
+                            disu_upts(in_disu_upts_from).get_ptr_cpu(),
+                            n_fields_mul_n_eles, n_upts_per_ele, 0.0,
+                            disu_fpts.get_ptr_cpu(), n_fpts_per_ele);
 #endif
         }
         else
@@ -1546,7 +1518,7 @@ void eles::extrapolate_solution(int in_disu_upts_from)
 #ifdef _GPU
         if(opp_0_sparse==0)
         {
-            cublasDgemm('N','N',Arows,Bcols,Acols,1.0,opp_0.get_ptr_gpu(),Astride,disu_upts(in_disu_upts_from).get_ptr_gpu(),Bstride,0.0,disu_fpts.get_ptr_gpu(),Cstride);
+            cublasDgemm('N','N',n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_0.get_ptr_gpu(),n_fpts_per_ele,disu_upts(in_disu_upts_from).get_ptr_gpu(),n_upts_per_ele,0.0,disu_fpts.get_ptr_gpu(),n_fpts_per_ele);
         }
         else if (opp_0_sparse==1)
         {
@@ -1680,29 +1652,36 @@ void eles::extrapolate_totalFlux()
         {
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
 
-            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_fpts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,opp_1(0).get_ptr_cpu(),n_fpts_per_ele,tdisf_upts.get_ptr_cpu(0,0,0,0),n_upts_per_ele,0.0,norm_tdisf_fpts.get_ptr_cpu(),n_fpts_per_ele);
+            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_1(0).get_ptr_cpu(),n_fpts_per_ele,tdisf_upts.get_ptr_cpu(0,0,0,0),n_upts_per_ele,0.0,norm_tdisf_fpts.get_ptr_cpu(),n_fpts_per_ele);
             for (int i=1; i<n_dims; i++)
             {
-                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_fpts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,opp_1(i).get_ptr_cpu(),n_fpts_per_ele,tdisf_upts.get_ptr_cpu(0,0,0,i),n_upts_per_ele,1.0,norm_tdisf_fpts.get_ptr_cpu(),n_fpts_per_ele);
+                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_1(i).get_ptr_cpu(),n_fpts_per_ele,tdisf_upts.get_ptr_cpu(0,0,0,i),n_upts_per_ele,1.0,norm_tdisf_fpts.get_ptr_cpu(),n_fpts_per_ele);
             }
 
 #elif defined _NO_BLAS
-            dgemm(n_fpts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,0.0,opp_1(0).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,0),norm_tdisf_fpts.get_ptr_cpu());
+            dgemm(n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,0.0,opp_1(0).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,0),norm_tdisf_fpts.get_ptr_cpu());
             for (int i=1; i<n_dims; i++)
             {
-                dgemm(n_fpts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,1.0,opp_1(i).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,i),norm_tdisf_fpts.get_ptr_cpu());
+                dgemm(n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,1.0,opp_1(i).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,i),norm_tdisf_fpts.get_ptr_cpu());
             }
 #endif
         }
-        else if(opp_1_sparse==1) // mkl blas four-hf_array csr format
+        else if(opp_1_sparse==1) // mkl blas four-hf_array coo format
         {
 #if defined _MKL_BLAS
 
-            //mkl_dcsrmm(&transa,&n_fpts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_1_data(0).get_ptr_cpu(),opp_1_cols(0).get_ptr_cpu(),opp_1_b(0).get_ptr_cpu(),opp_1_e(0).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,0),&n_upts_per_ele,&zero,norm_tdisf_fpts.get_ptr_cpu,&n_fpts_per_ele);
-
-            for (int i=1; i<n_dims; i++)
+            mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_1_mkl(0),
+                            opp_1_descr(0), SPARSE_LAYOUT_COLUMN_MAJOR,
+                            tdisf_upts.get_ptr_cpu(0, 0, 0, 0),
+                            n_fields_mul_n_eles, n_upts_per_ele, 0.0,
+                            norm_tdisf_fpts.get_ptr_cpu(), n_fpts_per_ele);
+            for (int i = 1; i < n_dims; i++)
             {
-                //mkl_dcsrmm(&transa,&n_fpts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_1_data(i).get_ptr_cpu(),opp_1_cols(i).get_ptr_cpu(),opp_1_b(i).get_ptr_cpu(),opp_1_e(i).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,i),&n_upts_per_ele,&one,norm_tdisf_fpts.get_ptr_cpu(),&n_fpts_per_ele);
+                mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_1_mkl(i),
+                                opp_1_descr(i), SPARSE_LAYOUT_COLUMN_MAJOR,
+                                tdisf_upts.get_ptr_cpu(0, 0, 0, i),
+                                n_fields_mul_n_eles, n_upts_per_ele, 1.0,
+                                norm_tdisf_fpts.get_ptr_cpu(), n_fpts_per_ele);
             }
 
 #endif
@@ -1718,10 +1697,10 @@ void eles::extrapolate_totalFlux()
 
         if (opp_1_sparse==0)
         {
-            cublasDgemm('N','N',n_fpts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,opp_1(0).get_ptr_gpu(),n_fpts_per_ele,tdisf_upts.get_ptr_gpu(0,0,0,0),n_upts_per_ele,0.0,norm_tdisf_fpts.get_ptr_gpu(),n_fpts_per_ele);
+            cublasDgemm('N','N',n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_1(0).get_ptr_gpu(),n_fpts_per_ele,tdisf_upts.get_ptr_gpu(0,0,0,0),n_upts_per_ele,0.0,norm_tdisf_fpts.get_ptr_gpu(),n_fpts_per_ele);
             for (int i=1; i<n_dims; i++)
             {
-                cublasDgemm('N','N',n_fpts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,opp_1(i).get_ptr_gpu(),n_fpts_per_ele,tdisf_upts.get_ptr_gpu(0,0,0,i),n_upts_per_ele,1.0,norm_tdisf_fpts.get_ptr_gpu(),n_fpts_per_ele);
+                cublasDgemm('N','N',n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_1(i).get_ptr_gpu(),n_fpts_per_ele,tdisf_upts.get_ptr_gpu(0,0,0,i),n_upts_per_ele,1.0,norm_tdisf_fpts.get_ptr_gpu(),n_fpts_per_ele);
             }
         }
         else if (opp_1_sparse==1)
@@ -1775,29 +1754,37 @@ void eles::calculate_divergence(int in_div_tconf_upts_to)
         {
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
 
-            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,opp_2(0).get_ptr_cpu(),n_upts_per_ele,tdisf_upts.get_ptr_cpu(0,0,0,0),n_upts_per_ele,0.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),n_upts_per_ele);
+            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_2(0).get_ptr_cpu(),n_upts_per_ele,tdisf_upts.get_ptr_cpu(0,0,0,0),n_upts_per_ele,0.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),n_upts_per_ele);
             for (int i=1; i<n_dims; i++)
             {
-                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,opp_2(i).get_ptr_cpu(),n_upts_per_ele,tdisf_upts.get_ptr_cpu(0,0,0,i),n_upts_per_ele,1.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),n_upts_per_ele);
+                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_2(i).get_ptr_cpu(),n_upts_per_ele,tdisf_upts.get_ptr_cpu(0,0,0,i),n_upts_per_ele,1.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),n_upts_per_ele);
             }
 
 #elif defined _NO_BLAS
-            dgemm(n_upts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,0.0,opp_2(0).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,0),div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu());
+            dgemm(n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,0.0,opp_2(0).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,0),div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu());
             for (int i=1; i<n_dims; i++)
             {
-                dgemm(n_upts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,1.0,opp_2(i).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,i),div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu());
+                dgemm(n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,1.0,opp_2(i).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,i),div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu());
             }
 
 #endif
         }
-        else if(opp_2_sparse==1) // mkl blas four-hf_array csr format
+        else if(opp_2_sparse==1) // mkl blas four-hf_array coo format
         {
 #if defined _MKL_BLAS
 
-            //mkl_dcsrmm(&transa,&n_upts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_2_data(0).get_ptr_cpu(),opp_2_cols(0).get_ptr_cpu(),opp_2_b(0).get_ptr_cpu(),opp_2_e(0).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,0),&n_upts_per_ele,&zero,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),&n_upts_per_ele);
+            mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_2_mkl(0),
+                opp_2_descr(0), SPARSE_LAYOUT_COLUMN_MAJOR,
+                tdisf_upts.get_ptr_cpu(0, 0, 0, 0),
+                n_fields_mul_n_eles, n_upts_per_ele, 0.0,
+                div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(), n_upts_per_ele);
             for (int i=1; i<n_dims; i++)
             {
-                //mkl_dcsrmm(&transa,&n_upts_per_ele,&n_fields_mul_n_eles,&n_upts_per_ele,&one,matdescra,opp_2_data(i).get_ptr_cpu(),opp_2_cols(i).get_ptr_cpu(),opp_2_b(i).get_ptr_cpu(),opp_2_e(i).get_ptr_cpu(),tdisf_upts.get_ptr_cpu(0,0,0,i),&n_upts_per_ele,&one,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),&n_upts_per_ele);
+                mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_2_mkl(i),
+                                opp_2_descr(i), SPARSE_LAYOUT_COLUMN_MAJOR,
+                                tdisf_upts.get_ptr_cpu(0, 0, 0, i),
+                                n_fields_mul_n_eles, n_upts_per_ele, 1.0,
+                                div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(), n_upts_per_ele);
             }
 
 #endif
@@ -1814,10 +1801,10 @@ void eles::calculate_divergence(int in_div_tconf_upts_to)
 
         if (opp_2_sparse==0)
         {
-            cublasDgemm('N','N',n_upts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,opp_2(0).get_ptr_gpu(),n_upts_per_ele,tdisf_upts.get_ptr_gpu(0,0,0,0),n_upts_per_ele,0.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_gpu(),n_upts_per_ele);
+            cublasDgemm('N','N',n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_2(0).get_ptr_gpu(),n_upts_per_ele,tdisf_upts.get_ptr_gpu(0,0,0,0),n_upts_per_ele,0.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_gpu(),n_upts_per_ele);
             for (int i=1; i<n_dims; i++)
             {
-                cublasDgemm('N','N',n_upts_per_ele,n_fields*n_eles,n_upts_per_ele,1.0,opp_2(i).get_ptr_gpu(),n_upts_per_ele,tdisf_upts.get_ptr_gpu(0,0,0,i),n_upts_per_ele,1.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_gpu(),n_upts_per_ele);
+                cublasDgemm('N','N',n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_2(i).get_ptr_gpu(),n_upts_per_ele,tdisf_upts.get_ptr_gpu(0,0,0,i),n_upts_per_ele,1.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_gpu(),n_upts_per_ele);
             }
         }
         else if (opp_2_sparse==1)
@@ -1864,19 +1851,22 @@ void eles::calculate_corrected_divergence(int in_div_tconf_upts_to)
         {
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
 
-            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,n_fields*n_eles,n_fpts_per_ele,1.0,opp_3.get_ptr_cpu(),n_upts_per_ele,norm_tconf_fpts.get_ptr_cpu(),n_fpts_per_ele,1.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),n_upts_per_ele);
+            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,n_fields_mul_n_eles,n_fpts_per_ele,1.0,opp_3.get_ptr_cpu(),n_upts_per_ele,norm_tconf_fpts.get_ptr_cpu(),n_fpts_per_ele,1.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),n_upts_per_ele);
 
 #elif defined _NO_BLAS
-            dgemm(n_upts_per_ele,n_fields*n_eles,n_fpts_per_ele,1.0,1.0,opp_3.get_ptr_cpu(),norm_tconf_fpts.get_ptr_cpu(),div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu());
+            dgemm(n_upts_per_ele,n_fields_mul_n_eles,n_fpts_per_ele,1.0,1.0,opp_3.get_ptr_cpu(),norm_tconf_fpts.get_ptr_cpu(),div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu());
 
 #endif
         }
-        else if(opp_3_sparse==1) // mkl blas four-hf_array csr format
+        else if(opp_3_sparse==1) // mkl blas four-hf_array coo format
         {
 #if defined _MKL_BLAS
 
-            //mkl_dcsrmm(&transa,&n_upts_per_ele,&n_fields_mul_n_eles,&n_fpts_per_ele,&one,matdescra,opp_3_data.get_ptr_cpu(),opp_3_cols.get_ptr_cpu(),opp_3_b.get_ptr_cpu(),opp_3_e.get_ptr_cpu(),norm_tconf_fpts.get_ptr_cpu(),&n_fpts_per_ele,&one,div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(),&n_upts_per_ele);
-
+            mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_3_mkl,
+                            opp_3_descr, SPARSE_LAYOUT_COLUMN_MAJOR,
+                            norm_tconf_fpts.get_ptr_cpu(),
+                            n_fields_mul_n_eles, n_fpts_per_ele, 1.0,
+                            div_tconf_upts(in_div_tconf_upts_to).get_ptr_cpu(), n_upts_per_ele);
 #endif
         }
         else
@@ -1913,7 +1903,7 @@ void eles::calculate_corrected_divergence(int in_div_tconf_upts_to)
 
         if (opp_3_sparse==0)
         {
-            cublasDgemm('N','N',n_upts_per_ele,n_fields*n_eles,n_fpts_per_ele,1.0,opp_3.get_ptr_gpu(),n_upts_per_ele,norm_tconf_fpts.get_ptr_gpu(),n_fpts_per_ele,1.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_gpu(),n_upts_per_ele);
+            cublasDgemm('N','N',n_upts_per_ele,n_fields_mul_n_eles,n_fpts_per_ele,1.0,opp_3.get_ptr_gpu(),n_upts_per_ele,norm_tconf_fpts.get_ptr_gpu(),n_fpts_per_ele,1.0,div_tconf_upts(in_div_tconf_upts_to).get_ptr_gpu(),n_upts_per_ele);
         }
         else if (opp_3_sparse==1)
         {
@@ -1956,16 +1946,6 @@ void eles::calculate_gradient(int in_disu_upts_from)
          (vector of solution values at solution points in all elements of the same type)
          */
 
-        Arows =  n_upts_per_ele;
-        Acols = n_upts_per_ele;
-
-        Brows = Acols;
-        Bcols = n_fields*n_eles;
-
-        Astride = Arows;
-        Bstride = Brows;
-        Cstride = Arows;
-
 #ifdef _CPU
 
         if(opp_4_sparse==0) // dense
@@ -1973,22 +1953,29 @@ void eles::calculate_gradient(int in_disu_upts_from)
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
             for (int i=0; i<n_dims; i++)
             {
-                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,Arows,Bcols,Acols,1.0,opp_4(i).get_ptr_cpu(),Astride,disu_upts(in_disu_upts_from).get_ptr_cpu(),Bstride,0.0,grad_disu_upts.get_ptr_cpu(0,0,0,i),Cstride);
+                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_4(i).get_ptr_cpu(),n_upts_per_ele,disu_upts(in_disu_upts_from).get_ptr_cpu(),n_upts_per_ele,0.0,grad_disu_upts.get_ptr_cpu(0,0,0,i),n_upts_per_ele);
             }
 
 #elif defined _NO_BLAS
             for (int i=0; i<n_dims; i++)
             {
-                dgemm(Arows,Bcols,Acols,1.0,0.0,opp_4(i).get_ptr_cpu(),disu_upts(in_disu_upts_from).get_ptr_cpu(),grad_disu_upts.get_ptr_cpu(0,0,0,i));
+                dgemm(n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,0.0,opp_4(i).get_ptr_cpu(),disu_upts(in_disu_upts_from).get_ptr_cpu(),grad_disu_upts.get_ptr_cpu(0,0,0,i));
             }
 
 #endif
         }
-        else if(opp_4_sparse==1) // mkl blas four-hf_array csr format
+        else if(opp_4_sparse==1) // mkl blas four-hf_array coo format
         {
 #if defined _MKL_BLAS
 
-            // implement
+            for (int i=0; i<n_dims; i++)
+            {
+                mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_4_mkl(i),
+                                opp_4_descr(i), SPARSE_LAYOUT_COLUMN_MAJOR,
+                                disu_upts(in_disu_upts_from).get_ptr_cpu(),
+                                n_fields_mul_n_eles, n_upts_per_ele, 0.0,
+                                grad_disu_upts.get_ptr_cpu(0,0,0,i), n_upts_per_ele);
+            }
 
 #endif
         }
@@ -2005,14 +1992,14 @@ void eles::calculate_gradient(int in_disu_upts_from)
         {
             for (int i=0; i<n_dims; i++)
             {
-                cublasDgemm('N','N',Arows,Bcols,Acols,1.0,opp_4(i).get_ptr_gpu(),Astride,disu_upts(in_disu_upts_from).get_ptr_gpu(),Bstride,0.0,grad_disu_upts.get_ptr_gpu(0,0,0,i),Cstride);
+                cublasDgemm('N','N',n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_4(i).get_ptr_gpu(),n_upts_per_ele,disu_upts(in_disu_upts_from).get_ptr_gpu(),n_upts_per_ele,0.0,grad_disu_upts.get_ptr_gpu(0,0,0,i),n_upts_per_ele);
             }
         }
         else if (opp_4_sparse==1)
         {
             for (int i=0; i<n_dims; i++)
             {
-                bespoke_SPMV(Arows,Acols,n_fields,n_eles,opp_4_ell_data(i).get_ptr_gpu(),opp_4_ell_indices(i).get_ptr_gpu(),opp_4_nnz_per_row(i),disu_upts(in_disu_upts_from).get_ptr_gpu(),grad_disu_upts.get_ptr_gpu(0,0,0,i),ele_type,order,0);
+                bespoke_SPMV(n_upts_per_ele,n_upts_per_ele,n_fields,n_eles,opp_4_ell_data(i).get_ptr_gpu(),opp_4_ell_indices(i).get_ptr_gpu(),opp_4_nnz_per_row(i),disu_upts(in_disu_upts_from).get_ptr_gpu(),grad_disu_upts.get_ptr_gpu(0,0,0,i),ele_type,order,0);
             }
         }
 #endif
@@ -2041,16 +2028,6 @@ void eles::correct_gradient(void)
 {
     if (n_eles!=0)
     {
-        Arows =  n_upts_per_ele;
-        Acols = n_fpts_per_ele;
-
-        Brows = Acols;
-        Bcols = n_fields*n_eles;
-
-        Astride = Arows;
-        Bstride = Brows;
-        Cstride = Arows;
-
 #ifdef _CPU
 
         if(opp_5_sparse==0) // dense
@@ -2059,22 +2036,29 @@ void eles::correct_gradient(void)
 
             for (int i=0; i<n_dims; i++)
             {
-                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,Arows,Bcols,Acols,1.0,opp_5(i).get_ptr_cpu(),Astride,delta_disu_fpts.get_ptr_cpu(),Bstride,1.0,grad_disu_upts.get_ptr_cpu(0,0,0,i),Cstride);
+                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,n_fields_mul_n_eles,n_fpts_per_ele,1.0,opp_5(i).get_ptr_cpu(),n_upts_per_ele,delta_disu_fpts.get_ptr_cpu(),n_fpts_per_ele,1.0,grad_disu_upts.get_ptr_cpu(0,0,0,i),n_upts_per_ele);
             }
 
 #elif defined _NO_BLAS
             for (int i=0; i<n_dims; i++)
             {
-                dgemm(Arows,Bcols,Acols,1.0,1.0,opp_5(i).get_ptr_cpu(),delta_disu_fpts.get_ptr_cpu(),grad_disu_upts.get_ptr_cpu(0,0,0,i));
+                dgemm(n_upts_per_ele,n_fields_mul_n_eles,n_fpts_per_ele,1.0,1.0,opp_5(i).get_ptr_cpu(),delta_disu_fpts.get_ptr_cpu(),grad_disu_upts.get_ptr_cpu(0,0,0,i));
             }
 
 #endif
         }
-        else if(opp_5_sparse==1) // mkl blas four-hf_array csr format
+        else if(opp_5_sparse==1) // mkl blas four-hf_array coo format
         {
 #if defined _MKL_BLAS
 
-            // impelement
+            for (int i=0; i<n_dims; i++)
+            {
+                mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_5_mkl(i),
+                                opp_5_descr(i), SPARSE_LAYOUT_COLUMN_MAJOR,
+                                delta_disu_fpts.get_ptr_cpu(),
+                                n_fields_mul_n_eles, n_fpts_per_ele, 1.0,
+                                grad_disu_upts.get_ptr_cpu(0,0,0,i), n_upts_per_ele);
+            }
 
 #endif
         }
@@ -2191,14 +2175,14 @@ void eles::correct_gradient(void)
         {
             for (int i=0; i<n_dims; i++)
             {
-                cublasDgemm('N','N',Arows,Bcols,Acols,1.0,opp_5(i).get_ptr_gpu(),Astride,delta_disu_fpts.get_ptr_gpu(),Bstride,1.0,grad_disu_upts.get_ptr_gpu(0,0,0,i),Cstride);
+                cublasDgemm('N','N',n_upts_per_ele,n_fields_mul_n_eles,n_fpts_per_ele,1.0,opp_5(i).get_ptr_gpu(),n_upts_per_ele,delta_disu_fpts.get_ptr_gpu(),n_fpts_per_ele,1.0,grad_disu_upts.get_ptr_gpu(0,0,0,i),n_upts_per_ele);
             }
         }
         else if (opp_5_sparse==1)
         {
             for (int i=0; i<n_dims; i++)
             {
-                bespoke_SPMV(Arows,Acols,n_fields,n_eles,opp_5_ell_data(i).get_ptr_gpu(),opp_5_ell_indices(i).get_ptr_gpu(),opp_5_nnz_per_row(i),delta_disu_fpts.get_ptr_gpu(),grad_disu_upts.get_ptr_gpu(0,0,0,i),ele_type,order,1);
+                bespoke_SPMV(n_upts_per_ele,n_fpts_per_ele,n_fields,n_eles,opp_5_ell_data(i).get_ptr_gpu(),opp_5_ell_indices(i).get_ptr_gpu(),opp_5_nnz_per_row(i),delta_disu_fpts.get_ptr_gpu(),grad_disu_upts.get_ptr_gpu(0,0,0,i),ele_type,order,1);
             }
         }
 
@@ -2246,16 +2230,6 @@ void eles::extrapolate_corrected_gradient(void)
 {
     if (n_eles!=0)
     {
-        Arows =  n_fpts_per_ele;
-        Acols = n_upts_per_ele;
-
-        Brows = Acols;
-        Bcols = n_fields*n_eles;
-
-        Astride = Arows;
-        Bstride = Brows;
-        Cstride = Arows;
-
 #ifdef _CPU
 
         if(opp_6_sparse==0) // dense
@@ -2264,22 +2238,27 @@ void eles::extrapolate_corrected_gradient(void)
 
             for (int i=0; i<n_dims; i++)
             {
-                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,Arows,Bcols,Acols,1.0,opp_6.get_ptr_cpu(),Astride,grad_disu_upts.get_ptr_cpu(0,0,0,i),Bstride,0.0,grad_disu_fpts.get_ptr_cpu(0,0,0,i),Cstride);
+                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_6.get_ptr_cpu(),n_fpts_per_ele,grad_disu_upts.get_ptr_cpu(0,0,0,i),n_upts_per_ele,0.0,grad_disu_fpts.get_ptr_cpu(0,0,0,i),n_fpts_per_ele);
             }
 
 #elif defined _NO_BLAS
             for (int i=0; i<n_dims; i++)
             {
-                dgemm(Arows,Bcols,Acols,1.0,0.0,opp_6.get_ptr_cpu(),grad_disu_upts.get_ptr_cpu(0,0,0,i),grad_disu_fpts.get_ptr_cpu(0,0,0,i));
+                dgemm(n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,0.0,opp_6.get_ptr_cpu(),grad_disu_upts.get_ptr_cpu(0,0,0,i),grad_disu_fpts.get_ptr_cpu(0,0,0,i));
             }
 #endif
         }
-        else if(opp_6_sparse==1) // mkl blas four-hf_array csr format
+        else if(opp_6_sparse==1) // mkl blas four-hf_array coo format
         {
 #if defined _MKL_BLAS
-
-            // implement
-
+            for (int i = 0; i < n_dims; i++)
+            {
+                mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_6_mkl,
+                                opp_6_descr, SPARSE_LAYOUT_COLUMN_MAJOR,
+                                grad_disu_upts.get_ptr_cpu(0, 0, 0, i),
+                                n_fields_mul_n_eles, n_upts_per_ele, 0.0,
+                                grad_disu_fpts.get_ptr_cpu(0, 0, 0, i), n_fpts_per_ele);
+            }
 #endif
         }
         else
@@ -2295,14 +2274,14 @@ void eles::extrapolate_corrected_gradient(void)
         {
             for (int i=0; i<n_dims; i++)
             {
-                cublasDgemm('N','N',Arows,Bcols,Acols,1.0,opp_6.get_ptr_gpu(),Astride,grad_disu_upts.get_ptr_gpu(0,0,0,i),Bstride,0.0,grad_disu_fpts.get_ptr_gpu(0,0,0,i),Cstride);
+                cublasDgemm('N','N',n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_6.get_ptr_gpu(),n_fpts_per_ele,grad_disu_upts.get_ptr_gpu(0,0,0,i),n_upts_per_ele,0.0,grad_disu_fpts.get_ptr_gpu(0,0,0,i),n_fpts_per_ele);
             }
         }
         else if (opp_6_sparse==1)
         {
             for (int i=0; i<n_dims; i++)
             {
-                bespoke_SPMV(Arows,Acols,n_fields,n_eles,opp_6_ell_data.get_ptr_gpu(),opp_6_ell_indices.get_ptr_gpu(),opp_6_nnz_per_row,grad_disu_upts.get_ptr_gpu(0,0,0,i),grad_disu_fpts.get_ptr_gpu(0,0,0,i),ele_type,order,0);
+                bespoke_SPMV(n_fpts_per_ele,n_upts_per_ele,n_fields,n_eles,opp_6_ell_data.get_ptr_gpu(),opp_6_ell_indices.get_ptr_gpu(),opp_6_nnz_per_row,grad_disu_upts.get_ptr_gpu(0,0,0,i),grad_disu_fpts.get_ptr_gpu(0,0,0,i),ele_type,order,0);
             }
         }
 
@@ -2340,23 +2319,14 @@ void eles::calc_sgs_terms(int in_disu_upts_from)
 
         /*! Filter solution */
 
-        Arows =  n_upts_per_ele;
-        Acols = n_upts_per_ele;
-        Brows = Acols;
-        Bcols = n_fields*n_eles;
-
-        Astride = Arows;
-        Bstride = Brows;
-        Cstride = Arows;
-
 #ifdef _CPU
 
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
 
-        cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,Arows,Bcols,Acols,1.0,filter_upts.get_ptr_cpu(),Astride,disu_upts(in_disu_upts_from).get_ptr_cpu(),Bstride,0.0,disuf_upts.get_ptr_cpu(),Cstride);
+        cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,filter_upts.get_ptr_cpu(),n_upts_per_ele,disu_upts(in_disu_upts_from).get_ptr_cpu(),n_upts_per_ele,0.0,disuf_upts.get_ptr_cpu(),n_upts_per_ele);
 
 #elif defined _NO_BLAS
-        dgemm(Arows,Bcols,Acols,1.0,0.0,filter_upts.get_ptr_cpu(),disu_upts(in_disu_upts_from).get_ptr_cpu(),disuf_upts.get_ptr_cpu());
+        dgemm(n_upts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,0.0,filter_upts.get_ptr_cpu(),disu_upts(in_disu_upts_from).get_ptr_cpu(),disuf_upts.get_ptr_cpu());
 
 #else
 
@@ -2447,23 +2417,19 @@ void eles::calc_sgs_terms(int in_disu_upts_from)
 
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
 
-            Bcols = dim3*n_eles;
 
-            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,Arows,Bcols,Acols,1.0,filter_upts.get_ptr_cpu(),Astride,uu.get_ptr_cpu(),Bstride,0.0,Lu.get_ptr_cpu(),Cstride);
+            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,dim3*n_eles,n_upts_per_ele,1.0,filter_upts.get_ptr_cpu(),n_upts_per_ele,uu.get_ptr_cpu(),n_upts_per_ele,0.0,Lu.get_ptr_cpu(),n_upts_per_ele);
 
-            Bcols = n_dims*n_eles;
 
-            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,Arows,Bcols,Acols,1.0,filter_upts.get_ptr_cpu(),Astride,ue.get_ptr_cpu(),Bstride,0.0,Le.get_ptr_cpu(),Cstride);
+            cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,dim3*n_eles,n_upts_per_ele,1.0,filter_upts.get_ptr_cpu(),n_upts_per_ele,ue.get_ptr_cpu(),n_upts_per_ele,0.0,Le.get_ptr_cpu(),n_upts_per_ele);
 
 #elif defined _NO_BLAS
 
-            Bcols = dim3*n_eles;
 
-            dgemm(Arows,Bcols,Acols,1.0,0.0,filter_upts.get_ptr_cpu(),uu.get_ptr_cpu(),Lu.get_ptr_cpu());
+            dgemm(n_upts_per_ele,dim3*n_eles,n_upts_per_ele,1.0,0.0,filter_upts.get_ptr_cpu(),uu.get_ptr_cpu(),Lu.get_ptr_cpu());
 
-            Bcols = n_dims*n_eles;
 
-            dgemm(Arows,Bcols,Acols,1.0,0.0,filter_upts.get_ptr_cpu(),ue.get_ptr_cpu(),Le.get_ptr_cpu());
+            dgemm(n_upts_per_ele,dim3*n_eles,n_upts_per_ele,1.0,0.0,filter_upts.get_ptr_cpu(),ue.get_ptr_cpu(),Le.get_ptr_cpu());
 
 #else
 
@@ -2551,7 +2517,7 @@ void eles::calc_sgs_terms(int in_disu_upts_from)
 #ifdef _GPU
 
         /*! Filter solution (CUDA BLAS library) */
-        cublasDgemm('N','N',Arows,Bcols,Acols,1.0,filter_upts.get_ptr_gpu(),Astride,disu_upts(in_disu_upts_from).get_ptr_gpu(),Bstride,0.0,disuf_upts.get_ptr_gpu(),Cstride);
+        cublasDgemm('N','N',n_upts_per_ele,dim3*n_eles,n_upts_per_ele,1.0,filter_upts.get_ptr_gpu(),n_upts_per_ele,disu_upts(in_disu_upts_from).get_ptr_gpu(),n_upts_per_ele,0.0,disuf_upts.get_ptr_gpu(),n_upts_per_ele);
 
         /*! Check for NaNs */
         disuf_upts.cp_gpu_cpu();
@@ -2575,14 +2541,11 @@ void eles::calc_sgs_terms(int in_disu_upts_from)
             else if(n_dims==3)
                 dim3 = 6;
 
-            Bcols = dim3*n_eles;
 
             /*! Filter product terms uu and ue */
-            cublasDgemm('N','N',Arows,Bcols,Acols,1.0,filter_upts.get_ptr_gpu(),Astride,uu.get_ptr_gpu(),Bstride,0.0,Lu.get_ptr_gpu(),Cstride);
+            cublasDgemm('N','N',n_upts_per_ele,dim3*n_eles,n_upts_per_ele,1.0,filter_upts.get_ptr_gpu(),n_upts_per_ele,uu.get_ptr_gpu(),n_upts_per_ele,0.0,Lu.get_ptr_gpu(),n_upts_per_ele);
 
-            Bcols = n_dims*n_eles;
-
-            cublasDgemm('N','N',Arows,Bcols,Acols,1.0,filter_upts.get_ptr_gpu(),Astride,ue.get_ptr_gpu(),Bstride,0.0,Le.get_ptr_gpu(),Cstride);
+            cublasDgemm('N','N',n_upts_per_ele,dim3*n_eles,n_upts_per_ele,1.0,filter_upts.get_ptr_gpu(),n_upts_per_ele,ue.get_ptr_gpu(),n_upts_per_ele,0.0,Le.get_ptr_gpu(),n_upts_per_ele);
 
             /*! compute Leonard tensors Lu, Le (pass flag=1 to wrapper function) */
             calc_similarity_model_kernel_wrapper(1, n_fields, n_upts_per_ele, n_eles, n_dims, disu_upts(in_disu_upts_from).get_ptr_gpu(), disuf_upts.get_ptr_gpu(), uu.get_ptr_gpu(), ue.get_ptr_gpu(), Lu.get_ptr_gpu(), Le.get_ptr_gpu());
@@ -3713,16 +3676,6 @@ void eles::extrapolate_sgsFlux(void)
          C = sgsf_fpts
          */
 
-        Arows =  n_fpts_per_ele;
-        Acols = n_upts_per_ele;
-
-        Brows = Acols;
-        Bcols = n_fields*n_eles;
-
-        Astride = Arows;
-        Bstride = Brows;
-        Cstride = Arows;
-
 #ifdef _CPU
 
         if(opp_0_sparse==0) // dense
@@ -3731,24 +3684,28 @@ void eles::extrapolate_sgsFlux(void)
 
             for (int i=0; i<n_dims; i++)
             {
-                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,Arows,Bcols,Acols,1.0,opp_0.get_ptr_cpu(),Astride,sgsf_upts.get_ptr_cpu(0,0,0,i),Bstride,0.0,sgsf_fpts.get_ptr_cpu(0,0,0,i),Cstride);
+                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_0.get_ptr_cpu(),n_fpts_per_ele,sgsf_upts.get_ptr_cpu(0,0,0,i),n_upts_per_ele,0.0,sgsf_fpts.get_ptr_cpu(0,0,0,i),n_fpts_per_ele);
             }
 
 #elif defined _NO_BLAS
             for (int i=0; i<n_dims; i++)
             {
-                dgemm(Arows,Bcols,Acols,1.0,0.0,opp_0.get_ptr_cpu(),sgsf_upts.get_ptr_cpu(0,0,0,i),sgsf_fpts.get_ptr_cpu(0,0,0,i));
+                dgemm(n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,0.0,opp_0.get_ptr_cpu(),sgsf_upts.get_ptr_cpu(0,0,0,i),sgsf_fpts.get_ptr_cpu(0,0,0,i));
             }
 
 #endif
         }
-        else if(opp_0_sparse==1) // mkl blas four-hf_array csr format
+        else if(opp_0_sparse==1) // mkl blas four-hf_array coo format
         {
 #if defined _MKL_BLAS
 
-            for (int i=0; i<n_dims; i++)
+            for (int i = 0; i < n_dims; i++)
             {
-                //mkl_dcsrmm(&transa, &n_fpts_per_ele, &n_fields_mul_n_eles, &n_upts_per_ele, &one, matdescra, opp_0_data.get_ptr_cpu(), opp_0_cols.get_ptr_cpu(), opp_0_b.get_ptr_cpu(), opp_0_e.get_ptr_cpu(), sgsf_upts.get_ptr_cpu(0,0,0,i), &n_upts_per_ele, &zero, sgsf_fpts.get_ptr_cpu(0,0,0,i), &n_fpts_per_ele);
+                mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_0_mkl,
+                                opp_0_descr, SPARSE_LAYOUT_COLUMN_MAJOR,
+                                sgsf_upts.get_ptr_cpu(0, 0, 0, i),
+                                n_fields_mul_n_eles, n_upts_per_ele, 0.0,
+                                sgsf_fpts.get_ptr_cpu(0, 0, 0, i), n_fpts_per_ele);
             }
 
 #endif
@@ -3766,7 +3723,7 @@ void eles::extrapolate_sgsFlux(void)
         {
             for (int i=0; i<n_dims; i++)
             {
-                cublasDgemm('N','N',Arows,Bcols,Acols,1.0,opp_0.get_ptr_gpu(),Astride,sgsf_upts.get_ptr_gpu(0,0,0,i),Bstride,0.0,sgsf_fpts.get_ptr_gpu(0,0,0,i),Cstride);
+                cublasDgemm('N','N',n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_0.get_ptr_gpu(),n_fpts_per_ele,sgsf_upts.get_ptr_gpu(0,0,0,i),n_upts_per_ele,0.0,sgsf_fpts.get_ptr_gpu(0,0,0,i),n_fpts_per_ele);
             }
         }
         else if (opp_0_sparse==1)
@@ -4141,7 +4098,16 @@ void eles::set_opp_0(int in_sparse)
         opp_0_sparse=1;
 
 #ifdef _CPU
-        array_to_mklcsr(opp_0,opp_0_data,opp_0_cols,opp_0_b,opp_0_e);
+#ifdef _MKL_BLAS
+        array_to_mklcoo(opp_0, opp_0_data, opp_0_rows, opp_0_cols);
+        mkl_sparse_d_create_coo(&opp_0_mkl,
+                                SPARSE_INDEX_BASE_ONE, n_fpts_per_ele, n_upts_per_ele,
+                                opp_0_data.get_dim(0), opp_0_rows.get_ptr_cpu(),
+                                opp_0_cols.get_ptr_cpu(), opp_0_data.get_ptr_cpu());
+        opp_0_descr.type = SPARSE_MATRIX_TYPE_GENERAL;
+#else // _MKL_BLAS
+        FatalError("Sparse matrix operation support MKL BLAS only!");
+#endif
 #endif
 
 #ifdef _GPU
@@ -4206,10 +4172,24 @@ void eles::set_opp_1(int in_sparse)
         opp_1_sparse=1;
 
 #ifdef _CPU
-        for (int i=0; i<n_dims; i++)
+#ifdef _MKL_BLAS
+        opp_1_data.setup(n_dims);
+        opp_1_rows.setup(n_dims);
+        opp_1_cols.setup(n_dims);
+        opp_1_mkl.setup(n_dims);
+        opp_1_descr.setup(n_dims);
+        for (int i = 0; i < n_dims; i++)
         {
-            array_to_mklcsr(opp_1(i),opp_1_data(i),opp_1_cols(i),opp_1_b(i),opp_1_e(i));
+           array_to_mklcoo(opp_1(i), opp_1_data(i), opp_1_rows(i),opp_1_cols(i));
+           mkl_sparse_d_create_coo(opp_1_mkl.get_ptr_cpu(i),
+                                    SPARSE_INDEX_BASE_ONE, n_fpts_per_ele, n_upts_per_ele,
+                                    opp_1_data(i).get_dim(0), opp_1_rows(i).get_ptr_cpu(),
+                                    opp_1_cols(i).get_ptr_cpu(), opp_1_data(i).get_ptr_cpu());
+            opp_1_descr(i).type = SPARSE_MATRIX_TYPE_GENERAL;
         }
+#else
+        FatalError("Sparse matrix operation support MKL BLAS only!");
+#endif
 #endif
 
 #ifdef _GPU
@@ -4286,10 +4266,24 @@ void eles::set_opp_2(int in_sparse)
         opp_2_sparse=1;
 
 #ifdef _CPU
-        for (int i=0; i<n_dims; i++)
+#ifdef _MKL_BLAS
+        opp_2_data.setup(n_dims);
+        opp_2_rows.setup(n_dims);
+        opp_2_cols.setup(n_dims);
+        opp_2_mkl.setup(n_dims);
+        opp_2_descr.setup(n_dims);
+        for (int i = 0; i < n_dims; i++)
         {
-            array_to_mklcsr(opp_2(i),opp_2_data(i),opp_2_cols(i),opp_2_b(i),opp_2_e(i));
+           array_to_mklcoo(opp_2(i), opp_2_data(i), opp_2_rows(i),opp_2_cols(i));
+           mkl_sparse_d_create_coo(opp_2_mkl.get_ptr_cpu(i),
+                                    SPARSE_INDEX_BASE_ONE, n_upts_per_ele, n_upts_per_ele,
+                                    opp_2_data(i).get_dim(0), opp_2_rows(i).get_ptr_cpu(),
+                                    opp_2_cols(i).get_ptr_cpu(), opp_2_data(i).get_ptr_cpu());
+            opp_2_descr(i).type = SPARSE_MATRIX_TYPE_GENERAL;
         }
+#else
+        FatalError("Sparse matrix operation support MKL BLAS only!");
+#endif
 #endif
 
 #ifdef _GPU
@@ -4336,7 +4330,16 @@ void eles::set_opp_3(int in_sparse)
         opp_3_sparse=1;
 
 #ifdef _CPU
-        array_to_mklcsr(opp_3,opp_3_data,opp_3_cols,opp_3_b,opp_3_e);
+#ifdef _MKL_BLAS
+        array_to_mklcoo(opp_3, opp_3_data, opp_3_rows,opp_3_cols);
+        mkl_sparse_d_create_coo(&opp_3_mkl,
+                                SPARSE_INDEX_BASE_ONE, n_upts_per_ele, n_fpts_per_ele,
+                                opp_3_data.get_dim(0), opp_3_rows.get_ptr_cpu(),
+                                opp_3_cols.get_ptr_cpu(), opp_3_data.get_ptr_cpu());
+        opp_3_descr.type = SPARSE_MATRIX_TYPE_GENERAL;
+#else // _MKL_BLAS
+        FatalError("Sparse matrix operation support MKL BLAS only!");
+#endif
 #endif
 
 #ifdef _GPU
@@ -4393,10 +4396,24 @@ void eles::set_opp_4(int in_sparse)
         opp_4_sparse=1;
 
 #ifdef _CPU
-        for (int i=0; i<n_dims; i++)
+#ifdef _MKL_BLAS
+        opp_4_data.setup(n_dims);
+        opp_4_rows.setup(n_dims);
+        opp_4_cols.setup(n_dims);
+        opp_4_mkl.setup(n_dims);
+        opp_4_descr.setup(n_dims);
+        for (int i = 0; i < n_dims; i++)
         {
-            array_to_mklcsr(opp_4(i),opp_4_data(i),opp_4_cols(i),opp_4_b(i),opp_4_e(i));
+            array_to_mklcoo(opp_4(i), opp_4_data(i), opp_4_rows(i),opp_4_cols(i));
+            mkl_sparse_d_create_coo(opp_4_mkl.get_ptr_cpu(i),
+                                   SPARSE_INDEX_BASE_ONE, n_upts_per_ele, n_upts_per_ele,
+                                   opp_4_data(i).get_dim(0), opp_4_rows(i).get_ptr_cpu(),
+                                   opp_4_cols(i).get_ptr_cpu(), opp_4_data(i).get_ptr_cpu());
+            opp_4_descr(i).type = SPARSE_MATRIX_TYPE_GENERAL;
         }
+#else
+        FatalError("Sparse matrix operation support MKL BLAS only!");
+#endif
 #endif
 
 #ifdef _GPU
@@ -4465,10 +4482,24 @@ void eles::set_opp_5(int in_sparse)
         opp_5_sparse=1;
 
 #ifdef _CPU
-        for (int i=0; i<n_dims; i++)
+#ifdef _MKL_BLAS
+        opp_5_data.setup(n_dims);
+        opp_5_rows.setup(n_dims);
+        opp_5_cols.setup(n_dims);
+        opp_5_mkl.setup(n_dims);
+        opp_5_descr.setup(n_dims);
+        for (int i = 0; i < n_dims; i++)
         {
-            array_to_mklcsr(opp_5(i),opp_5_data(i),opp_5_cols(i),opp_5_b(i),opp_5_e(i));
+            array_to_mklcoo(opp_5(i), opp_5_data(i), opp_5_rows(i),opp_5_cols(i));
+            mkl_sparse_d_create_coo(opp_5_mkl.get_ptr_cpu(i),
+                                    SPARSE_INDEX_BASE_ONE, n_upts_per_ele, n_fpts_per_ele,
+                                    opp_5_data(i).get_dim(0), opp_5_rows(i).get_ptr_cpu(),
+                                    opp_5_cols(i).get_ptr_cpu(), opp_5_data(i).get_ptr_cpu());
+            opp_5_descr(i).type = SPARSE_MATRIX_TYPE_GENERAL;
         }
+#else
+        FatalError("Sparse matrix operation support MKL BLAS only!");
+#endif
 #endif
 
 #ifdef _GPU
@@ -4493,7 +4524,7 @@ void eles::set_opp_5(int in_sparse)
 
 void eles::set_opp_6(int in_sparse)
 {
-    int i,j,k,l,m;
+    int j,l,m;
 
     hf_array<double> loc(n_dims);
 
@@ -4527,7 +4558,16 @@ void eles::set_opp_6(int in_sparse)
         opp_6_sparse=1;
 
 #ifdef _CPU
-        array_to_mklcsr(opp_6,opp_6_data,opp_6_cols,opp_6_b,opp_6_e);
+#ifdef _MKL_BLAS
+        array_to_mklcoo(opp_6,opp_6_data,opp_6_rows,opp_6_cols);
+        mkl_sparse_d_create_coo(&opp_6_mkl,
+                        SPARSE_INDEX_BASE_ONE, n_fpts_per_ele, n_upts_per_ele,
+                        opp_6_data.get_dim(0), opp_6_rows.get_ptr_cpu(),
+                        opp_6_cols.get_ptr_cpu(), opp_6_data.get_ptr_cpu());
+            opp_6_descr.type = SPARSE_MATRIX_TYPE_GENERAL;
+#else // _MKL_BLAS
+FatalError("Sparse matrix operation support MKL BLAS only!");
+#endif
 #endif
 
 #ifdef _GPU
