@@ -1112,10 +1112,10 @@ protected:
 #endif
 
   /*! operator to go from transformed discontinuous inviscid flux at the solution points to divergence of transformed discontinuous inviscid flux at the solution points */
-  hf_array<hf_array<double>> opp_1;
-  hf_array<hf_array<double>> opp_1_data;
-  hf_array<hf_array<int>> opp_1_rows;
-  hf_array<hf_array<int>> opp_1_cols;
+  hf_array<hf_array<double> > opp_1;
+  hf_array<hf_array<double> > opp_1_data;
+  hf_array<hf_array<int> > opp_1_rows;
+  hf_array<hf_array<int> > opp_1_cols;
   #if defined _MKL_BLAS
   hf_array<sparse_matrix_t> opp_1_mkl;
   hf_array<struct matrix_descr> opp_1_descr;
@@ -1131,7 +1131,7 @@ protected:
   hf_array< hf_array<double> > opp_2;
   hf_array< hf_array<double> > opp_2_data;
   hf_array< hf_array<int> > opp_2_rows;
-  hf_array<hf_array<int>> opp_2_cols;
+  hf_array<hf_array<int> > opp_2_cols;
   #if defined _MKL_BLAS
   hf_array<sparse_matrix_t> opp_2_mkl;
   hf_array<struct matrix_descr> opp_2_descr;
