@@ -65,9 +65,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef _MPI
   MPI_Init(&argc, &argv);
-  int nproc;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &nproc);
 #endif
 
   if (rank == 0) {
@@ -256,7 +254,7 @@ int main(int argc, char *argv[]) {
 
         if(run_input.probe!=0)
         {
-            if((i_steps%run_probe.prob_freq==0))
+            if((i_steps%run_probe.probe_freq==0))
                 write_probe(&FlowSol);
         }
 

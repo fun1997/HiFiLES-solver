@@ -1141,23 +1141,23 @@ void write_probe(struct solution* FlowSol)
             {
                 write_probe<<"NOTE: ALL OUTPUTS ARE DIMENSIONAL IN SI UNITS"<<endl;
                 write_probe<<"Probe position"<<endl;
-                    write_probe<<setw(10)<<setprecision(5)<<run_probe.pos_probe(0,i)*run_input.L_free_stream<<setw(10)<<setprecision(5)<<run_probe.pos_probe(1,i)*run_input.L_free_stream;
+                    write_probe<<setw(15)<<setprecision(5)<<run_probe.pos_probe(0,i)*run_input.L_free_stream<<setw(15)<<setprecision(5)<<run_probe.pos_probe(1,i)*run_input.L_free_stream;
                     if (n_dims==3)
-                        write_probe<<setw(10)<<setprecision(5)<<run_probe.pos_probe(2,i)*run_input.L_free_stream<<endl;
+                        write_probe<<setw(15)<<setprecision(5)<<run_probe.pos_probe(2,i)*run_input.L_free_stream<<endl;
                     else
                         write_probe<<endl;
                 /*! write gambit surface information*/
                 if (run_probe.probe_layout==2 &&run_probe.output_normal==true)
                 {
                     write_probe<<"Surface normal"<<endl;
-                    write_probe<<setw(10)<<setprecision(5)<<run_probe.surf_normal(0,i)<<setw(10)<<setprecision(5)<<run_probe.surf_normal(1,i);
+                    write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_normal(0,i)<<setw(15)<<setprecision(5)<<run_probe.surf_normal(1,i);
                     if(n_dims==3)
-                        write_probe<<setw(10)<<setprecision(5)<<run_probe.surf_normal(2,i)<<endl;
+                        write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_normal(2,i)<<endl;
                     else
                         write_probe<<endl;
 
                     write_probe<<"Surface area"<<endl;
-                        write_probe<<setw(10)<<setprecision(5)<<run_probe.surf_area(i)*run_input.L_free_stream*run_input.L_free_stream<<endl;
+                        write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_area(i)*run_input.L_free_stream*run_input.L_free_stream<<endl;
                 }
                 /*! write field titles*/
                 write_probe<<setw(17)<<"time";

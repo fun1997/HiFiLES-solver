@@ -39,7 +39,7 @@ public:
     //basic inputs
     hf_array<string> probe_fields;
     int n_probe;
-    int prob_freq;
+    int probe_freq;
     int probe_layout;
     int n_probe_fields;
     hf_array<double> pos_probe;

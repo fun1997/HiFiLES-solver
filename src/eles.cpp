@@ -5242,7 +5242,7 @@ void eles::set_transforms(void)
                         FatalError("Negative Jacobian at solution points");
                     }
 
-                    // store inverse of determinant of jacobian multiplied by jacobian at the solution point
+                    // store inverse of  jacobian multiplied by determinant of jacobian at the solution point
                     JGinv_upts(0,0,j,i)= ys;
                     JGinv_upts(0,1,j,i)= -xs;
                     JGinv_upts(1,0,j,i)= -yr;

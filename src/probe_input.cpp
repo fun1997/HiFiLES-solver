@@ -63,7 +63,7 @@ void probe_input::read_probe_input(string filename, int rank)
         std::transform(probe_fields(i).begin(), probe_fields(i).end(),
                        probe_fields(i).begin(), ::tolower);
     }
-    probf.getScalarValue("prob_freq",prob_freq);
+    probf.getScalarValue("probe_freq",probe_freq);
 
     /*!----------calculate probes coordinates ------------*/
     if(probe_layout==0)//point sources
