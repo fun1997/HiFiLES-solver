@@ -112,9 +112,6 @@ public:
   /*! copy elemental sensor values to cpu */
   void cp_sensor_gpu_cpu(void);
 
-  /*! copy AV co-eff values at solution points to cpu */
-  void cp_epsilon_upts_gpu_cpu(void);
-
   /*! remove transformed discontinuous solution at solution points from cpu */
   void rm_disu_upts_cpu(void);
 
@@ -122,16 +119,16 @@ public:
   void rm_detjac_upts_cpu(void);
 
   /*! calculate the discontinuous solution at the flux points */
-  void extrapolate_solution(int in_disu_upts_from);
+  void extrapolate_solution(void);
 
   /*! Calculate terms for some LES models */
-  void calc_sgs_terms(int in_disu_upts_from);
+  void calc_sgs_terms(void);
 
   /*! calculate transformed discontinuous inviscid flux at solution points */
-  void evaluate_invFlux(int in_disu_upts_from);
+  void evaluate_invFlux(void);
 
   /*! calculate divergence of transformed discontinuous flux at solution points */
-  void calculate_divergence(int in_div_tconf_upts_to);
+  void calculate_divergence(void);
 
   /*! calculate normal transformed discontinuous flux at flux points */
   void extrapolate_totalFlux(void);
@@ -140,10 +137,10 @@ public:
   void extrapolate_sgsFlux(void);
 
   /*! calculate divergence of transformed continuous flux at solution points */
-  void calculate_corrected_divergence(int in_div_tconf_upts_to);
+  void calculate_corrected_divergence(void);
 
   /*! calculate uncorrected transformed gradient of the discontinuous solution at the solution points */
-  void calculate_gradient(int in_disu_upts_from);
+  void calculate_gradient(void);
 
   /*! calculate corrected gradient of the discontinuous solution at solution points */
   void correct_gradient(void);
@@ -151,11 +148,8 @@ public:
   /*! calculate corrected gradient of the discontinuous solution at flux points */
   void extrapolate_corrected_gradient(void);
 
-  /*! calculate corrected gradient of solution at flux points */
-  //void extrapolate_corrected_gradient(void);
-
   /*! calculate transformed discontinuous viscous flux at solution points */
-  void evaluate_viscFlux(int in_disu_upts_from);
+  void evaluate_viscFlux(void);
 
   /*! calculate divergence of transformed discontinuous viscous flux at solution points */
   //void calc_div_tdisvisf_upts(int in_div_tconinvf_upts_to);
@@ -167,7 +161,7 @@ public:
   //void calc_div_tconvisf_upts(int in_div_tconinvf_upts_to);
 
   /*! calculate source term for SA turbulence model at solution points */
-  void calc_src_upts_SA(int in_disu_upts_from);
+  void calc_src_upts_SA(void);
 
   /*! advance solution using a runge-kutta scheme */
   void AdvanceSolution(int in_step, int adv_type);
@@ -332,9 +326,6 @@ public:
 
   /*! calculate sensor at the plot points */
   void calc_sensor_ppts(int in_ele, hf_array<double>& out_sensor_ppts);
-
-  /*! calculate AV-co-efficients at the plot points */
-  void calc_epsilon_ppts(int in_ele, hf_array<double>& out_epsilon_ppts);
 
   /*! calculate time-averaged diagnostic fields at the plot points */
   void calc_time_average_ppts(int in_ele, hf_array<double>& out_disu_average_ppts);
@@ -597,11 +588,11 @@ public:
   void correct_dynamic_transforms(void);
 
   /*! GCL Residual-Calculation Steps */
-  void evaluate_GCL_flux(int in_disu_upts_from);
-  void extrapolate_GCL_solution(int in_disu_upts_from);
+  void evaluate_GCL_flux(void);
+  void extrapolate_GCL_solution(void);
   void extrapolate_GCL_flux(void);
-  void calculate_divergence_GCL(int in_div_tconf_upts_to);
-  void calculate_corrected_divergence_GCL(int in_div_tconf_upts_to);
+  void calculate_divergence_GCL(void);
+  void calculate_corrected_divergence_GCL(void);
 
   double *get_disu_GCL_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele);
   /* --------------------------------------------------- */
@@ -621,10 +612,11 @@ public:
   void perturb_grid_velocity(double rk_time);
 #endif
 
-  /* --- Shock capturing functions --- */
+  /* --- Shock capturing/de-aliasing functions --- */
 
-  void shock_capture_concentration(int in_disu_upts_from);
+  void shock_capture_concentration(void);
   void shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma);
+  void dealias_over_integration(void);
 
   //global time step
   static double dt_globe;
@@ -1251,14 +1243,10 @@ protected:
   hf_array<double> inv_vandermonde2D;
   hf_array<double> area_coord_upts;
   hf_array<double> area_coord_fpts;
-  hf_array<double> epsilon;
-  hf_array<double> epsilon_upts;
-  hf_array<double> epsilon_fpts;
   hf_array<double> concentration_array;
   hf_array<double> sensor;
   hf_array<double> sigma;
-
-  hf_array<double> min_dt_local;
+  hf_array<double> over_int_filter;
 
   /*! Global cell number of element as in the code */
   hf_array<int> ele2global_ele_code;

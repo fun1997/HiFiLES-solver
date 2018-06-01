@@ -64,15 +64,13 @@ using namespace std;
 
 void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
 
-  int in_disu_upts_from = 0;        /*!< Define... */
-  int in_div_tconf_upts_to = 0;     /*!< Define... */
   int i;                            /*!< Loop iterator */
 
   /*! If at first RK step and using certain LES models, compute some model-related quantities. */
   if(run_input.LES==1 && in_rk_stage==0) {
       if(run_input.SGS_model==2 || run_input.SGS_model==3 || run_input.SGS_model==4) {//similarity and svv
           for(i=0; i<FlowSol->n_ele_types; i++)
-            FlowSol->mesh_eles(i)->calc_sgs_terms(in_disu_upts_from);
+            FlowSol->mesh_eles(i)->calc_sgs_terms();
         }
     }
 
@@ -85,13 +83,13 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
       {
         /*! This routine does shock detection. For concentration method filter is also applied in this routine itself */
         for(i=0;i<FlowSol->n_ele_types;i++)
-          FlowSol->mesh_eles(i)->shock_capture_concentration(in_disu_upts_from);
+          FlowSol->mesh_eles(i)->shock_capture_concentration();
       }
     }
 
     /*! Compute the solution at the flux points. */
     for(i=0; i<FlowSol->n_ele_types; i++)
-      FlowSol->mesh_eles(i)->extrapolate_solution(in_disu_upts_from);
+      FlowSol->mesh_eles(i)->extrapolate_solution();
 
 #ifdef _MPI
   /*! Send the solution at the flux points across the MPI interfaces. */
@@ -103,12 +101,12 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
   if (FlowSol->viscous) {
       /*! Compute the uncorrected gradient of the solution at the solution points. */
       for(i=0; i<FlowSol->n_ele_types; i++)
-        FlowSol->mesh_eles(i)->calculate_gradient(in_disu_upts_from);
+        FlowSol->mesh_eles(i)->calculate_gradient();
     }
 
   /*! Compute the inviscid flux at the solution points and store in total flux storage. */
   for(i=0; i<FlowSol->n_ele_types; i++)
-    FlowSol->mesh_eles(i)->evaluate_invFlux(in_disu_upts_from);
+    FlowSol->mesh_eles(i)->evaluate_invFlux();
 
 
   // If running periodic channel or periodic hill cases,
@@ -163,9 +161,9 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
       }
 #endif
 
-      /*! Compute discontinuous viscous flux at upts and add to inviscid flux at upts. */
+      /*! Compute discontinuous viscous flux at upts and add to total flux at upts. */
       for(i=0; i<FlowSol->n_ele_types; i++)
-        FlowSol->mesh_eles(i)->evaluate_viscFlux(in_disu_upts_from);
+        FlowSol->mesh_eles(i)->evaluate_viscFlux();
 
       /*! If using LES, compute the SGS flux at flux points. */
       if (run_input.LES)
@@ -191,7 +189,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
 
     /*! For viscous or inviscid, compute the divergence of flux at solution points. */
     for(i=0; i<FlowSol->n_ele_types; i++)
-      FlowSol->mesh_eles(i)->calculate_divergence(in_div_tconf_upts_to);
+      FlowSol->mesh_eles(i)->calculate_divergence();
 
     if (FlowSol->viscous) {
       /*! Compute normal interface viscous flux and add to normal inviscid flux. */
@@ -220,12 +218,20 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
 
   /*! Compute the divergence of the transformed continuous flux. */
   for(i=0; i<FlowSol->n_ele_types; i++)
-    FlowSol->mesh_eles(i)->calculate_corrected_divergence(in_div_tconf_upts_to);
+    FlowSol->mesh_eles(i)->calculate_corrected_divergence();
 
+  /*! De-aliasing using over-integration*/
+  if (run_input.over_int)
+  {
+    for (i = 0; i < FlowSol->n_ele_types; i++)
+    {
+      FlowSol->mesh_eles(i)->dealias_over_integration();
+    }
+  }
   /*! Compute source term */
   if (run_input.turb_model==1) {
     for (i=0; i<FlowSol->n_ele_types; i++)
-      FlowSol->mesh_eles(i)->calc_src_upts_SA(in_disu_upts_from);
+      FlowSol->mesh_eles(i)->calc_src_upts_SA();
   }
 }
 

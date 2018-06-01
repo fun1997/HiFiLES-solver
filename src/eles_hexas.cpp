@@ -82,6 +82,10 @@ void eles_hexas::setup_ele_type_specific()
   set_volume_cubpts();
   set_opp_volume_cubpts();
 
+  //de-aliasing by over-integration
+  if (run_input.over_int)
+    set_over_int();
+
   n_ppts_per_ele=p_res*p_res*p_res;
   n_peles_per_ele=(p_res-1)*(p_res-1)*(p_res-1);
   n_verts_per_ele = 8;
@@ -957,7 +961,46 @@ void eles_hexas::set_vandermonde3D(void)
                         concentration_array(j,i) = concentration_factor(j)*sqrt(1 - loc_1d_upts(i)*loc_1d_upts(i))*grad_vandermonde(i,j);//tanspose?
 
   }
-// evaluate nodal basis
+
+  void eles_hexas::set_over_int(void)
+  {
+    int N_under = run_input.N_under;
+    int n_mode_under = (N_under+1) * (N_under+1) * (N_under+1); //projected n_upts_per_ele
+    hf_array<double> temp_proj(n_mode_under, n_upts_per_ele);
+    hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
+    cubature_hexa cub_hexas(order + 1);
+    //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*\l_j}=>\phi_i(j)*w(j)
+    for (int i = 0; i < n_mode_under; i++)
+    {
+      int n1, n2, n3;
+      double norm1, norm2, norm3;
+      get_legendre_basis_3D_index(i, N_under, n1, n2, n3);
+      norm1 = 2.0 / (2.0 * n1 + 1.0);
+      norm2 = 2.0 / (2.0 * n2 + 1.0);
+      norm3 = 2.0 / (2.0 * n3 + 1.0);
+      for (int j = 0; j < n_upts_per_ele; j++)
+      {
+        hf_array<double> loc(n_dims);
+        loc(0) = loc_upts(0, j);
+        loc(1) = loc_upts(1, j);
+        loc(2) = loc_upts(2, j);
+        temp_proj(i, j) = eval_legendre_basis_3D_hierarchical(i, loc, N_under) / (norm1 * norm2 * norm3) * cub_hexas.get_weight(j);
+      }
+    }
+    //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
+    for (int j = 0; j < n_upts_per_ele; j++)
+    {
+      hf_array<double> loc(n_dims);
+      loc(0) = loc_upts(0, j);
+      loc(1) = loc_upts(1, j);
+      loc(2) = loc_upts(2, j);
+      for (int i = 0; i < n_mode_under; i++)
+        temp_vand(j, i) = eval_legendre_basis_3D_hierarchical(i, loc, N_under);
+    }
+    over_int_filter = mult_arrays(temp_vand, temp_proj);
+  }
+
+  // evaluate nodal basis
 
 double eles_hexas::eval_nodal_basis(int in_index, hf_array<double> in_loc)
 {
@@ -1193,41 +1236,82 @@ void eles_hexas::eval_d_nodal_s_basis(hf_array<double> &d_nodal_s_basis, hf_arra
 //evaluate 3D Legendre basis
 double eles_hexas::eval_legendre_basis_3D_hierarchical(int in_mode, hf_array<double> in_loc, int in_basis_order)
 {
-        double leg_basis;
+  double leg_basis;
 
-        int n_dof=(in_basis_order+1)*(in_basis_order+1)*(in_basis_order+1);
+  int n_dof=(in_basis_order+1)*(in_basis_order+1)*(in_basis_order+1);
 
-        if(in_mode<n_dof)
-          {
-            int i,j,k,l;
-            int mode;
+  if(in_mode<n_dof)
+  {
+    int i,j,k,l;
+    int mode;
 
-            mode = 0; //mode=x+y*(N_x+1)+z*(N_x+1)*(N_z+1)
-        for (l=0; l<3*in_basis_order+1; l++) // sum range from 0 to 3*order
+    mode = 0; //mode=x+y*(N_x+1)+z*(N_x+1)*(N_z+1)
+    for (l=0; l<3*in_basis_order+1; l++) // sum range from 0 to 3*order
+    {
+      for (k=0; k<l+1; k++) // k no more than the sum
+      {
+        for (j=0; j<l-k+1; j++)// j no more than sum-k
         {
-            for (k=0; k<l+1; k++) // k no more than the sum
-            {
-                for (j=0; j<l-k+1; j++)// j no more than sum-k
-                {
-                    i = l-k-j;
-                    if(i<=in_basis_order && j<=in_basis_order && k<=in_basis_order)
-                    {
-
-                        if(mode==in_mode) // found the correct mode
-                            leg_basis=eval_legendre(in_loc(0),i)*eval_legendre(in_loc(1),j)*eval_legendre(in_loc(2),k);
-
-                        mode++;
-                    }
-                }
-            }
-        }
-          }
-        else
+          i = l-k-j;
+          if(i<=in_basis_order && j<=in_basis_order && k<=in_basis_order)
           {
-            cout << "ERROR: Invalid mode when evaluating Legendre basis ...." << endl;
-          }
 
-        return leg_basis;
+            if(mode==in_mode) // found the correct mode
+            {
+              leg_basis=eval_legendre(in_loc(0),i)*eval_legendre(in_loc(1),j)*eval_legendre(in_loc(2),k);
+              return leg_basis;
+            }
+            mode++;
+          }
+        }
+      }
+    }
+  }
+  else
+  {
+    cout << "ERROR: Invalid mode when evaluating Legendre basis ...." << endl;
+  }
+
+FatalError("No mode is founded");
+}
+
+//get the indics of 3D Legendre basis
+int eles_hexas::get_legendre_basis_3D_index(int in_mode, int in_basis_order, int &out_i, int &out_j, int &out_k)
+{
+  int n_dof = (in_basis_order + 1) * (in_basis_order + 1) * (in_basis_order + 1);
+
+  if (in_mode < n_dof)
+  {
+    int i, j, k, l;
+    int mode;
+    mode = 0;                                    //mode=x+y*(N_x+1)+z*(N_x+1)*(N_z+1)
+    for (l = 0; l < 3 * in_basis_order + 1; l++) // sum range from 0 to 3*order
+    {
+      for (k = 0; k < l + 1; k++) // k no more than the sum
+      {
+        for (j = 0; j < l - k + 1; j++) // j no more than sum-k
+        {
+          i = l - k - j;
+          if (i <= in_basis_order && j <= in_basis_order && k <= in_basis_order)
+          {
+            if (mode == in_mode) // found the correct mode
+            {
+              out_i = i;
+              out_j = j;
+              out_k = k;
+              return 0;
+            }
+            mode++;
+          }
+        }
+      }
+    }
+  }
+  else
+  {
+    cout << "ERROR: Invalid mode ...." << endl;
+  }
+  return -1;
 }
 
 double eles_hexas::exponential_filter(int in_mode, int in_basis_order)

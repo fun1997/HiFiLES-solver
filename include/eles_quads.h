@@ -108,9 +108,6 @@ public:
   /*! Compute the filter matrix for subgrid-scale models */
   void compute_filter_upts(void);
 
-  /*! Matrix of filter weights at solution points in 1D */
-  hf_array<double> filter_upts_1D;
-
   /*! Calculate element volume */
   double calc_ele_vol(double& detjac);
 
@@ -129,11 +126,15 @@ public:
   /*! set filter hf_array */
   void set_filter_array(void);
 
+  /*! set over-integration filter array */
+  void set_over_int(void);
+  
   /*! exponential filter */
   double exponential_filter(int, int);
 
   /*! Evaluate 2D Legendre Basis */
   double eval_legendre_basis_2D_hierarchical(int, hf_array<double>, int in_order);
+  int get_legendre_basis_2D_index(int in_mode, int in_basis_order,int &out_i,int &out_j);
 
   int calc_p2c(hf_array<double>& in_pos);
 protected:
@@ -155,6 +156,9 @@ protected:
   /*! location of solution points in standard interval (tensor product elements only)*/
   hf_array<double> loc_1d_upts_rest;
 
+  /*! Matrix of filter weights at solution points in 1D */
+  hf_array<double> filter_upts_1D;
+  
   /*! element edge lengths for h_ref calculation */
   hf_array<double> length;
 

@@ -164,6 +164,7 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("LES",LES,0);
     if (LES)
     {
+        opts.getScalarValue("C_s",C_s);
         opts.getScalarValue("filter_type",filter_type);
         opts.getScalarValue("filter_ratio",filter_ratio);
         opts.getScalarValue("SGS_model",SGS_model);
@@ -393,7 +394,10 @@ void input::read_input_file(string fileName, int rank)
     if(ic_form==9||ic_form==10)
         opts.getScalarValue("x_shock_ic",x_shock_ic);
 
-    /* ---- Shock Capturing / Filtering ---- */
+    /* ---- Shock Capturing / dealiasing ---- */
+    opts.getScalarValue("over_int",over_int,0);
+    if (over_int)
+        opts.getScalarValue("N_under", N_under, order - 1);
 
     opts.getScalarValue("ArtifOn",ArtifOn,0);
     if (ArtifOn)
@@ -517,9 +521,11 @@ void input::setup_params(int rank)
     if (LES && !viscous)
         FatalError("LES not supported with inviscid flow");
 
-    // --------------------------
-    // SETTING UP RK COEFFICIENTS
-    // --------------------------
+    if (N_under > order||N_under<0)
+        FatalError("Invalid under sampling order");
+        // --------------------------
+        // SETTING UP RK COEFFICIENTS
+        // --------------------------
 
     #include "../data/RK_coeff.dat"
 

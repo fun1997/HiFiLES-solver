@@ -99,6 +99,7 @@ public:
 
     /* ---LES options --- */
     int LES;
+    double C_s;
     int filter_type;
     double filter_ratio;
     int SGS_model;
@@ -125,7 +126,8 @@ public:
     hf_array<hf_array<double> > bound_vel_simple;
     hf_array<int> motion_type;
 
-    /* --- Shock Capturing options --- */
+    /* --- Shock Capturing/dealiasing options --- */
+    int over_int,N_under;
     int artif_type, ArtifOn;
     double s0;
     double con_fact,con_exp;

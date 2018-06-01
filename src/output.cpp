@@ -259,11 +259,6 @@ void write_tec(int in_file_num, struct solution* FlowSol)
               {
                 /*! Calculate the sensor at the plot points */
                 FlowSol->mesh_eles(i)->calc_sensor_ppts(j,sensor_ppts_temp);
-
-                /*if(run_input.artif_type == 0)
-                  /*! Calculate the artificial viscosity co-efficients at plot points
-                  FlowSol->mesh_eles(i)->calc_epsilon_ppts(j,epsilon_ppts_temp);
-                  */
               }
 
               /*! Calculate the time averaged fields at the plot points */
@@ -850,11 +845,6 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
                 {
                   /*! Calculate the sensor at the plot points */
                   FlowSol->mesh_eles(i)->calc_sensor_ppts(j,sensor_ppts_temp);
-
-                  /*if(run_input.artif_type == 0)
-                    /*! Calculate the artificial viscosity co-efficients at plot points
-                    FlowSol->mesh_eles(i)->calc_epsilon_ppts(j,epsilon_ppts_temp);
-                    */
                 }
 
                 /*! Calculate the diagnostic fields at the plot points */
@@ -1994,10 +1984,6 @@ void CopyGPUCPU(struct solution* FlowSol)
       if(run_input.ArtifOn)
       {
         FlowSol->mesh_eles(i)->cp_sensor_gpu_cpu();
-        /*
-        if(run_input.artif_type==0)
-          FlowSol->mesh_eles(i)->cp_epsilon_upts_gpu_cpu();
-          */
       }
     }
   }
