@@ -8096,9 +8096,12 @@ void eles::dealias_over_integration(void)
 {
     if (n_eles != 0)
     {
-#ifdef _MKL_BLAS
-        div_tconf_upts(1)=div_tconf_upts(0);
+        div_tconf_upts(1) = div_tconf_upts(0);
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
         cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_fields_mul_n_eles, n_upts_per_ele, 1.0, over_int_filter.get_ptr_cpu(), n_upts_per_ele, div_tconf_upts(1).get_ptr_cpu(), n_upts_per_ele, 0.0, div_tconf_upts(0).get_ptr_cpu(), n_upts_per_ele);
+#else
+        dgemm(n_upts_per_ele, n_fields_mul_n_eles, n_upts_per_ele, 1.0, 0.0, over_int_filter.get_ptr_cpu(), div_tconf_upts(1).get_ptr_cpu(), div_tconf_upts(0).get_ptr_cpu());
+
 #endif
     }
 }
