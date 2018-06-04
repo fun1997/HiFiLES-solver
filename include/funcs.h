@@ -33,6 +33,9 @@
 #include "cusparse_v2.h"
 #endif
 
+//---------------------------------------------
+//BLAS baseline implementation (low efficiency)
+//---------------------------------------------
 /*! routine that mimics BLAS dgemm, perform C= alpha*A*B + beta*C*/
 int dgemm(int Arows, int Bcols, int Acols, double alpha, double beta, double *a, double *b, double *c);
 /*! routine that mimics BLAS daxpy, perform Y=alpha*X+Y */
@@ -42,6 +45,9 @@ int daxpy_(int *n, double *da, double *dx, int *incx, double *dy, int *incy);
 int dscal_wrapper(int n, double alpha, double *x, int incx);
 int dscal_(int *n, double *da, double *dx, int *incx);
 
+//---------------------------------
+//functions for 1D/tensor product 
+//---------------------------------
 /*! evaluate lagrange basis */
 double eval_lagrange(double in_r, int in_mode, hf_array<double>& in_loc_pts);
 
@@ -57,6 +63,9 @@ double eval_legendre(double in_r, int in_mode);
 /*! evaluate derivative of legendre basis */
 double eval_d_legendre(double in_r, int in_mode);
 
+//--------------------------
+//functions for VCJH schemes
+//--------------------------
 /*! evaluate derivative of vcjh basis */
 double eval_d_vcjh_1d(double in_r, int in_mode, int in_order, double in_eta);
 
@@ -70,17 +79,15 @@ void get_opp_3_tri(hf_array<double>& opp_3, hf_array<double>& loc_upts_tri, hf_a
 
 void get_opp_3_dg(hf_array<double>& opp_3_dg, hf_array<double>& loc_upts_tri, hf_array<double>& loc_fpts_tri, int n_upts_per_tri, int order);
 
-void compute_modal_filter_1d(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order);
-
-void compute_modal_filter_tri(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order);
-
-void compute_modal_filter_tet(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order);
-
-void compute_filt_matrix_tri(hf_array<double>& Filt, hf_array<double>& vandermonde_tri, hf_array<double>& inv_vandermonde_tri, int n_upts_per_ele, int order, double c_tri, int vcjh_scheme_tri, hf_array<double>& loc_upts_tri);
-
 /*! evaluate divergenge of vcjh basis on triangle */
 double eval_div_dg_tri(hf_array<double> &in_loc , int in_edge, int in_edge_fpt, int in_order, hf_array<double> &in_loc_fpts_1d);
 
+/*! helper method to compute eta for vcjh schemes */
+double compute_eta(int vjch_scheme, int order);
+
+//------------------
+//MKL and CuBLAS
+//------------------
 /*! get intel mkl coo 4 hf_array format (1 indexed column major) */
 void array_to_mklcoo(hf_array<double>& in_array, hf_array<double>& out_data, hf_array<int>& out_row, hf_array<int>& out_col);
 
@@ -91,15 +98,9 @@ hf_array<double> rs_to_ab(double in_r, double in_s);
 
 hf_array<double> rst_to_abc(double in_r, double in_s, double in_t);
 
-/*!  helper method to evaluate the gamma function for positive integers */
-double eval_gamma(int in_n);
-
-/*!  helper method to evaluate a normalized jacobi polynomial */
-double eval_jacobi(double in_r, int in_alpha, int in_beta, int in_mode);
-
-/*!  helper method to evaluate the gradient of a normalized jacobi polynomial */
-double eval_grad_jacobi(double in_r, int in_alpha, int in_beta, int in_mode);
-
+//------------------------------
+//functions for simplex
+//------------------------------
 /*! evaluate the triangle dubiner basis */
 double eval_dubiner_basis_2d(double in_r, double in_s, int in_mode, int in_basis_order);
 
@@ -115,35 +116,21 @@ double eval_dubiner_basis_3d(double in_r, double in_s, double in_t, int in_mode,
 /*! helper method to evaluate gradient of scalar dubiner basis*/
 double eval_grad_dubiner_basis_3d(double in_r, double in_s, double in_t, int in_mode, int in_basis_order, int component);
 
-/*! helper method to compute eta for vcjh schemes */
-double compute_eta(int vjch_scheme, int order);
+// eval_dd_nodal_s_basis_new function: new implementation of function that finds nth derivatives with
+// respect to r or s at each of the triangle nodes
+void eval_dn_nodal_s_basis(hf_array<double> &dd_nodal_s_basis,
+                           hf_array<double> in_loc, int in_n_spts, int n_deriv);
 
-/*! helper method to check if number is a perfect square */
-bool is_perfect_square(int in_a);
+void compute_modal_filter_1d(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order);
 
-/*! helper method to check if number is a perfect cube */
-bool is_perfect_cube(int in_a);
+void compute_modal_filter_tri(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order);
 
-int compare_ints(const void * a, const void *b);
+void compute_modal_filter_tet(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order);
 
-int index_locate_int(int value, int* hf_array, int size);
+void compute_filt_matrix_tri(hf_array<double>& Filt, hf_array<double>& vandermonde_tri, hf_array<double>& inv_vandermonde_tri, int n_upts_per_ele, int order, double c_tri, int vcjh_scheme_tri, hf_array<double>& loc_upts_tri);
 
-void eval_isentropic_vortex(hf_array<double>& pos, double time, double& rho, double& vx, double& vy, double& vz, double& p, int n_dims);
+// Functions used in evaluation of shape functions and its 1st and 2nd derivatives
 
-void eval_sine_wave_single(hf_array<double>& pos, hf_array<double>& wave_speed, double diff_coeff, double time, double& rho, hf_array<double>& grad_rho, int n_dims);
-
-void eval_sine_wave_group(hf_array<double>& pos, hf_array<double>& wave_speed, double diff_coeff, double time, double& rho, hf_array<double>& grad_rho, int n_dims);
-
-void eval_sphere_wave(hf_array<double>& pos, hf_array<double>& wave_speed, double time, double& rho, int n_dims);
-
-void eval_couette_flow(hf_array<double>& pos, double in_gamma, double in_R_ref, double in_u_wall, double in_T_wall, double in_p_bound, double in_prandtl, double time, double& ene, hf_array<double>& grad_ene, int n_dims);
-
-void eval_poly_ic(hf_array<double>& pos, double rho, hf_array<double>& ics, int n_dims);
-
-int factorial(int in_n);
-
-/*! Functions used in evaluation of shape functions and its 1st and 2nd derivatives
-BEGIN:*/
 // Convolution function: returns hf_array representation of polynomial that is result of multiplication of polynomial1 and polynomial2
 hf_array<double> convol(hf_array<double> & polynomial1, hf_array<double> & polynomial2);
 
@@ -206,21 +193,29 @@ double evalPoly(hf_array<double> p, hf_array<double> coords);
 // createEquispacedArray: returns hf_array with nPoints values equispaced between a and b (in that order)
 hf_array<double> createEquispacedArray(double a, double b, int nPoints);
 
-// Check if all contents of polynomial are zero
-template <typename T>
-bool iszero(hf_array<T> & poly);
+//-----------------------
+//Initial conditions
+//-----------------------
+void eval_isentropic_vortex(hf_array<double>& pos, double time, double& rho, double& vx, double& vy, double& vz, double& p, int n_dims);
 
-// Calculate the number of sides given the number of nodes in triangle
-inline int calcNumSides(int nNodes)
-{
-  return int ( 0.5*(-1 + sqrt( 1 + 8*double(nNodes) ) ) ) ;
-}
+void eval_sine_wave_single(hf_array<double>& pos, hf_array<double>& wave_speed, double diff_coeff, double time, double& rho, hf_array<double>& grad_rho, int n_dims);
 
+void eval_sine_wave_group(hf_array<double>& pos, hf_array<double>& wave_speed, double diff_coeff, double time, double& rho, hf_array<double>& grad_rho, int n_dims);
 
-// eval_dd_nodal_s_basis_new function: new implementation of function that finds nth derivatives with
-// respect to r or s at each of the triangle nodes
-void eval_dn_nodal_s_basis(hf_array<double> &dd_nodal_s_basis,
-                           hf_array<double> in_loc, int in_n_spts, int n_deriv);
+void eval_sphere_wave(hf_array<double>& pos, hf_array<double>& wave_speed, double time, double& rho, int n_dims);
+
+void eval_couette_flow(hf_array<double>& pos, double in_gamma, double in_R_ref, double in_u_wall, double in_T_wall, double in_p_bound, double in_prandtl, double time, double& ene, hf_array<double>& grad_ene, int n_dims);
+
+void eval_poly_ic(hf_array<double>& pos, double rho, hf_array<double>& ics, int n_dims);
+
+//----------------
+//Math tools
+//----------------
+/*! Factorials*/
+int factorial(int in_n);
+
+/*!  helper method to evaluate the gamma function for positive integers */
+double eval_gamma(int in_n);
 
 /*! Linear equation solution by Gauss-Jordan elimination from Numerical Recipes (http://www.nr.com/) */
 void gaussj(int n, hf_array<double>& A, hf_array<double>& b);
@@ -228,6 +223,15 @@ void gaussj(int n, hf_array<double>& A, hf_array<double>& b);
 /*! Filter resolution function used with Gaussian filter*/
 double flt_res(int N, hf_array<double>& wf, hf_array<double>& B, double k_0, double k_c, int ctype);
 
+/*!  helper method to evaluate a normalized jacobi polynomial */
+double eval_jacobi(double in_r, int in_alpha, int in_beta, int in_mode);
+
+/*!  helper method to evaluate the gradient of a normalized jacobi polynomial */
+double eval_grad_jacobi(double in_r, int in_alpha, int in_beta, int in_mode);
+
+//--------------------
+//Array manipulations
+//--------------------
 /*! Set an hf_array to zero*/
 void zero_array(hf_array <double>& in_array);
 
@@ -243,6 +247,15 @@ hf_array <double> inv_array(hf_array <double>& input);
 /*! method to get transpose of a square hf_array*/
 hf_array <double> transpose_array(hf_array <double>& in_array);
 
+/*! method to calculate triple product of three 3D array*/
+double trip_prod(hf_array<double> &a,hf_array<double> &b, hf_array<double> &c);
+
+/*! method to calculate corss product of three 3D arryas*/
+hf_array<double> cross_prod_3d(hf_array<double> &a,hf_array<double> &b);
+
+//--------------------
+//Geometry calculation
+//--------------------
 /*! method to define a plane using three points*/
 hf_array <double> calc_plane(hf_array<double>& in_pos);
 
@@ -252,11 +265,32 @@ hf_array<double> calc_line(hf_array<double>& in_pos);
 /*! method to calculate centroid of a set of points*/
 hf_array<double> calc_centroid(hf_array<double>& in_pos);
 
-/*! method to calculate triple product of three 3D vectors*/
-double trip_prod(hf_array<double> &a,hf_array<double> &b, hf_array<double> &c);
+//------------------
+//Others
+//------------------
+/*! helper method to check if number is a perfect square */
+bool is_perfect_square(int in_a);
 
-/*! method to calculate corss product of three 3D vectors*/
-hf_array<double> cross_prod_3d(hf_array<double> &a,hf_array<double> &b);
+/*! helper method to check if number is a perfect cube */
+bool is_perfect_cube(int in_a);
+
+inline int compare_ints(const void * a, const void *b)
+{
+  return ( *(int*)a-*(int*)b );
+}
+
+// Check if all contents of polynomial are zero
+template <typename T>
+bool iszero(hf_array<T> & poly);
+
+// Calculate the number of sides given the number of nodes in triangle
+inline int calcNumSides(int nNodes)
+{
+  return int ( 0.5*(-1 + sqrt( 1 + 8*double(nNodes) ) ) ) ;
+}
+
+/*! Method that searches a value in a sorted hf_array without repeated entries and returns position in hf_array*/                
+int index_locate_int(int value, int* hf_array, int size);
 /*! END */
 
 

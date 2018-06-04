@@ -80,44 +80,6 @@ public:
   /*! write extra restart file containing x,y,z of solution points instead of solution data */
   void write_restart_mesh(ofstream& restart_file);
 
-	/*! move all to from cpu to gpu */
-	void mv_all_cpu_gpu(void);
-
-	/*! move wall distance hf_array to from cpu to gpu */
-	void mv_wall_distance_cpu_gpu(void);
-
-  /*! move wall distance magnitude hf_array to from cpu to gpu */
-  void mv_wall_distance_mag_cpu_gpu(void);
-
-	/*! copy transformed discontinuous solution at solution points to cpu */
-	void cp_disu_upts_gpu_cpu(void);
-
-	/*! copy transformed discontinuous solution at solution points to gpu */
-  void cp_disu_upts_cpu_gpu(void);
-
-  void cp_grad_disu_upts_gpu_cpu(void);
-
-  /*! copy determinant of jacobian at solution points to cpu */
-  void cp_detjac_upts_gpu_cpu(void);
-
-  /*! copy divergence at solution points to cpu */
-  void cp_div_tconf_upts_gpu_cpu(void);
-
-  /*! copy local time stepping reference length at solution points to cpu */
-  void cp_h_ref_gpu_cpu(void);
-
-  /*! copy source term at solution points to cpu */
-  void cp_src_upts_gpu_cpu(void);
-
-  /*! copy elemental sensor values to cpu */
-  void cp_sensor_gpu_cpu(void);
-
-  /*! remove transformed discontinuous solution at solution points from cpu */
-  void rm_disu_upts_cpu(void);
-
-  /*! remove determinant of jacobian at solution points from cpu */
-  void rm_detjac_upts_cpu(void);
-
   /*! calculate the discontinuous solution at the flux points */
   void extrapolate_solution(void);
 
@@ -204,9 +166,6 @@ public:
 
   /*! set shape node */
   void set_shape_node(int in_spt, int in_ele, hf_array<double>& in_pos);
-
-  /*! Set new position of shape node in dynamic domain */
-  void set_dynamic_shape_node(int in_spt, int in_ele, hf_array<double> &in_pos);
 
   /*! set bc type */
   void set_bctype(int in_ele, int in_inter, int in_bctype);
@@ -309,8 +268,6 @@ public:
 
   void set_rank(int in_rank);
 
-  virtual void set_connectivity_plot()=0;
-
   void set_disu_upts_to_zero_other_levels(void);
 
   hf_array<int> get_connectivity_plot();
@@ -376,8 +333,38 @@ public:
   /*! iteratively calculate location in reference domain from position in physical domain*/
   void pos_to_loc(hf_array<double>& in_pos,int in_ele,hf_array<double>& out_loc);
 
-  // #### virtual methods ####
+  /*! Calculate SGS flux */
+  void calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_u, double& detjac, int ele, int upt, hf_array<double>& temp_sgsf);
 
+  /*! rotate velocity components to surface*/
+  hf_array<double> calc_rotation_matrix(hf_array<double>& norm);
+
+  /*! calculate wall shear stress using LES wall model*/
+  void calc_wall_stress(double rho, hf_array<double>& urot, double ene, double mu, double Pr, double gamma, double y, hf_array<double>& tau_wall, double q_wall);
+
+  /*! Wall function calculator for Breuer-Rodi wall model */
+  double wallfn_br(double yplus, double A, double B, double E, double kappa);
+
+  double compute_res_upts(int in_norm_type, int in_field);
+
+  /*! calculate body forcing at solution points */
+  void evaluate_body_force(int in_file_num);
+
+  /*! Compute volume integral of diagnostic quantities */
+  void CalcIntegralQuantities(int n_integral_quantities, hf_array <double>& integral_quantities);
+
+  /*! Compute time-average diagnostic quantities */
+  void CalcTimeAverageQuantities(double& time);
+
+  void compute_wall_forces(hf_array<double>& inv_force, hf_array<double>& vis_force, double& temp_cl, double& temp_cd, ofstream& coeff_file, bool write_forces);
+
+  hf_array<double> compute_error(int in_norm_type, double& time);
+
+  hf_array<double> get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type);
+
+//------------------------
+// virtual methods
+//------------------------
   virtual void setup_ele_type_specific()=0;
 
   /*! prototype for element reference length calculation */
@@ -410,41 +397,17 @@ public:
   /*! evaluate derivative of nodal shape basis */
   virtual void eval_d_nodal_s_basis(hf_array<double> &d_nodal_s_basis, hf_array<double> in_loc, int in_n_spts)=0;
 
-  /*! Calculate SGS flux */
-  void calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_u, double& detjac, int ele, int upt, hf_array<double>& temp_sgsf);
-
-  /*! rotate velocity components to surface*/
-  hf_array<double> calc_rotation_matrix(hf_array<double>& norm);
-
-  /*! calculate wall shear stress using LES wall model*/
-  void calc_wall_stress(double rho, hf_array<double>& urot, double ene, double mu, double Pr, double gamma, double y, hf_array<double>& tau_wall, double q_wall);
-
-  /*! Wall function calculator for Breuer-Rodi wall model */
-  double wallfn_br(double yplus, double A, double B, double E, double kappa);
-
   /*! Calculate element volume */
   virtual double calc_ele_vol(double& detjac)=0;
 
   /*! calculate which cell probe points in */
   virtual int calc_p2c(hf_array<double>& in_pos)=0;
 
-  double compute_res_upts(int in_norm_type, int in_field);
+  virtual void set_connectivity_plot()=0;
 
-  /*! calculate body forcing at solution points */
-  void evaluate_body_force(int in_file_num);
-
-  /*! Compute volume integral of diagnostic quantities */
-  void CalcIntegralQuantities(int n_integral_quantities, hf_array <double>& integral_quantities);
-
-  /*! Compute time-average diagnostic quantities */
-  void CalcTimeAverageQuantities(double& time);
-
-  void compute_wall_forces(hf_array<double>& inv_force, hf_array<double>& vis_force, double& temp_cl, double& temp_cd, ofstream& coeff_file, bool write_forces);
-
-  hf_array<double> compute_error(int in_norm_type, double& time);
-
-  hf_array<double> get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type);
-
+//---------------
+//mesh motion
+//---------------
   /*! calculate position of a point in physical (dynamic) space from (r,s,t) coordinates*/
   void calc_pos_dyn(hf_array<double> in_loc, int in_ele, hf_array<double> &out_pos);
 
@@ -583,6 +546,9 @@ public:
   /*! Set the transformation variables for dynamic-physical -> static-physical frames */
   void set_transforms_dynamic(void);
 
+  /*! Set new position of shape node in dynamic domain */
+  void set_dynamic_shape_node(int in_spt, int in_ele, hf_array<double> &in_pos);
+
   /* --- Geometric Conservation Law (GCL) Funcitons --- */
   /*! Update the dynamic transformation variables with the GCL-corrected Jacobian determinant */
   void correct_dynamic_transforms(void);
@@ -597,9 +563,9 @@ public:
   double *get_disu_GCL_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele);
   /* --------------------------------------------------- */
 
-  /*! Set the time step for the current iteration */
-  void set_dt(int in_step, int adv_type);
-
+//--------------------
+//GPU functions
+//--------------------
 #ifdef _GPU
   void cp_transforms_gpu_cpu(void);
   void cp_transforms_cpu_gpu(void);
@@ -610,9 +576,50 @@ public:
   void calc_grid_velocity(void);
   void rigid_grid_velocity(double rk_time);
   void perturb_grid_velocity(double rk_time);
+
+	/*! move all to from cpu to gpu */
+	void mv_all_cpu_gpu(void);
+
+	/*! move wall distance hf_array to from cpu to gpu */
+	void mv_wall_distance_cpu_gpu(void);
+
+  /*! move wall distance magnitude hf_array to from cpu to gpu */
+  void mv_wall_distance_mag_cpu_gpu(void);
+
+	/*! copy transformed discontinuous solution at solution points to cpu */
+	void cp_disu_upts_gpu_cpu(void);
+
+	/*! copy transformed discontinuous solution at solution points to gpu */
+  void cp_disu_upts_cpu_gpu(void);
+
+  void cp_grad_disu_upts_gpu_cpu(void);
+
+  /*! copy determinant of jacobian at solution points to cpu */
+  void cp_detjac_upts_gpu_cpu(void);
+
+  /*! copy divergence at solution points to cpu */
+  void cp_div_tconf_upts_gpu_cpu(void);
+
+  /*! copy local time stepping reference length at solution points to cpu */
+  void cp_h_ref_gpu_cpu(void);
+
+  /*! copy source term at solution points to cpu */
+  void cp_src_upts_gpu_cpu(void);
+
+  /*! copy elemental sensor values to cpu */
+  void cp_sensor_gpu_cpu(void);
+
+  /*! remove transformed discontinuous solution at solution points from cpu */
+  void rm_disu_upts_cpu(void);
+
+  /*! remove determinant of jacobian at solution points from cpu */
+  void rm_detjac_upts_cpu(void);
+
 #endif
 
-  /* --- Shock capturing/de-aliasing functions --- */
+//---------------------------------------
+//Shock capturing/de-aliasing functions
+//---------------------------------------
 
   void shock_capture_concentration(void);
   void shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma);
@@ -1208,18 +1215,6 @@ protected:
   /*! operator to go from discontinuous solution at the restart points to discontinuous solution at the solutoin points */
   hf_array<double> opp_r;
 
-  /*! general settings for mkl sparse blas */
-  char matdescra[6];
-
-  /*! transpose setting for mkl sparse blas */
-  char transa;
-
-  /*! zero for mkl sparse blas */
-  double zero;
-
-  /*! one for mkl sparse blas */
-  double one;
-
   /*! number of fields multiplied by number of elements */
   int n_fields_mul_n_eles;
 
@@ -1236,7 +1231,7 @@ protected:
   hf_array<double> h_ref;
 
 
-  /*! Artificial Viscosity variables */
+  /*! shock capturing/de-aliasing variables */
   hf_array<double> vandermonde;
   hf_array<double> inv_vandermonde;
   hf_array<double> vandermonde2D;

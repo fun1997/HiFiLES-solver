@@ -84,7 +84,7 @@ void eles_hexas::setup_ele_type_specific()
 
   //de-aliasing by over-integration
   if (run_input.over_int)
-    set_over_int();
+    set_over_int_filter();
 
   n_ppts_per_ele=p_res*p_res*p_res;
   n_peles_per_ele=(p_res-1)*(p_res-1)*(p_res-1);
@@ -962,7 +962,7 @@ void eles_hexas::set_vandermonde3D(void)
 
   }
 
-  void eles_hexas::set_over_int(void)
+  void eles_hexas::set_over_int_filter(void)
   {
     int N_under = run_input.N_under;
     int n_mode_under = (N_under+1) * (N_under+1) * (N_under+1); //projected n_upts_per_ele

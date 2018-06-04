@@ -1784,12 +1784,6 @@ double compute_eta(int vcjh_scheme, int order)
   return eta;
 }
 
-int compare_ints(const void * a, const void *b)
-{
-  return ( *(int*)a-*(int*)b );
-}
-
-
 // Method that searches a value in a sorted hf_array without repeated entries and returns position in hf_array
 int index_locate_int(int value, int* hf_array, int size)
 {

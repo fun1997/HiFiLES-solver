@@ -940,11 +940,10 @@ void eles::write_restart_mesh(ofstream& restart_file)
     restart_file << endl;
 }
 
+#ifdef _GPU
 // move all to from cpu to gpu
-
 void eles::mv_all_cpu_gpu(void)
 {
-#ifdef _GPU
     if (n_eles!=0)
     {
         disu_upts(0).cp_cpu_gpu();
@@ -1008,50 +1007,37 @@ void eles::mv_all_cpu_gpu(void)
             }
         }
     }
-#endif
 }
 
 // move wall distance hf_array to gpu
 void eles::mv_wall_distance_cpu_gpu(void)
 {
-#ifdef _GPU
-
     wall_distance.mv_cpu_gpu();
-
-#endif
 }
 
 // move wall distance magnitude hf_array to gpu
 void eles::mv_wall_distance_mag_cpu_gpu(void)
 {
-#ifdef _GPU
-
     wall_distance_mag.mv_cpu_gpu();
-
-#endif
 }
 
 // copy discontinuous solution at solution points to cpu
 void eles::cp_disu_upts_gpu_cpu(void)
 {
-#ifdef _GPU
     if (n_eles!=0)
     {
         disu_upts(0).cp_gpu_cpu();
     }
-#endif
 }
 
 
 // copy discontinuous solution at solution points to gpu
 void eles::cp_disu_upts_cpu_gpu(void)
 {
-#ifdef _GPU
     if (n_eles!=0)
     {
         disu_upts(0).cp_cpu_gpu();
     }
-#endif
 }
 
 // copy gradient of discontinuous solution at solution points to cpu
@@ -1059,20 +1045,14 @@ void eles::cp_grad_disu_upts_gpu_cpu(void)
 {
     if (n_eles!=0)
     {
-#ifdef _GPU
         grad_disu_upts.cp_gpu_cpu();
-#endif
     }
 }
 
 // copy determinant of jacobian at solution points to cpu
 void eles::cp_detjac_upts_gpu_cpu(void)
 {
-#ifdef _GPU
-
     detjac_upts.cp_gpu_cpu();
-
-#endif
 }
 
 // copy divergence at solution points to cpu
@@ -1080,22 +1060,14 @@ void eles::cp_div_tconf_upts_gpu_cpu(void)
 {
     if (n_eles!=0)
     {
-#ifdef _GPU
-
         div_tconf_upts(0).cp_gpu_cpu();
-
-#endif
     }
 }
 
 // copy local time stepping reference length at solution points to cpu
 void eles::cp_h_ref_gpu_cpu(void)
 {
-#ifdef _GPU
-
     h_ref.cp_gpu_cpu();
-
-#endif
 }
 
 // copy source term at solution points to cpu
@@ -1103,47 +1075,33 @@ void eles::cp_src_upts_gpu_cpu(void)
 {
     if (n_eles!=0)
     {
-#ifdef _GPU
-
         src_upts.cp_gpu_cpu();
-
-#endif
     }
 }
 
 // copy sensor in each element to cpu
 void eles::cp_sensor_gpu_cpu(void)
 {
-#ifdef _GPU
     if (n_eles!=0)
     {
         sensor.cp_gpu_cpu();
     }
-#endif
 }
 
 // remove transformed discontinuous solution at solution points from cpu
 
 void eles::rm_disu_upts_cpu(void)
 {
-#ifdef _GPU
-
     disu_upts(0).rm_cpu();
-
-#endif
 }
 
 // remove determinant of jacobian at solution points from cpu
 
 void eles::rm_detjac_upts_cpu(void)
 {
-#ifdef _GPU
-
     detjac_upts.rm_cpu();
-
-#endif
 }
-
+#endif
 // advance solution
 
 void eles::AdvanceSolution(int in_step, int adv_type)

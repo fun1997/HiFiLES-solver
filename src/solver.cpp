@@ -222,12 +222,9 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
 
   /*! De-aliasing using over-integration*/
   if (run_input.over_int)
-  {
     for (i = 0; i < FlowSol->n_ele_types; i++)
-    {
       FlowSol->mesh_eles(i)->dealias_over_integration();
-    }
-  }
+
   /*! Compute source term */
   if (run_input.turb_model==1) {
     for (i=0; i<FlowSol->n_ele_types; i++)

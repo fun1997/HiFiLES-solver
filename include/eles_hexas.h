@@ -128,7 +128,7 @@ protected:
   void set_filter_array(void);
 
   /*! set over-integration filter array */
-  void set_over_int(void);
+  void set_over_int_filter(void);
 
   /*! exponential filter */
   double exponential_filter(int, int);

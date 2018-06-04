@@ -94,7 +94,7 @@ void eles_quads::setup_ele_type_specific()
 
   //de-aliasing by over-integration
   if (run_input.over_int)
-    set_over_int();
+    set_over_int_filter();
 
   n_fpts_per_inter.setup(4);
 
@@ -809,7 +809,7 @@ void eles_quads::set_concentration_array()
                         concentration_array(j + i*(order+1)) = concentration_factor(j)*sqrt(1 - loc_1d_upts(i)*loc_1d_upts(i))*grad_vandermonde(i,j);
 }
 
-void eles_quads::set_over_int(void)
+void eles_quads::set_over_int_filter(void)
 {
   int N_under = run_input.N_under;
   int n_mode_under = (N_under + 1) * (N_under + 1); //projected n_upts_per_ele
