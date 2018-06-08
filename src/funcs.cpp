@@ -844,7 +844,7 @@ void compute_filt_matrix_tri(hf_array<double>& Filt, hf_array<double>& vandermon
   hf_array<double> temps(n_upts_tri,n_upts_tri);
   hf_array<double> D_high_order_trans(n_upts_tri,n_upts_tri);
   hf_array<double> vandermonde_tri_trans(n_upts_tri,n_upts_tri);
-
+  
   hf_array<hf_array <double> > D_high_order;
   hf_array<hf_array <double> > D_T_D;
 
@@ -1081,7 +1081,7 @@ double eval_div_dg_tri(hf_array<double> &in_loc , int in_edge, int in_edge_fpt, 
   hf_array<double> coeff_gdotn((in_order+1),1);
   hf_array<double> coeff_divg(n_upts_tri,1);
 
-  cubature_1d cub1d(10);  // TODO: CHECK STRENGTH
+  cubature_1d cub1d(0,10);  // TODO: CHECK STRENGTH
 
   if (in_edge==0)
     edge_length=2.;

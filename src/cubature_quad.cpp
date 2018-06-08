@@ -29,6 +29,7 @@
 #include <sstream>
 
 #include "../include/global.h"
+#include "../include/cubature_1d.h"
 #include "../include/cubature_quad.h"
 
 using namespace std;
@@ -39,7 +40,7 @@ using namespace std;
 
 cubature_quad::cubature_quad()
 {	
-  rule=0;
+  order=0;
   n_pts=0;
   locs.setup(0,0);
   weights.setup(0);
@@ -47,94 +48,33 @@ cubature_quad::cubature_quad()
 
 // constructor 1
 
-cubature_quad::cubature_quad(int in_rule) // set by rule
+cubature_quad::cubature_quad(int in_rule,int in_order) // set by rule
 {	
-  ifstream datfile;
-  char buf[BUFSIZ]={""};
-  char section_TXT[100], param_TXT[100];
-  char* f;
-  string filename, param_name, param, ord;
-  istringstream strbuf;
-  int rule_file;
-
-  rule=in_rule;
-  n_pts = rule*rule;
-  
-  locs.setup(n_pts,2);
+  order = in_order;
+  n_pts = (order + 1) * (order + 1);
+  locs.setup(n_pts, 2);
   weights.setup(n_pts);
 
-  if(rule < 21) {
-    
-    if (HIFILES_DIR == NULL)
-      FatalError("environment variable HIFILES_HOME is undefined");
-    
-    filename = HIFILES_DIR;
-    filename += "/data/cubature_quad.dat";
-    f = (char*)filename.c_str();
-    datfile.open(f, ifstream::in);
-    if (!datfile) FatalError("Unable to open cubature file");
+  //get 1D points and weights
+  cubature_1d cub_1d(in_rule, order);
 
-    // read data from file to arrays
-    while(datfile.getline(buf,BUFSIZ))
-    {
-      sscanf(buf,"%s",section_TXT);
-      param_name.assign(section_TXT,0,99);
-      
-      if(!param_name.compare(0,4,"rule"))
+      for (int i = 0; i < (order + 1); i++) //y
       {
-        // get no. of pts
-        ord = param_name.substr(5);
-        stringstream str(ord);
-        str >> rule_file;
-        
-        // if pts matches order, read locs and weights
-        if (rule_file == rule) {
-          
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            locs(i,0) = atof(param.c_str());
-          }
-          
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            locs(i,1) = atof(param.c_str());
-          }
-          
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            weights(i) = atof(param.c_str());
-          }
-          break;
+        for (int j = 0; j < (order + 1); j++) //x
+        {
+          int index = j + (order + 1) * i;
+          locs(index, 0) = cub_1d.get_r(j);
+          locs(index, 1) = cub_1d.get_r(i);
+          weights(index) = cub_1d.get_weight(j) * cub_1d.get_weight(i);
         }
       }
-    }
-  }
-  else { FatalError("cubature rule not implemented."); }
 }
 
 // copy constructor
 
 cubature_quad::cubature_quad(const cubature_quad& in_cubature)
 {
-  rule=in_cubature.rule;
+  order=in_cubature.order;
   n_pts=in_cubature.n_pts;
   locs=in_cubature.locs;
   weights=in_cubature.weights;
@@ -151,7 +91,7 @@ cubature_quad& cubature_quad::operator=(const cubature_quad& in_cubature)
     }
   else
     {
-      rule=in_cubature.rule;
+      order=in_cubature.order;
       n_pts=in_cubature.n_pts;
       locs=in_cubature.locs;
       weights=in_cubature.weights;

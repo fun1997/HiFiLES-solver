@@ -97,28 +97,28 @@ void bdy_inters::set_bdy_params()
         bdy_params(13) = run_input.nz_sub_in_char;
         if (viscous)
         {
-            bdy_params(9) = run_input.p_total_bound;
-            bdy_params(10) = run_input.T_total_bound;
+            bdy_params(9) = run_input.p_total_bound_sub_in;
+            bdy_params(10) = run_input.T_total_bound_sub_in;
         }
         else
         {
-            bdy_params(9) = run_input.P_Total_Nozzle;
-            bdy_params(10) = run_input.T_Total_Nozzle;
+            bdy_params(9) = run_input.p_total_sub_in;
+            bdy_params(10) = run_input.T_total_sub_in;
         }
         //Pressure Ramp
-        if (run_input.Pressure_Ramp)
+        if (run_input.pressure_ramp)
         {
-            bdy_params(15) = run_input.P_Ramp_Coeff;
-            bdy_params(16) = run_input.T_Ramp_Coeff;
+            bdy_params(15) = run_input.p_ramp_coeff;
+            bdy_params(16) = run_input.T_ramp_coeff;
             if (viscous)
             {
-                bdy_params(17) = run_input.P_Total_Old_Bound;
-                bdy_params(18) = run_input.T_Total_Old_Bound;
+                bdy_params(17) = run_input.p_total_bound_old;
+                bdy_params(18) = run_input.T_total_bound_old;
             }
             else
             {
-                bdy_params(17) = run_input.P_Total_Old;
-                bdy_params(18) = run_input.T_Total_Old;
+                bdy_params(17) = run_input.p_total_old;
+                bdy_params(18) = run_input.T_total_old;
             }
 
         }
@@ -129,17 +129,17 @@ void bdy_inters::set_bdy_params()
     {
         if (viscous)
         {
-            bdy_params(19) = run_input.rho_bound_Sub_In_Simp;
-            bdy_params(20) = run_input.v_bound_Sub_In_Simp(0);
-            bdy_params(21) = run_input.v_bound_Sub_In_Simp(1);
-            bdy_params(22) = run_input.v_bound_Sub_In_Simp(2);
+            bdy_params(19) = run_input.rho_bound_sub_in_simp;
+            bdy_params(20) = run_input.v_bound_sub_in_simp(0);
+            bdy_params(21) = run_input.v_bound_sub_in_simp(1);
+            bdy_params(22) = run_input.v_bound_sub_in_simp(2);
         }
         else
         {
-            bdy_params(19) = run_input.Rho_Sub_In_Simp;
-            bdy_params(20) = run_input.Mach_Sub_In_Simp*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.nx_sub_in_simp;
-            bdy_params(21) = run_input.Mach_Sub_In_Simp*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.ny_sub_in_simp;
-            bdy_params(22) = run_input.Mach_Sub_In_Simp*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.nz_sub_in_simp;
+            bdy_params(19) = run_input.rho_sub_in_simp;
+            bdy_params(20) = run_input.Mach_sub_in_simp*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.nx_sub_in_simp;
+            bdy_params(21) = run_input.Mach_sub_in_simp*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.ny_sub_in_simp;
+            bdy_params(22) = run_input.Mach_sub_in_simp*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.nz_sub_in_simp;
         }
     }
     //Boundary parameters for Subsonic Outflow
@@ -147,13 +147,13 @@ void bdy_inters::set_bdy_params()
     {
         if (viscous)
         {
-            bdy_params(23) = run_input.p_bound_Sub_Out;
-            bdy_params(0)=run_input.T_total_Sub_Out_bound;
+            bdy_params(23) = run_input.p_bound_sub_out;
+            bdy_params(0)=run_input.T_total_bound_sub_out;
         }
         else
         {
-            bdy_params(23) = run_input.P_Sub_Out;
-            bdy_params(0)=run_input.T_total_Sub_Out;
+            bdy_params(23) = run_input.p_sub_out;
+            bdy_params(0)=run_input.T_total_sub_out;
         }
     }
     //Boundary parameters for Supersonic Inflow
@@ -161,19 +161,19 @@ void bdy_inters::set_bdy_params()
     {
         if (viscous)
         {
-            bdy_params(24) = run_input.rho_bound_Sup_In;
-            bdy_params(25) = run_input.v_bound_Sup_In(0);
-            bdy_params(26) = run_input.v_bound_Sup_In(1);
-            bdy_params(27) = run_input.v_bound_Sup_In(2);
-            bdy_params(28) = run_input.p_bound_Sup_In;
+            bdy_params(24) = run_input.rho_bound_sup_in;
+            bdy_params(25) = run_input.v_bound_sup_in(0);
+            bdy_params(26) = run_input.v_bound_sup_in(1);
+            bdy_params(27) = run_input.v_bound_sup_in(2);
+            bdy_params(28) = run_input.p_bound_sup_in;
         }
         else
         {
-            bdy_params(24) = run_input.P_Sup_In/(run_input.R_gas*run_input.T_sup_in);
-            bdy_params(25) = run_input.Mach_Sup_In*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in)*run_input.nx_sup_in;
-            bdy_params(26) = run_input.Mach_Sup_In*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in)*run_input.ny_sup_in;
-            bdy_params(27) = run_input.Mach_Sup_In*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in)*run_input.nz_sup_in;
-            bdy_params(28) = run_input.P_Sup_In;
+            bdy_params(24) = run_input.p_sup_in/(run_input.R_gas*run_input.T_sup_in);
+            bdy_params(25) = run_input.Mach_sup_in*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in)*run_input.nx_sup_in;
+            bdy_params(26) = run_input.Mach_sup_in*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in)*run_input.ny_sup_in;
+            bdy_params(27) = run_input.Mach_sup_in*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in)*run_input.nz_sup_in;
+            bdy_params(28) = run_input.p_sup_in;
         }
     }
     //Boundary Parameters for Far Field
@@ -181,19 +181,19 @@ void bdy_inters::set_bdy_params()
     {
         if (viscous)
         {
-            bdy_params(29) = run_input.rho_bound_Far_Field;
-            bdy_params(30) = run_input.v_bound_Far_Field(0);
-            bdy_params(31) = run_input.v_bound_Far_Field(1);
-            bdy_params(32) = run_input.v_bound_Far_Field(2);
-            bdy_params(33) = run_input.p_bound_Far_Field;
+            bdy_params(29) = run_input.rho_bound_far_field;
+            bdy_params(30) = run_input.v_bound_far_field(0);
+            bdy_params(31) = run_input.v_bound_far_field(1);
+            bdy_params(32) = run_input.v_bound_far_field(2);
+            bdy_params(33) = run_input.p_bound_far_field;
         }
         else
         {
-            bdy_params(29) = run_input.P_Far_Field/(run_input.R_gas*run_input.T_far_field);
-            bdy_params(30) = run_input.Mach_Far_Field*sqrt(run_input.gamma*run_input.R_gas*run_input.T_far_field)*run_input.nx_far_field;
-            bdy_params(31) = run_input.Mach_Far_Field*sqrt(run_input.gamma*run_input.R_gas*run_input.T_far_field)*run_input.ny_far_field;
-            bdy_params(32) = run_input.Mach_Far_Field*sqrt(run_input.gamma*run_input.R_gas*run_input.T_far_field)*run_input.nz_far_field;
-            bdy_params(33) = run_input.P_Far_Field;
+            bdy_params(29) = run_input.p_far_field/(run_input.R_gas*run_input.T_far_field);
+            bdy_params(30) = run_input.Mach_far_field*sqrt(run_input.gamma*run_input.R_gas*run_input.T_far_field)*run_input.nx_far_field;
+            bdy_params(31) = run_input.Mach_far_field*sqrt(run_input.gamma*run_input.R_gas*run_input.T_far_field)*run_input.ny_far_field;
+            bdy_params(32) = run_input.Mach_far_field*sqrt(run_input.gamma*run_input.R_gas*run_input.T_far_field)*run_input.nz_far_field;
+            bdy_params(33) = run_input.p_far_field;
         }
     }
     //Boundary parameters for Simple Subsonic Inflow2
@@ -201,17 +201,17 @@ void bdy_inters::set_bdy_params()
     {
         if (viscous)
         {
-            bdy_params(34) = run_input.rho_bound_Sub_In_Simp2;
-            bdy_params(35) = run_input.v_bound_Sub_In_Simp2(0);
-            bdy_params(36) = run_input.v_bound_Sub_In_Simp2(1);
-            bdy_params(37) = run_input.v_bound_Sub_In_Simp2(2);
+            bdy_params(34) = run_input.rho_bound_sub_in_simp2;
+            bdy_params(35) = run_input.v_bound_sub_in_simp2(0);
+            bdy_params(36) = run_input.v_bound_sub_in_simp2(1);
+            bdy_params(37) = run_input.v_bound_sub_in_simp2(2);
         }
         else
         {
-            bdy_params(34) = run_input.Rho_Sub_In_Simp2;
-            bdy_params(35) = run_input.Mach_Sub_In_Simp2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.nx_sub_in_simp2;
-            bdy_params(36) = run_input.Mach_Sub_In_Simp2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.ny_sub_in_simp2;
-            bdy_params(37) = run_input.Mach_Sub_In_Simp2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.nz_sub_in_simp2;
+            bdy_params(34) = run_input.rho_sub_in_simp2;
+            bdy_params(35) = run_input.Mach_sub_in_simp2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.nx_sub_in_simp2;
+            bdy_params(36) = run_input.Mach_sub_in_simp2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.ny_sub_in_simp2;
+            bdy_params(37) = run_input.Mach_sub_in_simp2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_free_stream)*run_input.nz_sub_in_simp2;
         }
     }
     //Boundary parameters for Supersonic Inflow2
@@ -219,19 +219,19 @@ void bdy_inters::set_bdy_params()
     {
         if (viscous)
         {
-            bdy_params(38) = run_input.rho_bound_Sup_In2;
-            bdy_params(39) = run_input.v_bound_Sup_In2(0);
-            bdy_params(40) = run_input.v_bound_Sup_In2(1);
-            bdy_params(41) = run_input.v_bound_Sup_In2(2);
-            bdy_params(42) = run_input.p_bound_Sup_In2;
+            bdy_params(38) = run_input.rho_bound_sup_in2;
+            bdy_params(39) = run_input.v_bound_sup_in2(0);
+            bdy_params(40) = run_input.v_bound_sup_in2(1);
+            bdy_params(41) = run_input.v_bound_sup_in2(2);
+            bdy_params(42) = run_input.p_bound_sup_in2;
         }
         else
         {
-            bdy_params(38) = run_input.P_Sup_In2/(run_input.R_gas*run_input.T_sup_in2);
-            bdy_params(39) = run_input.Mach_Sup_In2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in2)*run_input.nx_sup_in2;
-            bdy_params(40) = run_input.Mach_Sup_In2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in2)*run_input.ny_sup_in2;
-            bdy_params(41) = run_input.Mach_Sup_In2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in2)*run_input.nz_sup_in2;
-            bdy_params(42) = run_input.P_Sup_In2;
+            bdy_params(38) = run_input.p_sup_in2/(run_input.R_gas*run_input.T_sup_in2);
+            bdy_params(39) = run_input.Mach_sup_in2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in2)*run_input.nx_sup_in2;
+            bdy_params(40) = run_input.Mach_sup_in2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in2)*run_input.ny_sup_in2;
+            bdy_params(41) = run_input.Mach_sup_in2*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in2)*run_input.nz_sup_in2;
+            bdy_params(42) = run_input.p_sup_in2;
         }
     }
     //Boundary parameters for Supersonic Inflow2
@@ -239,19 +239,19 @@ void bdy_inters::set_bdy_params()
     {
         if (viscous)
         {
-            bdy_params(43) = run_input.rho_bound_Sup_In3;
-            bdy_params(44) = run_input.v_bound_Sup_In3(0);
-            bdy_params(45) = run_input.v_bound_Sup_In3(1);
-            bdy_params(46) = run_input.v_bound_Sup_In3(2);
-            bdy_params(47) = run_input.p_bound_Sup_In3;
+            bdy_params(43) = run_input.rho_bound_sup_in3;
+            bdy_params(44) = run_input.v_bound_sup_in3(0);
+            bdy_params(45) = run_input.v_bound_sup_in3(1);
+            bdy_params(46) = run_input.v_bound_sup_in3(2);
+            bdy_params(47) = run_input.p_bound_sup_in3;
         }
         else
         {
-            bdy_params(43) = run_input.P_Sup_In3/(run_input.R_gas*run_input.T_sup_in3);
-            bdy_params(44) = run_input.Mach_Sup_In3*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in3)*run_input.nx_sup_in3;
-            bdy_params(45) = run_input.Mach_Sup_In3*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in3)*run_input.ny_sup_in3;
-            bdy_params(46) = run_input.Mach_Sup_In3*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in3)*run_input.nz_sup_in3;
-            bdy_params(47) = run_input.P_Sup_In3;
+            bdy_params(43) = run_input.p_sup_in3/(run_input.R_gas*run_input.T_sup_in3);
+            bdy_params(44) = run_input.Mach_sup_in3*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in3)*run_input.nx_sup_in3;
+            bdy_params(45) = run_input.Mach_sup_in3*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in3)*run_input.ny_sup_in3;
+            bdy_params(46) = run_input.Mach_sup_in3*sqrt(run_input.gamma*run_input.R_gas*run_input.T_sup_in3)*run_input.nz_sup_in3;
+            bdy_params(47) = run_input.p_sup_in3;
         }
     }
     // Boundary parameters for turbulence models
@@ -580,30 +580,30 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
     double T_wall = bdy_params[8];
 
     //Boundary parameters for Simple Subsonic Inflow
-    double rho_bound_Sub_In_Simp = bdy_params[19];
-    double* v_bound_Sub_In_Simp = &bdy_params[20];
+    double rho_bound_sub_in_simp = bdy_params[19];
+    double* v_bound_sub_in_simp = &bdy_params[20];
     //Boundary parameters for Subsonic Outflow
-    double p_bound_Sub_Out= bdy_params[23];
-    double T_total_Sub_Out_bound=bdy_params[0];
+    double p_bound_sub_out= bdy_params[23];
+    double T_total_bound_sub_out=bdy_params[0];
     //Boundary parameters for Supersonic Inflow
-    double rho_bound_Sup_In = bdy_params[24];
-    double* v_bound_Sup_In = &bdy_params[25];
-    double p_bound_Sup_In = bdy_params[28];
+    double rho_bound_sup_in = bdy_params[24];
+    double* v_bound_sup_in = &bdy_params[25];
+    double p_bound_sup_in = bdy_params[28];
     //Boundary Parameters for Far Field
-    double rho_bound_Far_Field = bdy_params[29];
-    double* v_bound_Far_Field = &bdy_params[30];
-    double p_bound_Far_Field = bdy_params[33];
+    double rho_bound_far_field = bdy_params[29];
+    double* v_bound_far_field = &bdy_params[30];
+    double p_bound_far_field = bdy_params[33];
     //Boundary parameters for Simple Subsonic Inflow2
-    double rho_bound_Sub_In_Simp2 = bdy_params[34];
-    double* v_bound_Sub_In_Simp2 = &bdy_params[35];
+    double rho_bound_sub_in_simp2 = bdy_params[34];
+    double* v_bound_sub_in_simp2 = &bdy_params[35];
     //Boundary parameters for Supersonic Inflow2
-    double rho_bound_Sup_In2 = bdy_params[38];
-    double* v_bound_Sup_In2 = &bdy_params[39];
-    double p_bound_Sup_In2 = bdy_params[42];
+    double rho_bound_sup_in2 = bdy_params[38];
+    double* v_bound_sup_in2 = &bdy_params[39];
+    double p_bound_sup_in2 = bdy_params[42];
     //Boundary parameters for Supersonic Inflow3
-    double rho_bound_Sup_In3 = bdy_params[43];
-    double* v_bound_Sup_In3 = &bdy_params[44];
-    double p_bound_Sup_In3 = bdy_params[47];
+    double rho_bound_sup_in3 = bdy_params[43];
+    double* v_bound_sup_in3 = &bdy_params[44];
+    double p_bound_sup_in3 = bdy_params[47];
     // Navier-Stokes Boundary Conditions
     if(equation==0)
     {
@@ -623,15 +623,16 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             R_ref=run_input.R_gas;
 
         T_l=p_l/(rho_l*R_ref);
+        
         // Subsonic inflow simple (free pressure)
         if(bdy_type == 1)
         {
             if(!run_input.Sub_In_Simp)
                 FatalError("No boundary Parameters given");
             // fix density and velocity
-            rho_r = rho_bound_Sub_In_Simp;
+            rho_r = rho_bound_sub_in_simp;
             for (int i=0; i<n_dims; i++)
-                v_r[i] = v_bound_Sub_In_Simp[i];
+                v_r[i] = v_bound_sub_in_simp[i];
 
             // extrapolate pressure
             p_r = p_l;
@@ -658,9 +659,9 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                 FatalError("No boundary Parameters given");
 
             // fix density and velocity
-            rho_r = rho_bound_Sub_In_Simp2;
+            rho_r = rho_bound_sub_in_simp2;
             for (int i=0; i<n_dims; i++)
-                v_r[i] = v_bound_Sub_In_Simp2[i];
+                v_r[i] = v_bound_sub_in_simp2[i];
 
             // extrapolate pressure
             p_r = p_l;
@@ -704,8 +705,8 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                 for (int i=0; i<n_dims; i++)
                     v_sq += (v_r[i]*v_r[i]);
 
-                T_r=T_total_Sub_Out_bound-0.5*v_sq*(gamma-1.0)/(R_ref*gamma);//total enthalpy constant
-                p_r = p_bound_Sub_Out*pow((1.0+0.5*(gamma-1.0)*(v_sq/(gamma*R_ref*T_r))),-gamma/(gamma-1.0));//use isentropic relation between boundary value and total value
+                T_r=T_total_bound_sub_out-0.5*v_sq*(gamma-1.0)/(R_ref*gamma);//total enthalpy constant
+                p_r = p_bound_sub_out*pow((1.0+0.5*(gamma-1.0)*(v_sq/(gamma*R_ref*T_r))),-gamma/(gamma-1.0));//use isentropic relation between boundary value and total value
                 rho_r=p_r/(R_ref*T_r);
                 // compute energy
                 e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
@@ -724,7 +725,7 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                     v_r[i] = v_l[i];
 
                 // fix pressure
-                p_r = p_bound_Sub_Out;
+                p_r = p_bound_sub_out;
 
                 // extrapolate temperature to calculate density
                 rho_r = p_r/(R_ref*T_l);
@@ -758,36 +759,36 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             double R_plus, h_total;
             double aa, bb, cc, dd;
             double Mach_sq, alpha;
-            double p_total_bound ;
-            double T_total_bound;
+            double p_total_bound_sub_in ;
+            double T_total_bound_sub_in;
             //Pressure/Temperature Ramp
-            if (run_input.Pressure_Ramp)
+            if (run_input.pressure_ramp)
             {
                 if(bdy_params[15])
                 {
-                    p_total_bound = bdy_params[17] + (bdy_params[9]-bdy_params[17]) * bdy_params[15] * run_input.ramp_counter;
-                    if(p_total_bound >= bdy_params[9])
-                        p_total_bound = bdy_params[9];
+                    p_total_bound_sub_in = bdy_params[17] + (bdy_params[9]-bdy_params[17]) * bdy_params[15] * run_input.ramp_counter;
+                    if(p_total_bound_sub_in >= bdy_params[9])
+                        p_total_bound_sub_in = bdy_params[9];
                 }
                 else
-                    p_total_bound = bdy_params[9];
+                    p_total_bound_sub_in = bdy_params[9];
 
 
                 if (bdy_params[16]>0) //>0 Temperature Ramp
                 {
-                    T_total_bound = bdy_params[18] + (bdy_params[10]-bdy_params[18]) * bdy_params[16] * run_input.ramp_counter;
-                    if(T_total_bound >= bdy_params[10])
-                        T_total_bound = bdy_params[10];
+                    T_total_bound_sub_in = bdy_params[18] + (bdy_params[10]-bdy_params[18]) * bdy_params[16] * run_input.ramp_counter;
+                    if(T_total_bound_sub_in >= bdy_params[10])
+                        T_total_bound_sub_in = bdy_params[10];
                 }
                 else if (bdy_params[16]<0) //-1 isentropic relation across the boundary interface
-                    T_total_bound = T_l*pow(p_total_bound/p_l, (gamma-1.0)/gamma);
+                    T_total_bound_sub_in = T_l*pow(p_total_bound_sub_in/p_l, (gamma-1.0)/gamma);
                 else
-                    T_total_bound = bdy_params[10];
+                    T_total_bound_sub_in = bdy_params[10];
             }
             else
             {
-                p_total_bound = bdy_params[9];
-                T_total_bound = bdy_params[10];
+                p_total_bound_sub_in = bdy_params[9];
+                T_total_bound_sub_in = bdy_params[10];
             }
             // Specify Inlet conditions
 
@@ -805,10 +806,10 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             R_plus = vn_l + 2.0*c_l/(gamma-1.0);
 
             // Specify total enthalpy
-            h_total = gamma*R_ref/(gamma-1.0)*T_total_bound;
+            h_total = gamma*R_ref/(gamma-1.0)*T_total_bound_sub_in;
 
             // Compute total speed of sound squared
-            c_total_sq = gamma*R_ref*T_total_bound;
+            c_total_sq = gamma*R_ref*T_total_bound_sub_in;
 
             // Dot product of normal flow velocity
             alpha = 0.;
@@ -847,7 +848,7 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             T_r = c_r_sq/(gamma*R_ref);
 
             // Compute pressure
-            p_r = p_total_bound*pow(T_r/T_total_bound, gamma/(gamma-1.0));
+            p_r = p_total_bound_sub_in*pow(T_r/T_total_bound_sub_in, gamma/(gamma-1.0));
 
             // Compute density
             rho_r = p_r/(R_ref*T_r);
@@ -893,7 +894,7 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             s = p_l/pow(rho_l,gamma);
 
             // fix pressure on the right side
-            p_r = p_bound_Sub_Out;
+            p_r = p_bound_sub_out;
 
             // Compute density
             rho_r = pow(p_r/s, 1.0/gamma);
@@ -928,13 +929,13 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                 FatalError("No boundary Parameters given");
 
             // fix density and velocity
-            rho_r = rho_bound_Sup_In;
+            rho_r = rho_bound_sup_in;
 
             for (int i=0; i<n_dims; i++)
-                v_r[i] = v_bound_Sup_In[i];
+                v_r[i] = v_bound_sup_in[i];
 
             // fix pressure
-            p_r = p_bound_Sup_In;
+            p_r = p_bound_sup_in;
 
             // compute energy
             v_sq = 0.;
@@ -950,13 +951,13 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                 FatalError("No boundary Parameters given");
 
             // fix density and velocity
-            rho_r = rho_bound_Sup_In2;
+            rho_r = rho_bound_sup_in2;
 
             for (int i=0; i<n_dims; i++)
-                v_r[i] = v_bound_Sup_In2[i];
+                v_r[i] = v_bound_sup_in2[i];
 
             // fix pressure
-            p_r = p_bound_Sup_In2;
+            p_r = p_bound_sup_in2;
 
             // compute energy
             v_sq = 0.;
@@ -972,13 +973,13 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                 FatalError("No boundary Parameters given");
 
             // fix density and velocity
-            rho_r = rho_bound_Sup_In3;
+            rho_r = rho_bound_sup_in3;
 
             for (int i=0; i<n_dims; i++)
-                v_r[i] = v_bound_Sup_In3[i];
+                v_r[i] = v_bound_sup_in3[i];
 
             // fix pressure
-            p_r = p_bound_Sup_In3;
+            p_r = p_bound_sup_in3;
 
             // compute energy
             v_sq = 0.;
@@ -1144,10 +1145,10 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             //compute normal velocity on right side, >0 in,<0 out
             vn_bound = 0;
             for (int i=0; i<n_dims; i++)
-                vn_bound += v_bound_Far_Field[i]*norm[i];
+                vn_bound += v_bound_far_field[i]*norm[i];
 
             r_plus  = vn_l + 2./(gamma-1.)*sqrt(gamma*p_l/rho_l);
-            r_minus = vn_bound - 2./(gamma-1.)*sqrt(gamma*p_bound_Far_Field/rho_bound_Far_Field);
+            r_minus = vn_bound - 2./(gamma-1.)*sqrt(gamma*p_bound_far_field/rho_bound_far_field);
 
             c_star = 0.25*(gamma-1.)*(r_plus-r_minus);
             vn_star = 0.5*(r_plus+r_minus);
@@ -1155,22 +1156,22 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             // Inflow
             if (vn_l<0)
             {
-                mach = fabs(vn_l) /sqrt((gamma * p_bound_Far_Field / rho_bound_Far_Field));
+                mach = fabs(vn_l) /sqrt((gamma * p_bound_far_field / rho_bound_far_field));
                 //if supersonic set the outgoing Riemann invariant to be far field value
                 if (mach>1)
                 {
-                    r_plus  = vn_bound + 2./(gamma-1.)*sqrt(gamma*p_bound_Far_Field/rho_bound_Far_Field);
+                    r_plus  = vn_bound + 2./(gamma-1.)*sqrt(gamma*p_bound_far_field/rho_bound_far_field);
                     c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
                     vn_star = 0.5 * (r_plus + r_minus);
                 }
                 //extrapolate entropy
-                one_over_s = pow(rho_bound_Far_Field,gamma)/p_bound_Far_Field;
+                one_over_s = pow(rho_bound_far_field,gamma)/p_bound_far_field;
 
                 rho_r = pow(1./gamma*(one_over_s*c_star*c_star),1./(gamma-1.));
 
                 // Compute velocity on the right side
                 for (int i=0; i<n_dims; i++)
-                    v_r[i] = vn_star*norm[i] + (v_bound_Far_Field[i] - vn_bound*norm[i]);
+                    v_r[i] = vn_star*norm[i] + (v_bound_far_field[i] - vn_bound*norm[i]);
 
                 v_sq = 0.;
                 for (int i=0; i<n_dims; i++)

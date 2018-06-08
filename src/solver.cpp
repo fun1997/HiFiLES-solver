@@ -385,12 +385,6 @@ void InitSolution(struct solution* FlowSol)
       read_restart(run_input.restart_iter,run_input.n_restart_files,FlowSol);
     }
 
-  for (int i=0;i<FlowSol->n_ele_types;i++) {
-      if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
-          FlowSol->mesh_eles(i)->set_disu_upts_to_zero_other_levels();
-        }
-    }
-
   // copy solution to gpu
 #ifdef _GPU
   for(int i=0;i<FlowSol->n_ele_types;i++) {

@@ -59,12 +59,12 @@ void input::read_input_file(string fileName, int rank)
     fileReader opts(fileName);
 
     /*---initialize necessary arries to hold parameters---*/
-    v_bound_Sub_In_Simp.setup(3);
-    v_bound_Sub_In_Simp2.setup(3);
-    v_bound_Sup_In.setup(3);
-    v_bound_Sup_In2.setup(3);
-    v_bound_Sup_In3.setup(3);
-    v_bound_Far_Field.setup(3);
+    v_bound_sub_in_simp.setup(3);
+    v_bound_sub_in_simp2.setup(3);
+    v_bound_sup_in.setup(3);
+    v_bound_sup_in2.setup(3);
+    v_bound_sup_in3.setup(3);
+    v_bound_far_field.setup(3);
     wave_speed.setup(3);
     v_wall.setup(3);
 
@@ -223,8 +223,8 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("Sub_In_Simp",Sub_In_Simp,0);
     if (Sub_In_Simp)
     {
-        opts.getScalarValue("Mach_Sub_In_Simp",Mach_Sub_In_Simp);
-        opts.getScalarValue("Rho_Sub_In_Simp",Rho_Sub_In_Simp);
+        opts.getScalarValue("Mach_sub_in_simp",Mach_sub_in_simp);
+        opts.getScalarValue("rho_sub_in_simp",rho_sub_in_simp);
         opts.getScalarValue("nx_sub_in_simp",nx_sub_in_simp,1.);
         opts.getScalarValue("ny_sub_in_simp",ny_sub_in_simp,0.);
         opts.getScalarValue("nz_sub_in_simp",nz_sub_in_simp,0.);
@@ -236,8 +236,8 @@ void input::read_input_file(string fileName, int rank)
     {
         if (Sub_In_Simp)
         {
-            opts.getScalarValue("Mach_Sub_In_Simp2",Mach_Sub_In_Simp2);
-            opts.getScalarValue("Rho_Sub_In_Simp2",Rho_Sub_In_Simp2);
+            opts.getScalarValue("Mach_sub_in_simp2",Mach_sub_in_simp2);
+            opts.getScalarValue("rho_sub_in_simp2",rho_sub_in_simp2);
             opts.getScalarValue("nx_sub_in_simp2",nx_sub_in_simp2,1.);
             opts.getScalarValue("ny_sub_in_simp2",ny_sub_in_simp2,0.);
             opts.getScalarValue("nz_sub_in_simp2",nz_sub_in_simp2,0.);
@@ -252,18 +252,18 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("Sub_In_Char", Sub_In_char,0);
     if(Sub_In_char)
     {
-        opts.getScalarValue("P_Total_Nozzle",P_Total_Nozzle);
-        opts.getScalarValue("T_Total_Nozzle",T_Total_Nozzle);
-        opts.getScalarValue("Pressure_Ramp",Pressure_Ramp,0);
+        opts.getScalarValue("p_total_sub_in",p_total_sub_in);
+        opts.getScalarValue("T_total_sub_in",T_total_sub_in);
+        opts.getScalarValue("pressure_ramp",pressure_ramp,0);
         opts.getScalarValue("nx_sub_in_char",nx_sub_in_char,1.);
         opts.getScalarValue("ny_sub_in_char",ny_sub_in_char,0.);
         opts.getScalarValue("nz_sub_in_char",nz_sub_in_char,0.);
-        if (Pressure_Ramp)
+        if (pressure_ramp)
         {
-            opts.getScalarValue("P_Ramp_Coeff",P_Ramp_Coeff,0.);
-            opts.getScalarValue("T_Ramp_Coeff",T_Ramp_Coeff,0.);
-            opts.getScalarValue("P_Total_Old",P_Total_Old);
-            opts.getScalarValue("T_Total_Old",T_Total_Old,T_free_stream);
+            opts.getScalarValue("p_ramp_coeff",p_ramp_coeff,0.);
+            opts.getScalarValue("T_ramp_coeff",T_ramp_coeff,0.);
+            opts.getScalarValue("p_total_old",p_total_old);
+            opts.getScalarValue("T_total_old",T_total_old,T_free_stream);
         }
     }
 
@@ -271,16 +271,16 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("Sub_Out",Sub_Out,0);
     if (Sub_Out)
     {
-        opts.getScalarValue("P_Sub_Out",P_Sub_Out);
-        opts.getScalarValue("T_total_Sub_Out",T_total_Sub_Out);
+        opts.getScalarValue("p_sub_out",p_sub_out);
+        opts.getScalarValue("T_total_sub_out",T_total_sub_out);
     }
 
     //Sup_In
     opts.getScalarValue("Sup_In",Sup_In,0);
     if (Sup_In)
     {
-        opts.getScalarValue("P_Sup_In",P_Sup_In);
-        opts.getScalarValue("Mach_Sup_In",Mach_Sup_In);
+        opts.getScalarValue("p_sup_in",p_sup_in);
+        opts.getScalarValue("Mach_sup_in",Mach_sup_in);
         opts.getScalarValue("nx_sup_in",nx_sup_in,1.);
         opts.getScalarValue("ny_sup_in",ny_sup_in,0.);
         opts.getScalarValue("nz_sup_in",nz_sup_in,0.);
@@ -293,8 +293,8 @@ void input::read_input_file(string fileName, int rank)
     {
         if (Sup_In)
         {
-            opts.getScalarValue("P_Sup_In2",P_Sup_In2);
-            opts.getScalarValue("Mach_Sup_In2",Mach_Sup_In2);
+            opts.getScalarValue("p_sup_in2",p_sup_in2);
+            opts.getScalarValue("Mach_sup_in2",Mach_sup_in2);
             opts.getScalarValue("nx_sup_in2",nx_sup_in2,1.);
             opts.getScalarValue("ny_sup_in2",ny_sup_in2,0.);
             opts.getScalarValue("nz_sup_in2",nz_sup_in2,0.);
@@ -312,8 +312,8 @@ void input::read_input_file(string fileName, int rank)
     {
         if (Sup_In&&Sup_In2)
         {
-            opts.getScalarValue("P_Sup_In3",P_Sup_In3);
-            opts.getScalarValue("Mach_Sup_In3",Mach_Sup_In3);
+            opts.getScalarValue("p_sup_in3",p_sup_in3);
+            opts.getScalarValue("Mach_sup_in3",Mach_sup_in3);
             opts.getScalarValue("nx_sup_in3",nx_sup_in3,1.);
             opts.getScalarValue("ny_sup_in3",ny_sup_in3,0.);
             opts.getScalarValue("nz_sup_in3",nz_sup_in3,0.);
@@ -329,8 +329,8 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("Far_Field",Far_Field,0);
     if (Far_Field)
     {
-        opts.getScalarValue("P_Far_Field",P_Far_Field);
-        opts.getScalarValue("Mach_Far_Field",Mach_Far_Field);
+        opts.getScalarValue("p_far_field",p_far_field);
+        opts.getScalarValue("Mach_far_field",Mach_far_field);
         opts.getScalarValue("nx_far_field",nx_far_field,1.);
         opts.getScalarValue("ny_far_field",ny_far_field,0.);
         opts.getScalarValue("nz_far_field",nz_far_field,0.);
@@ -573,19 +573,19 @@ void input::setup_params(int rank)
             rho_ref = rho_free_stream;
             if (Sup_In)
             {
-                Rho_Sup_In = P_Sup_In/(R_gas*T_sup_in);
+                rho_sup_in = p_sup_in/(R_gas*T_sup_in);
             }
             if (Sup_In2)
             {
-                Rho_Sup_In2 = P_Sup_In2/(R_gas*T_sup_in2);
+                rho_sup_in2 = p_sup_in2/(R_gas*T_sup_in2);
             }
             if (Sup_In3)
             {
-                Rho_Sup_In3=P_Sup_In3/(R_gas*T_sup_in3);
+                rho_sup_in3=p_sup_in3/(R_gas*T_sup_in3);
             }
             if (Far_Field)
             {
-                Rho_Far_Field = P_Far_Field/(R_gas*T_far_field);
+                rho_far_field = p_far_field/(R_gas*T_far_field);
             }
 
             // Choose the following consistent reference quantities for other variables
@@ -604,70 +604,70 @@ void input::setup_params(int rank)
 
             if(Sub_In_Simp)//HACK: only the velocity is specified and must stay subsonic when the simulation goes on
             {
-                rho_bound_Sub_In_Simp = Rho_Sub_In_Simp/rho_ref;
-                v_bound_Sub_In_Simp(0) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_sub_in_simp;
-                v_bound_Sub_In_Simp(1) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_sub_in_simp;
-                v_bound_Sub_In_Simp(2) = Mach_Sub_In_Simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_sub_in_simp;
+                rho_bound_sub_in_simp = rho_sub_in_simp/rho_ref;
+                v_bound_sub_in_simp(0) = Mach_sub_in_simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_sub_in_simp;
+                v_bound_sub_in_simp(1) = Mach_sub_in_simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_sub_in_simp;
+                v_bound_sub_in_simp(2) = Mach_sub_in_simp*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_sub_in_simp;
             }
 
             if(Sub_In_Simp2)//HACK: only the velocity is specified and must stay subsonic when the simulation goes on
             {
-                rho_bound_Sub_In_Simp2 = Rho_Sub_In_Simp2/rho_ref;
-                v_bound_Sub_In_Simp2(0) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_sub_in_simp2;
-                v_bound_Sub_In_Simp2(1) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_sub_in_simp2;
-                v_bound_Sub_In_Simp2(2) = Mach_Sub_In_Simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_sub_in_simp2;
+                rho_bound_sub_in_simp2 = rho_sub_in_simp2/rho_ref;
+                v_bound_sub_in_simp2(0) = Mach_sub_in_simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nx_sub_in_simp2;
+                v_bound_sub_in_simp2(1) = Mach_sub_in_simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*ny_sub_in_simp2;
+                v_bound_sub_in_simp2(2) = Mach_sub_in_simp2*sqrt(gamma*R_gas*T_free_stream)/uvw_ref*nz_sub_in_simp2;
             }
 
             if(Sub_In_char)
             {
-                T_total_bound = T_Total_Nozzle/T_ref;
-                p_total_bound = P_Total_Nozzle/p_ref;
-                if (Pressure_Ramp)
+                T_total_bound_sub_in = T_total_sub_in/T_ref;
+                p_total_bound_sub_in = p_total_sub_in/p_ref;
+                if (pressure_ramp)
                 {
-                    P_Total_Old_Bound=P_Total_Old/p_ref;
-                    T_Total_Old_Bound=T_Total_Old/T_ref;
+                    p_total_bound_old=p_total_old/p_ref;
+                    T_total_bound_old=T_total_old/T_ref;
                 }
             }
 
             if (Sub_Out)
             {
-                p_bound_Sub_Out=P_Sub_Out/p_ref;
-                T_total_Sub_Out_bound=T_total_Sub_Out/T_ref;
+                p_bound_sub_out=p_sub_out/p_ref;
+                T_total_bound_sub_out=T_total_sub_out/T_ref;
             }
             if (Sup_In)
             {
-                rho_bound_Sup_In=Rho_Sup_In/rho_ref;
-                p_bound_Sup_In=P_Sup_In/p_ref;
-                v_bound_Sup_In(0)=Mach_Sup_In*sqrt(gamma*R_gas*T_sup_in)/uvw_ref*nx_sup_in;
-                v_bound_Sup_In(1)=Mach_Sup_In*sqrt(gamma*R_gas*T_sup_in)/uvw_ref*ny_sup_in;
-                v_bound_Sup_In(2)=Mach_Sup_In*sqrt(gamma*R_gas*T_sup_in)/uvw_ref*nz_sup_in;
+                rho_bound_sup_in=rho_sup_in/rho_ref;
+                p_bound_sup_in=p_sup_in/p_ref;
+                v_bound_sup_in(0)=Mach_sup_in*sqrt(gamma*R_gas*T_sup_in)/uvw_ref*nx_sup_in;
+                v_bound_sup_in(1)=Mach_sup_in*sqrt(gamma*R_gas*T_sup_in)/uvw_ref*ny_sup_in;
+                v_bound_sup_in(2)=Mach_sup_in*sqrt(gamma*R_gas*T_sup_in)/uvw_ref*nz_sup_in;
             }
 
             if (Sup_In2)
             {
-                rho_bound_Sup_In2=Rho_Sup_In2/rho_ref;
-                p_bound_Sup_In2=P_Sup_In2/p_ref;
-                v_bound_Sup_In2(0)=Mach_Sup_In2*sqrt(gamma*R_gas*T_sup_in2)/uvw_ref*nx_sup_in2;
-                v_bound_Sup_In2(1)=Mach_Sup_In2*sqrt(gamma*R_gas*T_sup_in2)/uvw_ref*ny_sup_in2;
-                v_bound_Sup_In2(2)=Mach_Sup_In2*sqrt(gamma*R_gas*T_sup_in2)/uvw_ref*nz_sup_in2;
+                rho_bound_sup_in2=rho_sup_in2/rho_ref;
+                p_bound_sup_in2=p_sup_in2/p_ref;
+                v_bound_sup_in2(0)=Mach_sup_in2*sqrt(gamma*R_gas*T_sup_in2)/uvw_ref*nx_sup_in2;
+                v_bound_sup_in2(1)=Mach_sup_in2*sqrt(gamma*R_gas*T_sup_in2)/uvw_ref*ny_sup_in2;
+                v_bound_sup_in2(2)=Mach_sup_in2*sqrt(gamma*R_gas*T_sup_in2)/uvw_ref*nz_sup_in2;
             }
 
             if (Sup_In3)
             {
-                rho_bound_Sup_In3=Rho_Sup_In3/rho_ref;
-                p_bound_Sup_In3=P_Sup_In3/p_ref;
-                v_bound_Sup_In3(0)=Mach_Sup_In3*sqrt(gamma*R_gas*T_sup_in3)/uvw_ref*nx_sup_in3;
-                v_bound_Sup_In3(1)=Mach_Sup_In3*sqrt(gamma*R_gas*T_sup_in3)/uvw_ref*ny_sup_in3;
-                v_bound_Sup_In3(2)=Mach_Sup_In3*sqrt(gamma*R_gas*T_sup_in3)/uvw_ref*nz_sup_in3;
+                rho_bound_sup_in3=rho_sup_in3/rho_ref;
+                p_bound_sup_in3=p_sup_in3/p_ref;
+                v_bound_sup_in3(0)=Mach_sup_in3*sqrt(gamma*R_gas*T_sup_in3)/uvw_ref*nx_sup_in3;
+                v_bound_sup_in3(1)=Mach_sup_in3*sqrt(gamma*R_gas*T_sup_in3)/uvw_ref*ny_sup_in3;
+                v_bound_sup_in3(2)=Mach_sup_in3*sqrt(gamma*R_gas*T_sup_in3)/uvw_ref*nz_sup_in3;
             }
 
             if (Far_Field)
             {
-                rho_bound_Far_Field=Rho_Far_Field/rho_ref;
-                p_bound_Far_Field=P_Far_Field/p_ref;
-                v_bound_Far_Field(0)=Mach_Far_Field*sqrt(gamma*R_gas*T_far_field)/uvw_ref*nx_far_field;
-                v_bound_Far_Field(1)=Mach_Far_Field*sqrt(gamma*R_gas*T_far_field)/uvw_ref*ny_far_field;
-                v_bound_Far_Field(2)=Mach_Far_Field*sqrt(gamma*R_gas*T_far_field)/uvw_ref*nz_far_field;
+                rho_bound_far_field=rho_far_field/rho_ref;
+                p_bound_far_field=p_far_field/p_ref;
+                v_bound_far_field(0)=Mach_far_field*sqrt(gamma*R_gas*T_far_field)/uvw_ref*nx_far_field;
+                v_bound_far_field(1)=Mach_far_field*sqrt(gamma*R_gas*T_far_field)/uvw_ref*ny_far_field;
+                v_bound_far_field(2)=Mach_far_field*sqrt(gamma*R_gas*T_far_field)/uvw_ref*nz_far_field;
             }
 
             // Set up the dimensionless conditions @ moving boundaries
@@ -739,19 +739,19 @@ void input::setup_params(int rank)
                 cout << "Boundary Conditions" << endl;
                 cout << "Sub_In_Simp: " << Sub_In_Simp << " " << Sub_In_Simp2 << endl;
                 cout << "Sub_In_Char: " << Sub_In_char << endl;
-                if (Pressure_Ramp)
+                if (pressure_ramp)
                 {
                     cout << "Pressure Ramp On" << endl;
-                    cout << "Pressure Ramping From " << P_Total_Old << " Pa to " << P_Total_Nozzle << " Pa" << endl;
-                    cout << "Pressure Ramp Rate=" << P_Ramp_Coeff << endl;
-                    if (T_Ramp_Coeff == -1)
+                    cout << "Pressure Ramping From " << p_total_old << " Pa to " << p_total_sub_in << " Pa" << endl;
+                    cout << "Pressure Ramp Rate=" << p_ramp_coeff << endl;
+                    if (T_ramp_coeff == -1)
                     {
                         cout << "Isentropic Temperature" << endl;
                     }
                     else
                     {
-                        cout << "Temperature Ramping From " << T_Total_Old << " k to " << T_Total_Nozzle << " k" << endl;
-                        cout << "Temperature Ramp Rate=" << T_Ramp_Coeff << endl;
+                        cout << "Temperature Ramping From " << T_total_old << " k to " << T_total_sub_in << " k" << endl;
+                        cout << "Temperature Ramp Rate=" << T_ramp_coeff << endl;
                     }
                 }
                 cout << "Sub_Out: " << Sub_Out << endl;

@@ -33,8 +33,10 @@
 #include "../include/hf_array.h"
 #include "../include/funcs.h"
 #include "../include/error.h"
+#include "../include/cubature_1d.h"
 #include "../include/cubature_tri.h"
 #include "../include/cubature_quad.h"
+#include "../include/cubature_pris.h"
 
 using namespace std;
 
@@ -83,14 +85,18 @@ void eles_pris::setup_ele_type_specific()
   set_inters_cubpts();
 
   set_volume_cubpts();
-  //set_opp_volume_cubpts();
-
+  set_opp_volume_cubpts();
+      
   n_ppts_per_ele=(p_res+1)*(p_res)*(p_res)/2;
   n_peles_per_ele=( (p_res-1)*(p_res-1)*(p_res-1) );
   n_verts_per_ele = 6;
 
   set_loc_ppts();
   set_opp_p();
+
+  //de-aliasing by over-integration
+  if (run_input.over_int)
+    set_over_int_filter();
 
   n_fpts_per_inter.setup(5);
 
@@ -146,54 +152,60 @@ void eles_pris::set_shape(int in_s_order)
 
 void eles_pris::set_connectivity_plot()
 {
-  int vertex_0,vertex_1,vertex_2,vertex_3,vertex_4,vertex_5;
-  int count=0;
-  int temp = (p_res)*(p_res+1)/2;//number of pts each 1d layer
+  int vertex_0, vertex_1, vertex_2, vertex_3, vertex_4, vertex_5;
+  int count = 0;
+  int temp = (p_res) * (p_res + 1) / 2; //number of pts each 1d layer
 
-  for (int l=0;l<p_res-1;++l){// level 1d
-      for(int j=0;j<p_res-1;++j){ // level_tri
-          for(int k=0;k<p_res-j-1;++k){// starting pt
+  for (int l = 0; l < p_res - 1; ++l)
+  { // level 1d
+    for (int j = 0; j < p_res - 1; ++j)
+    { // level_tri
+      for (int k = 0; k < p_res - j - 1; ++k)
+      { // starting pt
 
-              vertex_0=k+(j*(p_res+1))-((j*(j+1))/2) + l*temp;
-              vertex_1=vertex_0+1;
-              vertex_2=k+((j+1)*(p_res+1))-(((j+1)*(j+2))/2) + l*temp;
+        vertex_0 = k + (j * (p_res + 1)) - ((j * (j + 1)) / 2) + l * temp;
+        vertex_1 = vertex_0 + 1;
+        vertex_2 = k + ((j + 1) * (p_res + 1)) - (((j + 1) * (j + 2)) / 2) + l * temp;
 
-              vertex_3 = vertex_0 + temp;
-              vertex_4 = vertex_1 + temp;
-              vertex_5 = vertex_2 + temp;
+        vertex_3 = vertex_0 + temp;
+        vertex_4 = vertex_1 + temp;
+        vertex_5 = vertex_2 + temp;
 
-              connectivity_plot(0,count) = vertex_0;
-              connectivity_plot(1,count) = vertex_1;
-              connectivity_plot(2,count) = vertex_2;
-              connectivity_plot(3,count) = vertex_3;
-              connectivity_plot(4,count) = vertex_4;
-              connectivity_plot(5,count) = vertex_5;
-              count++;
-            }
-        }
+        connectivity_plot(0, count) = vertex_0;
+        connectivity_plot(1, count) = vertex_1;
+        connectivity_plot(2, count) = vertex_2;
+        connectivity_plot(3, count) = vertex_3;
+        connectivity_plot(4, count) = vertex_4;
+        connectivity_plot(5, count) = vertex_5;
+        count++;
+      }
     }
-  for (int l=0;l<p_res-1;++l){
-      for(int j=0;j<p_res-2;++j){
-          for(int k=0;k<p_res-j-2;++k){
+  }
 
-              vertex_0=k+1+(j*(p_res+1))-((j*(j+1))/2) + l*temp;
-              vertex_1=vertex_0 +p_res -l + l*temp;
-              vertex_2=vertex_1 -1 + l*temp;
+  for (int l = 0; l < p_res - 1; ++l)
+  {
+    for (int j = 0; j < p_res - 2; ++j)
+    {
+      for (int k = 0; k < p_res - j - 2; ++k)
+      {
+        vertex_0 = k + 1 + (j * (p_res)) - ((j * (j - 1)) / 2) + l * temp;
+        vertex_1 = vertex_0 + p_res - j;
+        vertex_2 = vertex_1 - 1;
 
-              vertex_3 = vertex_0 + temp;
-              vertex_4 = vertex_1 + temp;
-              vertex_5 = vertex_2 + temp;
+        vertex_3 = vertex_0 + temp;
+        vertex_4 = vertex_1 + temp;
+        vertex_5 = vertex_2 + temp;
 
-              connectivity_plot(0,count) = vertex_0;
-              connectivity_plot(1,count) = vertex_1;
-              connectivity_plot(2,count) = vertex_2;
-              connectivity_plot(3,count) = vertex_3;
-              connectivity_plot(4,count) = vertex_4;
-              connectivity_plot(5,count) = vertex_5;
-              count++;
-            }
-        }
+        connectivity_plot(0, count) = vertex_0;
+        connectivity_plot(1, count) = vertex_1;
+        connectivity_plot(2, count) = vertex_2;
+        connectivity_plot(3, count) = vertex_3;
+        connectivity_plot(4, count) = vertex_4;
+        connectivity_plot(5, count) = vertex_5;
+        count++;
+      }
     }
+  }
 }
 
 
@@ -204,7 +216,6 @@ void eles_pris::set_connectivity_plot()
 void eles_pris::set_loc_upts(void)
 {
 
-  int get_order=order;
   loc_upts.setup(n_dims,n_upts_per_ele);
 
   n_upts_tri = (order+1)*(order+2)/2;
@@ -213,44 +224,16 @@ void eles_pris::set_loc_upts(void)
   loc_upts_pri_1d.setup(n_upts_1d);
   loc_upts_pri_tri.setup(2,n_upts_tri);
 
-  if (upts_type_pri_1d == 0)
-    {
-      // 1D: gauss
-      hf_array<double> loc_1d_gauss_pts(order+1);
-#include "../data/loc_1d_gauss_pts.dat"
-      loc_upts_pri_1d=loc_1d_gauss_pts;
-    }
-  else if (upts_type_pri_1d == 1) {
-      // 1D: gauss-lobatto
-      hf_array<double> loc_1d_gauss_lobatto_pts(order+1);
-#include "../data/loc_1d_gauss_lobatto_pts.dat"
-      loc_upts_pri_1d=loc_1d_gauss_lobatto_pts;
-    }
-  else {
-      FatalError("ERROR: Unknown fpts_type_hexa .... ");
-    }
+  cubature_1d cub_1d(upts_type_pri_1d,order);
+  cubature_tri cub_tri(upts_type_pri_tri,order);
+  
+  for (int i = 0; i < n_upts_1d;i++)
+    loc_upts_pri_1d(i) = cub_1d.get_r(i);
 
-  if (upts_type_pri_tri==0) // tri: inter
-    {
-      hf_array<double> loc_inter_pts(n_upts_tri,2);
-#include "../data/loc_tri_inter_pts.dat"
-      for (int i=0;i<n_upts_tri;i++) {
-          loc_upts_pri_tri(0,i) = loc_inter_pts(i,0);
-          loc_upts_pri_tri(1,i) = loc_inter_pts(i,1);
-        }
-    }
-  else if (upts_type_pri_tri == 1) // tri: alpha
-    {
-      hf_array<double> loc_alpha_pts(n_upts_tri,2);
-#include "../data/loc_tri_alpha_pts.dat"
-      for (int i=0;i<n_upts_tri;i++) {
-          loc_upts_pri_tri(0,i) = loc_alpha_pts(i,0);
-          loc_upts_pri_tri(1,i) = loc_alpha_pts(i,1);
-        }
-    }
-  else {
-      FatalError("Unknown upts_type_pri_tri");
-    }
+  for (int i=0;i<n_upts_tri;i++) {
+    loc_upts_pri_tri(0,i) = cub_tri.get_r(i);
+    loc_upts_pri_tri(1,i) = cub_tri.get_s(i);
+  } 
 
   // Now set loc_upts
   for (int i=0;i<n_upts_1d;i++) {
@@ -270,48 +253,19 @@ void eles_pris::set_tloc_fpts(void)
 
   tloc_fpts.setup(n_dims,n_fpts_per_ele);
 
-  int get_order = order;
-
   hf_array<double> loc_tri_fpts( (order+1)*(order+2)/2,2);
   loc_1d_fpts.setup(order+1);
 
-  // Triangular Faces
-  if (upts_type_pri_tri==0) // internal points
-    {
-      hf_array<double> loc_inter_pts(n_fpts_per_inter(0),2);
-#include "../data/loc_tri_inter_pts.dat"
-      loc_tri_fpts = loc_inter_pts;
-    }
-  else if(upts_type_pri_tri==1) // alpha optimized
-    {
-      hf_array<double> loc_alpha_pts(n_fpts_per_inter(0),2);
-#include "../data/loc_tri_alpha_pts.dat"
-      loc_tri_fpts = loc_alpha_pts;
-    }
-  else
-    {
-      FatalError("Unknown fpts type pri tri");
-    }
+  cubature_1d cub_1d(upts_type_pri_1d,order);
+  cubature_tri cub_tri(upts_type_pri_tri,order);
 
-  // Quad faces
-  if(upts_type_pri_1d==0) // gauss
-    {
-      hf_array<double> loc_1d_gauss_pts(order+1);
-#include "../data/loc_1d_gauss_pts.dat"
-
-      loc_1d_fpts = loc_1d_gauss_pts;
-    }
-  else if(upts_type_pri_1d==1) // gauss lobatto
-    {
-      hf_array<double> loc_1d_gauss_lobatto_pts(order+1);
-#include "../data/loc_1d_gauss_lobatto_pts.dat"
-
-      loc_1d_fpts = loc_1d_gauss_lobatto_pts;
-    }
-  else
-    {
-      FatalError("ERROR: Unknown edge flux point location type.... ");
-    }
+  for (int i = 0; i < n_fpts_per_inter(0); i++)
+  {
+    loc_tri_fpts(i, 0) = cub_tri.get_r(i);
+    loc_tri_fpts(i, 1) = cub_tri.get_s(i);
+  }
+      for (int i = 0; i < order + 1; i++)
+    loc_1d_fpts(i) = cub_1d.get_r(i);
 
   // Now need to map these points on faces of prisms
   // Inter 0
@@ -365,8 +319,8 @@ void eles_pris::set_inters_cubpts(void)
   weight_inters_cubpts.setup(n_inters_per_ele);
   tnorm_inters_cubpts.setup(n_inters_per_ele);
 
-  cubature_tri cub_tri(inters_cub_order);
-  cubature_quad cub_quad(inters_cub_order);
+  cubature_tri cub_tri(0,inters_cub_order);
+  cubature_quad cub_quad(0,inters_cub_order);
 
   int n_cubpts_tri = cub_tri.get_n_pts();
   int n_cubpts_quad = cub_quad.get_n_pts();
@@ -453,14 +407,20 @@ void eles_pris::set_inters_cubpts(void)
 
 }
 
-void eles_pris::set_volume_cubpts(void)//ToDo:implement pris element volume cubpts
+void eles_pris::set_volume_cubpts(void)
 {
-    int dummy=1;
-    n_cubpts_per_ele = dummy;
-    loc_volume_cubpts.setup(n_dims,n_cubpts_per_ele);
-    weight_volume_cubpts.setup(n_cubpts_per_ele);
-    loc_volume_cubpts.initialize_to_zero();
-    weight_volume_cubpts.initialize_to_zero();
+  cubature_pris cub_pri(0, 0, volume_cub_order);
+  n_cubpts_per_ele = cub_pri.get_n_pts();
+  loc_volume_cubpts.setup(n_dims, n_cubpts_per_ele);
+  weight_volume_cubpts.setup(n_cubpts_per_ele);
+
+  for (int i = 0; i < n_cubpts_per_ele; i++)
+  {
+    loc_volume_cubpts(0, i) = cub_pri.get_r(i);
+    loc_volume_cubpts(1, i) = cub_pri.get_s(i);
+    loc_volume_cubpts(2, i) = cub_pri.get_t(i);
+    weight_volume_cubpts(i) = cub_pri.get_weight(i);
+  }
 }
 
 // Compute the surface jacobian determinant on a face
@@ -738,6 +698,59 @@ void eles_pris::write_restart_info(ofstream& restart_file)
         }
       restart_file << endl;
     }
+}
+
+void eles_pris::set_over_int_filter()
+{
+  int N_under = run_input.N_under;
+  int n_mode_under = (N_under + 1) *(N_under + 1)* (N_under + 2) / 2; //projected n_upts_per_ele
+  int n_mode_under_tri=(N_under + 1)* (N_under + 2) / 2;
+  int n_mode_under_1d=N_under+1;
+  cubature_pris cub_pri(0,0, order);
+  hf_array<double> temp_proj(n_mode_under, cub_pri.get_n_pts());
+  hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
+  hf_array<double> temp_opp(cub_pri.get_n_pts(), n_upts_per_ele);
+  hf_array<double> loc(n_dims);
+  //step 0. extrapolate solution from upts to cubpts with same order
+  for (int i = 0; i < n_upts_per_ele; i++)
+  {
+    for (int j = 0; j < cub_pri.get_n_pts(); j++)
+    {
+      loc(0) = cub_pri.get_r(j);
+      loc(1) = cub_pri.get_s(j);
+      loc(2) = cub_pri.get_t(j);
+      temp_opp(j, i) = eval_nodal_basis(i, loc);
+    }
+  }
+  //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*l_j}=>\phi_i(j)*w(j)
+  for (int i = 0; i < n_mode_under; i++)
+  {
+          int n1, n2;
+          n1= i/n_mode_under_tri;//z mode
+          n2= i%n_mode_under_tri;//xy mode
+    for (int j = 0; j < cub_pri.get_n_pts(); j++)
+    {
+      loc(0) = cub_pri.get_r(j);
+      loc(1) = cub_pri.get_s(j);
+      loc(2)=cub_pri.get_t(j);
+      temp_proj(i, j) = eval_dubiner_basis_2d(loc(0), loc(1), n2, N_under)*eval_legendre(loc(2),n1) * cub_pri.get_weight(j);
+    }
+  }
+  //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
+  for (int j = 0; j < n_upts_per_ele; j++)
+  {
+    loc(0) = loc_upts(0, j);
+    loc(1) = loc_upts(1, j);
+    for (int i = 0; i < n_mode_under; i++)
+    {
+      int n1, n2;
+      n1 = i/n_mode_under_tri; //z mode
+      n2 = i%n_mode_under_tri; //xy mode
+      temp_vand(j, i) = eval_dubiner_basis_2d(loc(0), loc(1), n2, N_under)*eval_legendre(loc(2),n1);
+    }
+  }
+  over_int_filter = mult_arrays(temp_proj, temp_opp);
+  over_int_filter = mult_arrays(temp_vand, over_int_filter);
 }
 
 // evaluate nodal basis

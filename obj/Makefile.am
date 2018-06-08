@@ -42,6 +42,7 @@ ___bin_HiFiLES_SOURCES = ../src/global.cpp \
                   ../src/cubature_quad.cpp \
                   ../src/cubature_tri.cpp \
                   ../src/cubature_1d.cpp \
+                  ../src/cubature_pris.cpp\
                   ../src/funcs.cpp \
                   ../src/inters.cpp \
                   ../src/bdy_inters.cpp \

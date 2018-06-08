@@ -87,6 +87,9 @@ void eles_tris::setup_ele_type_specific()
   set_volume_cubpts();
   set_opp_volume_cubpts();
 
+if(run_input.over_int)
+      set_over_int_filter();
+
   n_fpts_per_inter.setup(3);
   n_fpts_per_inter(0)=(order+1);
   n_fpts_per_inter(1)=(order+1);
@@ -168,36 +171,13 @@ void eles_tris::set_connectivity_plot()
 
 void eles_tris::set_loc_upts(void)
 {
-  int get_order=order;
   loc_upts.setup(n_dims,n_upts_per_ele);
-
-  if(upts_type==0) // internal points (good quadrature points)
-    {
-      hf_array<double> loc_inter_pts(n_upts_per_ele,2);
-#include "../data/loc_tri_inter_pts.dat"
-
-      for (int i=0;i<n_upts_per_ele;i++)
-        {
-          loc_upts(0,i) = loc_inter_pts(i,0);
-          loc_upts(1,i) = loc_inter_pts(i,1);
-        }
-    }
-
-  else if(upts_type==1) // alpha optimized
-    {
-      hf_array<double> loc_alpha_pts(n_upts_per_ele,2);
-#include "../data/loc_tri_alpha_pts.dat"
-
-      for (int i=0;i<n_upts_per_ele;i++)
-        {
-          loc_upts(0,i) = loc_alpha_pts(i,0);
-          loc_upts(1,i) = loc_alpha_pts(i,1);
-        }
-    }
-  else
-    {
-      cout << "ERROR: Unknown solution point location type.... " << endl;
-    }
+  cubature_tri cub_tri(upts_type, order);
+  for (int i = 0; i < n_upts_per_ele; i++)
+  {
+    loc_upts(0,i) = cub_tri.get_r(i);
+    loc_upts(1,i) = cub_tri.get_s(i);
+  }
   //loc_upts.print();
 }
 
@@ -206,29 +186,12 @@ void eles_tris::set_loc_upts(void)
 void eles_tris::set_tloc_fpts(void)
 {
   int i,j,fpt;
-  int get_order=order;
   tloc_fpts.setup(n_dims,n_fpts_per_ele);
-
+  
   loc_1d_fpts.setup(order+1);
-
-  if(fpts_type==0) // gauss
-    {
-      hf_array<double> loc_1d_gauss_pts(order+1);
-#include "../data/loc_1d_gauss_pts.dat"
-
-      loc_1d_fpts = loc_1d_gauss_pts;
-    }
-  else if(fpts_type==1) // gauss lobatto
-    {
-      hf_array<double> loc_1d_gauss_lobatto_pts(order+1);
-#include "../data/loc_1d_gauss_lobatto_pts.dat"
-
-      loc_1d_fpts = loc_1d_gauss_lobatto_pts;
-    }
-  else
-    {
-      cout << "ERROR: Unknown edge flux point location type.... " << endl;
-    }
+  cubature_1d cub_1d(fpts_type, order);
+  for (int i = 0; i < order + 1; i++)
+    loc_1d_fpts(i) = cub_1d.get_r(i);
 
   for (i=0;i<n_inters_per_ele;i++)
     {
@@ -257,7 +220,7 @@ void eles_tris::set_tloc_fpts(void)
 
 void eles_tris::set_volume_cubpts(void)
 {
-  cubature_tri cub_tri(volume_cub_order);
+  cubature_tri cub_tri(0,volume_cub_order);
   int n_cubpts_tri = cub_tri.get_n_pts();
   n_cubpts_per_ele = n_cubpts_tri;
 
@@ -282,7 +245,7 @@ void eles_tris::set_inters_cubpts(void)
   weight_inters_cubpts.setup(n_inters_per_ele);
   tnorm_inters_cubpts.setup(n_inters_per_ele);
 
-  cubature_1d cub_1d(inters_cub_order);
+  cubature_1d cub_1d(0,inters_cub_order);
   int n_cubpts_1d = cub_1d.get_n_pts();
 
   for (int i=0;i<n_inters_per_ele;i++)
@@ -545,6 +508,47 @@ void eles_tris::write_restart_info(ofstream& restart_file)
       restart_file << endl;
     }
 
+}
+
+void eles_tris::set_over_int_filter()
+{
+  int N_under = run_input.N_under;
+  int n_mode_under = (N_under + 1) * (N_under + 2) / 2; //projected n_upts_per_ele
+  cubature_tri cub_tris(0, order);
+  hf_array<double> temp_proj(n_mode_under, cub_tris.get_n_pts());
+  hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
+  hf_array<double> temp_opp(cub_tris.get_n_pts(), n_upts_per_ele);
+  hf_array<double> loc(n_dims);
+  //step 0. extrapolate solution from upts to cubpts with same order
+  for (int i = 0; i < n_upts_per_ele; i++)
+  {
+    for (int j = 0; j < cub_tris.get_n_pts(); j++)
+    {
+      loc(0) = cub_tris.get_r(j);
+      loc(1) = cub_tris.get_s(j);
+      temp_opp(j, i) = eval_nodal_basis(i, loc);
+    }
+  }
+  //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*l_j}=>\phi_i(j)*w(j)
+  for (int i = 0; i < n_mode_under; i++)
+  {
+    for (int j = 0; j < cub_tris.get_n_pts(); j++)
+    {
+      loc(0) = cub_tris.get_r(j);
+      loc(1) = cub_tris.get_s(j);
+      temp_proj(i, j) = eval_dubiner_basis_2d(loc(0), loc(1), i, N_under) * cub_tris.get_weight(j);
+    }
+  }
+  //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
+  for (int j = 0; j < n_upts_per_ele; j++)
+  {
+    loc(0) = loc_upts(0, j);
+    loc(1) = loc_upts(1, j);
+    for (int i = 0; i < n_mode_under; i++)
+      temp_vand(j, i) = eval_dubiner_basis_2d(loc(0), loc(1), i, N_under);
+  }
+  over_int_filter = mult_arrays(temp_proj, temp_opp);
+  over_int_filter = mult_arrays(temp_vand, over_int_filter);
 }
 
 // evaluate nodal basis

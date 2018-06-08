@@ -242,12 +242,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         temp_v_ref.setup(n_dims);
         temp_v_ref.initialize_to_zero();
 
-        int n_comp;
-        if(n_dims == 2)
-            n_comp = 3;
-        else if(n_dims == 3)
-            n_comp = 6;
-
         set_shape(in_max_n_spts_per_ele);
         ele2global_ele.setup(n_eles);
         bctype.setup(n_eles,n_inters_per_ele);
@@ -273,10 +267,13 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
 
         n_fields_mul_n_eles=n_fields*n_eles;
         n_dims_mul_n_upts_per_ele=n_dims*n_upts_per_ele;
+
+        //over-integration need second register to store transformed continuous divergence 
         if (run_input.over_int)
             div_tconf_upts.setup(2);
         else
             div_tconf_upts.setup(1);
+
         for(int i=0; i<div_tconf_upts.get_dim(0); i++)
         {
             div_tconf_upts(i).setup(n_upts_per_ele,n_eles,n_fields);
@@ -333,7 +330,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         if(run_input.ArtifOn)
         {
             sensor.setup(n_eles);
-            sensor.initialize_to_zero();//mark
+            sensor.initialize_to_zero();
         }
 
         // Set connectivity hf_array. Needed for Paraview output.
@@ -343,26 +340,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         set_connectivity_plot();
     }
 
-}
-
-void eles::set_disu_upts_to_zero_other_levels(void)
-{
-
-    if (n_eles!=0)
-    {
-        // Initialize to zero
-        for (int m=1; m<n_adv_levels; m++)
-        {
-            disu_upts(m).initialize_to_zero();
-
-#ifdef _GPU
-            if (n_eles!=0)
-            {
-                disu_upts(m).cp_cpu_gpu();
-            }
-#endif
-        }
-    }
 }
 
 hf_array<int> eles::get_connectivity_plot()
@@ -389,14 +366,11 @@ void eles::set_ics(double& time)
     {
         for(j=0; j<n_upts_per_ele; j++)
         {
+            // calculate position of solution point
             for(k=0; k<n_dims; k++)
             {
                 pos(k)=pos_upts(j,i,k);
             }
-
-            // calculate position of solution point
-
-            //calc_pos_upt(j,i,pos);
 
             // evaluate solution at solution point
             if(run_input.ic_form==0)
@@ -493,9 +467,9 @@ void eles::set_ics(double& time)
                 if(n_dims==2)
                 {
                     // Simple 2D div-free vortex
-                    p = run_input.p_c_ic + rho/16.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)))*(cos(2.0*pos(2)) + 2.0);
-                    ics(1) = rho*sin(pos(0)/2.)*cos(pos(1)/2.);//rho*u
-                    ics(2) = -1.0*rho*cos(pos(0)/2.)*sin(pos(1)/2.);//rho*v
+                    p = run_input.p_c_ic + rho/4.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)));
+                    ics(1) = rho*sin(pos(0))*cos(pos(1));//rho*u
+                    ics(2) = -rho*cos(pos(0))*sin(pos(1));//rho*v
                     ics(3)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2));//e
                 }
                 else if(n_dims==3)
@@ -503,7 +477,7 @@ void eles::set_ics(double& time)
                     // ONERA benchmark setup
                     p = run_input.p_c_ic + rho/16.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)))*(cos(2.0*pos(2)) + 2.0);
                     ics(1) = rho*sin(pos(0))*cos(pos(1))*cos(pos(2));//rho*u
-                    ics(2) = -1.0*rho*cos(pos(0))*sin(pos(1))*cos(pos(2));//rho*v
+                    ics(2) = -rho*cos(pos(0))*sin(pos(1))*cos(pos(2));//rho*v
                     ics(3) = 0.0;
                     ics(4)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));//e
                 }
@@ -522,11 +496,11 @@ void eles::set_ics(double& time)
 
                 if(pos(0)<=run_input.x_shock_ic)//supersonic zone
                 {
-                            rho=run_input.rho_bound_Sup_In;
-                            vx=run_input.v_bound_Sup_In(0);
-                            vy=run_input.v_bound_Sup_In(1);
-                            vz=run_input.v_bound_Sup_In(2);
-                            p=run_input.p_bound_Sup_In;
+                            rho=run_input.rho_bound_sup_in;
+                            vx=run_input.v_bound_sup_in(0);
+                            vy=run_input.v_bound_sup_in(1);
+                            vz=run_input.v_bound_sup_in(2);
+                            p=run_input.p_bound_sup_in;
                 }
                 else//subsonic zone initialize
                 {
@@ -3966,11 +3940,6 @@ void eles::set_n_spts(int in_ele, int in_n_spts)
 
     d_nodal_s_basis.setup(in_n_spts,n_dims);
 
-    int n_comp;
-    if(n_dims == 2)
-        n_comp = 3;
-    else if(n_dims == 3)
-        n_comp = 6;
 }
 
 // set global element number
@@ -5031,32 +5000,27 @@ double eles::get_loc_upt(int in_upt, int in_dim)
     return loc_upts(in_dim,in_upt);
 }
 
-//get reference position of a probe point
-
 // set transforms
 
 void eles::set_transforms(void)
 {
     if (n_eles!=0)
     {
+        set_transforms_upts();
+        set_transforms_fpts();
 
+        if (rank == 0)
+            cout << endl;
+    } // if n_eles!=0
+}
+
+void eles::set_transforms_upts(void)
+{
         int i,j,k;
-
-        int n_comp;
-
-        if(n_dims == 2)
-        {
-            n_comp = 3;
-        }
-        else if(n_dims == 3)
-        {
-            n_comp = 6;
-        }
 
         hf_array<double> loc(n_dims);
         hf_array<double> pos(n_dims);
         hf_array<double> d_pos(n_dims,n_dims);
-        hf_array<double> tnorm_dot_inv_detjac_mul_jac(n_dims);
 
         double xr, xs, xt;
         double yr, ys, yt;
@@ -5176,6 +5140,24 @@ void eles::set_transforms(void)
          }
          */
 #endif
+}
+
+void eles::set_transforms_fpts(void)
+{
+    int i, j, k;
+
+    hf_array<double> loc(n_dims);
+    hf_array<double> pos(n_dims);
+    hf_array<double> d_pos(n_dims, n_dims);
+    hf_array<double> tnorm_dot_inv_detjac_mul_jac(n_dims);
+
+    double xr, xs, xt;
+    double yr, ys, yt;
+    double zr, zs, zt;
+
+    double xrr, xss, xtt, xrs, xrt, xst;
+    double yrr, yss, ytt, yrs, yrt, yst;
+    double zrr, zss, ztt, zrs, zrt, zst;
 
         // Compute metrics term at flux points
         /// Determinant of Jacobian (transformation matrix)
@@ -5336,9 +5318,6 @@ void eles::set_transforms(void)
             cp_transforms_cpu_gpu();
         }
 #endif
-
-        if (rank==0) cout << endl;
-    } // if n_eles!=0
 }
 
 void eles::set_transforms_dynamic(void)
@@ -5363,13 +5342,6 @@ void eles::set_transforms_dynamic(void)
     if (n_eles!=0 && motion)
     {
         int i,j,k;
-
-        int n_comp;
-
-        if(n_dims == 2)
-            n_comp = 3;
-        else if(n_dims == 3)
-            n_comp = 6;
 
         hf_array<double> pos(n_dims);
         hf_array<double> d_pos(n_dims,n_dims);
@@ -5696,7 +5668,6 @@ void eles::set_transforms_inters_cubpts(void)
     if (n_eles!=0)
     {
         int i,j,k;
-        int n_comp;
 
         double xr, xs, xt;
         double yr, ys, yt;
@@ -5705,14 +5676,6 @@ void eles::set_transforms_inters_cubpts(void)
         // Initialize bdy_ele2ele hf_array
         (*this).set_bdy_ele2ele();
 
-        if(n_dims == 2)
-        {
-            n_comp = 3;
-        }
-        if(n_dims == 3)
-        {
-            n_comp = 6;
-        }
         double mag_tnorm;
 
         hf_array<double> loc(n_dims);

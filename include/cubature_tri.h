@@ -38,7 +38,7 @@ public:
   cubature_tri();
 
   // constructor 1
-  cubature_tri(int in_order); // set by order
+  cubature_tri(int in_rule,int in_order); // set by order
 
   // copy constructor
   cubature_tri(const cubature_tri& in_cubature_tri);
@@ -79,4 +79,8 @@ public:
 
   // cubature data file
   ifstream datfile;
+
+  //switch if calculate weigths
+  int if_weight;
+
 };

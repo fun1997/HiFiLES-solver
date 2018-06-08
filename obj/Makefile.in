@@ -73,13 +73,13 @@ am_____bin_HiFiLES_SOURCES_DIST = ../src/global.cpp ../src/input.cpp \
 	../src/probe_input.cpp ../src/flux.cpp ../src/source.cpp \
 	../src/cubature_tet.cpp ../src/cubature_hexa.cpp \
 	../src/cubature_quad.cpp ../src/cubature_tri.cpp \
-	../src/cubature_1d.cpp ../src/funcs.cpp ../src/inters.cpp \
-	../src/bdy_inters.cpp ../src/int_inters.cpp ../src/eles.cpp \
-	../src/eles_tris.cpp ../src/eles_quads.cpp \
-	../src/eles_tets.cpp ../src/eles_hexas.cpp \
-	../src/eles_pris.cpp ../src/output.cpp ../src/geometry.cpp \
-	../src/solver.cpp ../src/mesh.cpp ../src/matrix_structure.cpp \
-	../src/vector_structure.cpp \
+	../src/cubature_1d.cpp ../src/cubature_pris.cpp \
+	../src/funcs.cpp ../src/inters.cpp ../src/bdy_inters.cpp \
+	../src/int_inters.cpp ../src/eles.cpp ../src/eles_tris.cpp \
+	../src/eles_quads.cpp ../src/eles_tets.cpp \
+	../src/eles_hexas.cpp ../src/eles_pris.cpp ../src/output.cpp \
+	../src/geometry.cpp ../src/solver.cpp ../src/mesh.cpp \
+	../src/matrix_structure.cpp ../src/vector_structure.cpp \
 	../src/linear_solvers_structure.cpp ../src/HiFiLES.cpp \
 	../src/cuda_kernels.cu ../src/mpi_inters.cpp
 am__dirstamp = $(am__leading_dot)dirstamp
@@ -96,6 +96,7 @@ am____bin_HiFiLES_OBJECTS = ../src/___bin_HiFiLES-global.$(OBJEXT) \
 	../src/___bin_HiFiLES-cubature_quad.$(OBJEXT) \
 	../src/___bin_HiFiLES-cubature_tri.$(OBJEXT) \
 	../src/___bin_HiFiLES-cubature_1d.$(OBJEXT) \
+	../src/___bin_HiFiLES-cubature_pris.$(OBJEXT) \
 	../src/___bin_HiFiLES-funcs.$(OBJEXT) \
 	../src/___bin_HiFiLES-inters.$(OBJEXT) \
 	../src/___bin_HiFiLES-bdy_inters.$(OBJEXT) \
@@ -343,13 +344,13 @@ ___bin_HiFiLES_SOURCES = ../src/global.cpp ../src/input.cpp \
 	../src/probe_input.cpp ../src/flux.cpp ../src/source.cpp \
 	../src/cubature_tet.cpp ../src/cubature_hexa.cpp \
 	../src/cubature_quad.cpp ../src/cubature_tri.cpp \
-	../src/cubature_1d.cpp ../src/funcs.cpp ../src/inters.cpp \
-	../src/bdy_inters.cpp ../src/int_inters.cpp ../src/eles.cpp \
-	../src/eles_tris.cpp ../src/eles_quads.cpp \
-	../src/eles_tets.cpp ../src/eles_hexas.cpp \
-	../src/eles_pris.cpp ../src/output.cpp ../src/geometry.cpp \
-	../src/solver.cpp ../src/mesh.cpp ../src/matrix_structure.cpp \
-	../src/vector_structure.cpp \
+	../src/cubature_1d.cpp ../src/cubature_pris.cpp \
+	../src/funcs.cpp ../src/inters.cpp ../src/bdy_inters.cpp \
+	../src/int_inters.cpp ../src/eles.cpp ../src/eles_tris.cpp \
+	../src/eles_quads.cpp ../src/eles_tets.cpp \
+	../src/eles_hexas.cpp ../src/eles_pris.cpp ../src/output.cpp \
+	../src/geometry.cpp ../src/solver.cpp ../src/mesh.cpp \
+	../src/matrix_structure.cpp ../src/vector_structure.cpp \
 	../src/linear_solvers_structure.cpp ../src/HiFiLES.cpp \
 	$(am__append_1) $(am__append_2)
 all: all-am
@@ -458,6 +459,8 @@ clean-binPROGRAMS:
 	../src/$(DEPDIR)/$(am__dirstamp)
 ../src/___bin_HiFiLES-cubature_1d.$(OBJEXT): ../src/$(am__dirstamp) \
 	../src/$(DEPDIR)/$(am__dirstamp)
+../src/___bin_HiFiLES-cubature_pris.$(OBJEXT): ../src/$(am__dirstamp) \
+	../src/$(DEPDIR)/$(am__dirstamp)
 ../src/___bin_HiFiLES-funcs.$(OBJEXT): ../src/$(am__dirstamp) \
 	../src/$(DEPDIR)/$(am__dirstamp)
 ../src/___bin_HiFiLES-inters.$(OBJEXT): ../src/$(am__dirstamp) \
@@ -511,6 +514,7 @@ mostlyclean-compile:
 	-rm -f ../src/___bin_HiFiLES-bdy_inters.$(OBJEXT)
 	-rm -f ../src/___bin_HiFiLES-cubature_1d.$(OBJEXT)
 	-rm -f ../src/___bin_HiFiLES-cubature_hexa.$(OBJEXT)
+	-rm -f ../src/___bin_HiFiLES-cubature_pris.$(OBJEXT)
 	-rm -f ../src/___bin_HiFiLES-cubature_quad.$(OBJEXT)
 	-rm -f ../src/___bin_HiFiLES-cubature_tet.$(OBJEXT)
 	-rm -f ../src/___bin_HiFiLES-cubature_tri.$(OBJEXT)
@@ -545,6 +549,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-bdy_inters.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-cubature_1d.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-cubature_hexa.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-cubature_pris.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-cubature_quad.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-cubature_tet.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@../src/$(DEPDIR)/___bin_HiFiLES-cubature_tri.Po@am__quote@
@@ -734,6 +739,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/cubature_1d.cpp' object='../src/___bin_HiFiLES-cubature_1d.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -c -o ../src/___bin_HiFiLES-cubature_1d.obj `if test -f '../src/cubature_1d.cpp'; then $(CYGPATH_W) '../src/cubature_1d.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/cubature_1d.cpp'; fi`
+
+../src/___bin_HiFiLES-cubature_pris.o: ../src/cubature_pris.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -MT ../src/___bin_HiFiLES-cubature_pris.o -MD -MP -MF ../src/$(DEPDIR)/___bin_HiFiLES-cubature_pris.Tpo -c -o ../src/___bin_HiFiLES-cubature_pris.o `test -f '../src/cubature_pris.cpp' || echo '$(srcdir)/'`../src/cubature_pris.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/$(DEPDIR)/___bin_HiFiLES-cubature_pris.Tpo ../src/$(DEPDIR)/___bin_HiFiLES-cubature_pris.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/cubature_pris.cpp' object='../src/___bin_HiFiLES-cubature_pris.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -c -o ../src/___bin_HiFiLES-cubature_pris.o `test -f '../src/cubature_pris.cpp' || echo '$(srcdir)/'`../src/cubature_pris.cpp
+
+../src/___bin_HiFiLES-cubature_pris.obj: ../src/cubature_pris.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -MT ../src/___bin_HiFiLES-cubature_pris.obj -MD -MP -MF ../src/$(DEPDIR)/___bin_HiFiLES-cubature_pris.Tpo -c -o ../src/___bin_HiFiLES-cubature_pris.obj `if test -f '../src/cubature_pris.cpp'; then $(CYGPATH_W) '../src/cubature_pris.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/cubature_pris.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/$(DEPDIR)/___bin_HiFiLES-cubature_pris.Tpo ../src/$(DEPDIR)/___bin_HiFiLES-cubature_pris.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/cubature_pris.cpp' object='../src/___bin_HiFiLES-cubature_pris.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -c -o ../src/___bin_HiFiLES-cubature_pris.obj `if test -f '../src/cubature_pris.cpp'; then $(CYGPATH_W) '../src/cubature_pris.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/cubature_pris.cpp'; fi`
 
 ../src/___bin_HiFiLES-funcs.o: ../src/funcs.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(___bin_HiFiLES_CXXFLAGS) $(CXXFLAGS) -MT ../src/___bin_HiFiLES-funcs.o -MD -MP -MF ../src/$(DEPDIR)/___bin_HiFiLES-funcs.Tpo -c -o ../src/___bin_HiFiLES-funcs.o `test -f '../src/funcs.cpp' || echo '$(srcdir)/'`../src/funcs.cpp

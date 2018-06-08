@@ -38,7 +38,7 @@ public:
   cubature_hexa();
 
   // constructor 1
-  cubature_hexa(int in_rule); // set by order
+  cubature_hexa(int in_rule,int in_order); // set by order
 
   // copy constructor
   cubature_hexa(const cubature_hexa& in_cubature);
@@ -69,7 +69,7 @@ public:
   // #### members ####
 
   // cubature rule
-  int rule;
+  int order;
 
   // number of cubature points
   int n_pts;
@@ -80,6 +80,4 @@ public:
   // weight of cubature points
   hf_array<double> weights;
 
-  // cubature data file
-  ifstream datfile;
 };

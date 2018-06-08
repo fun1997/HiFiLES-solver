@@ -186,30 +186,10 @@ void eles_hexas::set_connectivity_plot()
 
 void eles_hexas::set_loc_1d_upts(void)
 {
-  if(upts_type==0)
-    {
-      int get_order=order;
-
-      hf_array<double> loc_1d_gauss_pts(order+1);
-
-#include "../data/loc_1d_gauss_pts.dat"
-
-      loc_1d_upts=loc_1d_gauss_pts;
-    }
-  else if(upts_type==1)
-    {
-      int get_order=order;
-
-      hf_array<double> loc_1d_gauss_lobatto_pts(order+1);
-
-#include "../data/loc_1d_gauss_lobatto_pts.dat"
-
-      loc_1d_upts=loc_1d_gauss_lobatto_pts;
-    }
-  else
-    {
-      cout << "ERROR: Unknown solution point type.... " << endl;
-    }
+  cubature_1d cub_1d(upts_type, order);
+  loc_1d_upts.setup(order + 1);
+  for (int i = 0; i < order + 1; i++)
+    loc_1d_upts(i) = cub_1d.get_r(i);
 }
 
 // set location of 1d shape points in standard interval (required for tensor product element)
@@ -322,7 +302,7 @@ void eles_hexas::set_inters_cubpts(void)
   weight_inters_cubpts.setup(n_inters_per_ele);
   tnorm_inters_cubpts.setup(n_inters_per_ele);
 
-  cubature_quad cub_quad(inters_cub_order);
+  cubature_quad cub_quad(0,inters_cub_order);
   int n_cubpts_quad = cub_quad.get_n_pts();
 
   for (int i=0;i<n_inters_per_ele;++i)
@@ -408,7 +388,7 @@ void eles_hexas::set_inters_cubpts(void)
 
 void eles_hexas::set_volume_cubpts(void)
 {
-  cubature_hexa cub_hexa(volume_cub_order);
+  cubature_hexa cub_hexa(0,volume_cub_order);
   int n_cubpts_hexa = cub_hexa.get_n_pts();
   n_cubpts_per_ele = n_cubpts_hexa;
 
@@ -708,7 +688,7 @@ void eles_hexas::compute_filter_upts(void)
       double k_R, k_L, coeff;
       double res_0, res_L, res_R;
       hf_array<double> alpha(N);
-      cubature_1d cub_1d(inters_cub_order);
+      cubature_1d cub_1d(0,inters_cub_order);
       int n_cubpts_1d = cub_1d.get_n_pts();
       hf_array<double> wf(n_cubpts_1d);
 
@@ -965,10 +945,23 @@ void eles_hexas::set_vandermonde3D(void)
   void eles_hexas::set_over_int_filter(void)
   {
     int N_under = run_input.N_under;
-    int n_mode_under = (N_under+1) * (N_under+1) * (N_under+1); //projected n_upts_per_ele
-    hf_array<double> temp_proj(n_mode_under, n_upts_per_ele);
+    int n_mode_under = (N_under + 1) * (N_under + 1) * (N_under + 1); //projected n_upts_per_ele
+    cubature_hexa cub_hexas(0, order);
+    hf_array<double> temp_proj(n_mode_under, cub_hexas.get_n_pts());
     hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
-    cubature_hexa cub_hexas(order + 1);
+    hf_array<double> temp_opp(cub_hexas.get_n_pts(), n_upts_per_ele);
+    hf_array<double> loc(n_dims);
+    //step 0. extrapolate solution from upts to cubpts with same order
+    for (int i = 0; i < n_upts_per_ele; i++)
+    {
+      for (int j = 0; j < cub_hexas.get_n_pts(); j++)
+      {
+        loc(0) = cub_hexas.get_r(j);
+        loc(1) = cub_hexas.get_s(j);
+        loc(2) = cub_hexas.get_t(j);
+        temp_opp(j, i) = eval_nodal_basis(i, loc);
+      }
+    }
     //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*\l_j}=>\phi_i(j)*w(j)
     for (int i = 0; i < n_mode_under; i++)
     {
@@ -978,26 +971,25 @@ void eles_hexas::set_vandermonde3D(void)
       norm1 = 2.0 / (2.0 * n1 + 1.0);
       norm2 = 2.0 / (2.0 * n2 + 1.0);
       norm3 = 2.0 / (2.0 * n3 + 1.0);
-      for (int j = 0; j < n_upts_per_ele; j++)
+      for (int j = 0; j < cub_hexas.get_n_pts(); j++)
       {
-        hf_array<double> loc(n_dims);
-        loc(0) = loc_upts(0, j);
-        loc(1) = loc_upts(1, j);
-        loc(2) = loc_upts(2, j);
+        loc(0) = cub_hexas.get_r(j);
+        loc(1) = cub_hexas.get_s(j);
+        loc(2) = cub_hexas.get_t(j);
         temp_proj(i, j) = eval_legendre_basis_3D_hierarchical(i, loc, N_under) / (norm1 * norm2 * norm3) * cub_hexas.get_weight(j);
       }
     }
     //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
     for (int j = 0; j < n_upts_per_ele; j++)
     {
-      hf_array<double> loc(n_dims);
       loc(0) = loc_upts(0, j);
       loc(1) = loc_upts(1, j);
       loc(2) = loc_upts(2, j);
       for (int i = 0; i < n_mode_under; i++)
         temp_vand(j, i) = eval_legendre_basis_3D_hierarchical(i, loc, N_under);
     }
-    over_int_filter = mult_arrays(temp_vand, temp_proj);
+    over_int_filter = mult_arrays(temp_proj, temp_opp);
+    over_int_filter = mult_arrays(temp_vand, over_int_filter);
   }
 
   // evaluate nodal basis

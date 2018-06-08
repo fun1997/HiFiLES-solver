@@ -187,12 +187,12 @@ public:
 
     /*---- boundary_conditions ---- */
     double p_bound;
-    hf_array<double> v_bound_Sub_In_Simp;
-    hf_array<double> v_bound_Sup_In;
-    hf_array<double> v_bound_Sub_In_Simp2;
-    hf_array<double> v_bound_Sup_In2;
-    hf_array<double> v_bound_Sup_In3;
-    hf_array<double> v_bound_Far_Field;
+    hf_array<double> v_bound_sub_in_simp;
+    hf_array<double> v_bound_sup_in;
+    hf_array<double> v_bound_sub_in_simp2;
+    hf_array<double> v_bound_sup_in2;
+    hf_array<double> v_bound_sup_in3;
+    hf_array<double> v_bound_far_field;
 
     //cyclic interfaces
     double dx_cyclic;
@@ -201,83 +201,83 @@ public:
 
     //Sub_In_Simp
     int Sub_In_Simp;
-    double Mach_Sub_In_Simp;
-    double Rho_Sub_In_Simp;
-    double rho_bound_Sub_In_Simp;
+    double Mach_sub_in_simp;
+    double rho_sub_in_simp;
+    double rho_bound_sub_in_simp;
     double nx_sub_in_simp;
     double ny_sub_in_simp;
     double nz_sub_in_simp;
     //Sub_In_Simp2
     int Sub_In_Simp2;
-    double Mach_Sub_In_Simp2;
-    double Rho_Sub_In_Simp2;
-    double rho_bound_Sub_In_Simp2;
+    double Mach_sub_in_simp2;
+    double rho_sub_in_simp2;
+    double rho_bound_sub_in_simp2;
     double nx_sub_in_simp2;
     double ny_sub_in_simp2;
     double nz_sub_in_simp2;
     //Sub_In_Char
     int Sub_In_char;
-    double P_Total_Nozzle;
-    double T_Total_Nozzle;
-    double p_total_bound;
-    double T_total_bound;
+    double p_total_sub_in;
+    double T_total_sub_in;
+    double p_total_bound_sub_in;
+    double T_total_bound_sub_in;
     double nx_sub_in_char;
     double ny_sub_in_char;
     double nz_sub_in_char;
-    int Pressure_Ramp;
-    double P_Ramp_Coeff;
-    double T_Ramp_Coeff;
-    double P_Total_Old;
-    double T_Total_Old;
-    double P_Total_Old_Bound;
-    double T_Total_Old_Bound;
+    int pressure_ramp;
+    double p_ramp_coeff;
+    double T_ramp_coeff;
+    double p_total_old;
+    double T_total_old;
+    double p_total_bound_old;
+    double T_total_bound_old;
     int ramp_counter;
     //Sub_Out
     int Sub_Out;
-    double P_Sub_Out;
-    double p_bound_Sub_Out;
-    double T_total_Sub_Out;
-    double T_total_Sub_Out_bound;
+    double p_sub_out;
+    double p_bound_sub_out;
+    double T_total_sub_out;
+    double T_total_bound_sub_out;
     //Sup_In
     int Sup_In;
-    double Rho_Sup_In;
-    double P_Sup_In;
-    double Mach_Sup_In;
-    double rho_bound_Sup_In;
-    double p_bound_Sup_In;
+    double rho_sup_in;
+    double p_sup_in;
+    double Mach_sup_in;
+    double rho_bound_sup_in;
+    double p_bound_sup_in;
     double nx_sup_in;
     double ny_sup_in;
     double nz_sup_in;
     double T_sup_in;
     //Sup_In2
     int Sup_In2;
-    double Rho_Sup_In2;
-    double P_Sup_In2;
-    double Mach_Sup_In2;
-    double rho_bound_Sup_In2;
-    double p_bound_Sup_In2;
+    double rho_sup_in2;
+    double p_sup_in2;
+    double Mach_sup_in2;
+    double rho_bound_sup_in2;
+    double p_bound_sup_in2;
     double nx_sup_in2;
     double ny_sup_in2;
     double nz_sup_in2;
     double T_sup_in2;
     //Sup_In3
     int Sup_In3;
-    double Rho_Sup_In3;
-    double P_Sup_In3;
-    double Mach_Sup_In3;
-    double rho_bound_Sup_In3;
-    double p_bound_Sup_In3;
+    double rho_sup_in3;
+    double p_sup_in3;
+    double Mach_sup_in3;
+    double rho_bound_sup_in3;
+    double p_bound_sup_in3;
     double nx_sup_in3;
     double ny_sup_in3;
     double nz_sup_in3;
     double T_sup_in3;
     //Far_Field
     int Far_Field;
-    double Rho_Far_Field;
-    double P_Far_Field;
-    double Mach_Far_Field;
-    double rho_bound_Far_Field;
-    double p_bound_Far_Field;
+    double rho_far_field;
+    double p_far_field;
+    double Mach_far_field;
+    double rho_bound_far_field;
+    double p_bound_far_field;
     double nx_far_field;
     double ny_far_field;
     double nz_far_field;

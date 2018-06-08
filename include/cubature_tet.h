@@ -38,7 +38,7 @@ public:
   cubature_tet();
 
   // constructor 1
-  cubature_tet(int in_rule); // set by order
+  cubature_tet(int in_rule,int in_order); // set by order
 
   // copy constructor
   cubature_tet(const cubature_tet& in_cubature);
@@ -69,7 +69,7 @@ public:
   // #### members ####
 
   // cubature rule
-  int rule;
+  int order;
 
   // number of cubature points
   int n_pts;
@@ -80,6 +80,6 @@ public:
   // weight of cubature points
   hf_array<double> weights;
 
-  // cubature data file
-  ifstream datfile;
+  // switch if calculate weights
+  int if_weight;
 };

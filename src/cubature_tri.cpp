@@ -47,133 +47,68 @@ cubature_tri::cubature_tri()
 
 // constructor 1
 
-cubature_tri::cubature_tri(int in_order) // set by order
+cubature_tri::cubature_tri(int in_rule, int in_order) // set by order
 {
-  ifstream datfile;
-  char buf[BUFSIZ]={""};
-  char section_TXT[100], param_TXT[100];
-  char* f;
-  string filename, param_name, param, ord;
-  istringstream strbuf;
-  int order_file;
-  
-  order=in_order;
+  if (HIFILES_DIR == NULL)
+    FatalError("environment variable HIFILES_HOME is undefined");
 
-  if (order==2)
-    n_pts=3;
-  else if (order==3)
-    n_pts=6;
-  else if (order==4)
-    n_pts=6;
-  else if (order==5)
-    n_pts=7;
-  else if (order==6)
-    n_pts=12;
-  else if (order==7)
-    n_pts=15;
-  else if (order==8)
-    n_pts=16;
-  else if (order==9)
-    n_pts=19;
-  else if (order==10)
-    n_pts=25;
-  else if (order==11)
-    n_pts=28;
-  else if (order==12)
-    n_pts=36;
-  else if (order==13)
-    n_pts=40;
-  else if (order==14)
-    n_pts=46;
-  else if (order==15)
-    n_pts=54;
-  else if (order==16)
-    n_pts=58;
-  else if (order==17)
-    n_pts=66;
-  else if (order==18)
-    n_pts=73;
-  else if (order==19)
-    n_pts=82;
-  else if (order==20)
-    n_pts=85;
-  else {
-    order=0;
-    n_pts=0;
-    locs.setup(0,0);
-    weights.setup(0);
-    
-    FatalError("ERROR: Order of cubature rule currently not implemented ....");
-  }
-  
+  order = in_order;
+  n_pts = (order + 1) * (order + 2) / 2;
   locs.setup(n_pts,2);
   weights.setup(n_pts);
-  
-  
-  if(order < 21) {
-    
-    if (HIFILES_DIR == NULL)
-      FatalError("environment variable HIFILES_HOME is undefined");
-    
-    filename = HIFILES_DIR;
-    filename += "/data/cubature_tri.dat";
-    f = (char*)filename.c_str();
-    datfile.open(f, ifstream::in);
-    if (!datfile) FatalError("Unable to open cubature file");
-    
-    // read data from file to arrays
-    while(datfile.getline(buf,BUFSIZ))
+  string filename;
+  filename = HIFILES_DIR;
+  ifstream datfile;
+  int upper_order_lim, lower_order_lim;
+
+  //set rule-dependent variables
+  if (in_rule == 0) //internal
+  {
+    lower_order_lim = 0;
+    upper_order_lim = 7;
+    if_weight = 1;
+    filename += "/data/tri_inter.bin";
+  }
+  else if (in_rule == 1) //alpha
+  {
+    lower_order_lim = 1;
+    upper_order_lim = 15;
+    if_weight = 0;
+    filename += "/data/tri_alpha.bin";
+  }
+  else
+  FatalError("Cubature rule not implemented");
+
+  if (order <= upper_order_lim && order >= lower_order_lim)
+  {
+    hf_array<double> temp_loc_0(n_pts);
+    hf_array<double> temp_loc_1(n_pts);
+
+    //open file
+    datfile.open(filename.c_str(), ifstream::binary);
+    if (!datfile)
+      FatalError("Unable to open cubature file");
+    //skip lines
+    int skip = 0;
+    for (int i = lower_order_lim; i < order; i++)
+      skip += (2+if_weight) * (i + 1) * (i + 2) / 2;
+    datfile.seekg(sizeof(double) * skip, ios_base::beg);
+    // read file
+    datfile.read((char *)temp_loc_0.get_ptr_cpu(), sizeof(double) * n_pts);
+    datfile.read((char *)temp_loc_1.get_ptr_cpu(), sizeof(double) * n_pts);
+    if (if_weight)
+      datfile.read((char *)weights.get_ptr_cpu(), sizeof(double) * n_pts);
+    //close file
+    datfile.close();
+    //assign values to locs
+    for (int i = 0; i < n_pts; i++)
     {
-      sscanf(buf,"%s",section_TXT);
-      param_name.assign(section_TXT,0,99);
-      
-      if(!param_name.compare(0,5,"order"))
-      {
-        // get no. of pts
-        ord = param_name.substr(6);
-        stringstream str(ord);
-        str >> order_file;
-        
-        // if pts matches order, read locs and weights
-        if (order_file == order) {
-          
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            locs(i,0) = atof(param.c_str());
-          }
-          
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            locs(i,1) = atof(param.c_str());
-          }
-          
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            weights(i) = atof(param.c_str());
-          }
-          break;
-        }
-      }
+      locs(i, 0) = temp_loc_0(i);
+      locs(i, 1) = temp_loc_1(i);
     }
   }
+  else
+    FatalError("cubature order not implemented.");
 }
 
 // copy constructor
@@ -238,7 +173,10 @@ double cubature_tri::get_s(int in_pos)
 
 double cubature_tri::get_weight(int in_pos)
 {
-  return weights(in_pos);
+  if (if_weight)
+    return weights(in_pos);
+  else
+    FatalError("No weights for this rule");
 }
 
 

@@ -268,8 +268,6 @@ public:
 
   void set_rank(int in_rank);
 
-  void set_disu_upts_to_zero_other_levels(void);
-
   hf_array<int> get_connectivity_plot();
 
   /*! calculate solution at the probe points */
@@ -301,6 +299,12 @@ public:
 
   /*! set transforms */
   void set_transforms(void);
+
+  /*! set transformation at solution points*/
+  void set_transforms_upts(void);
+
+  /*! set transformation at flux points*/
+  void set_transforms_fpts(void);
 
   /*! set transforms at the interface cubature points */
   void set_transforms_inters_cubpts(void);
@@ -955,7 +959,7 @@ protected:
         matrix mapping:
         */
   hf_array< hf_array<double> > disu_upts;
-
+  
 	/*!
 	running time-averaged diagnostic fields at solution points
 	*/
@@ -1236,7 +1240,6 @@ protected:
   hf_array<double> inv_vandermonde;
   hf_array<double> vandermonde2D;
   hf_array<double> inv_vandermonde2D;
-  hf_array<double> area_coord_upts;
   hf_array<double> area_coord_fpts;
   hf_array<double> concentration_array;
   hf_array<double> sensor;

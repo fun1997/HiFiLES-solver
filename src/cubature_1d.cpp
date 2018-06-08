@@ -47,81 +47,48 @@ cubature_1d::cubature_1d()
 
 // constructor 1
 
-cubature_1d::cubature_1d(int in_order) // set by number of points
-{	
-  ifstream datfile;
-  char buf[BUFSIZ]={""};
-  char section_TXT[100], param_TXT[100];
-  char* f;
-  string filename, param_name, param, ord;
-  istringstream strbuf;
-  int n_pts_file;
+cubature_1d::cubature_1d(int in_rule, int in_order) // set by order of quadrature rule, n_pts=order+1,accuracy=2*n_pts-1
+{
+  if (HIFILES_DIR == NULL)
+    FatalError("environment variable HIFILES_HOME is undefined");
 
-  order=in_order;
-  n_pts = (order+1)/2;
+  order = in_order;
+  n_pts = order + 1;
   locs.setup(n_pts);
   weights.setup(n_pts);
-  
-  if(n_pts < 13) {
+  string filename;
+  filename = HIFILES_DIR;
+  ifstream datfile;
 
-    // get env var specifying location of data directory?
-    //const char* HIFILES_DATADIR = getenv("HIFILES_DATA");
-    //filename = HIFILES_DATADIR;
-    //filename += "/cubature_1d_new.dat";
-    //cout << filename << endl;
+//set file name
+  if (in_rule == 0) //Gauss
+    filename += "/data/JacobiGQ.bin";
+  else if (in_rule == 1) //Gauss Lobatto
+    filename += "/data/JacobiGL.bin";
+  else
+    FatalError("cubature rule not implemented.");
 
-    if (HIFILES_DIR == NULL)
-      FatalError("environment variable HIFILES_HOME is undefined");
+  if (order <= 15 && order >= 0)
+  {
+    //open file
+    datfile.open(filename.c_str(), ios_base::binary);
+  if (!datfile)
+    FatalError("Unable to open cubature file");
 
-    filename = HIFILES_DIR;
-    filename += "/data/cubature_1d.dat";
-    f = (char*)filename.c_str();
-    datfile.open(f, ifstream::in);
-    if (!datfile) FatalError("Unable to open cubature file");
-    
-    // read data from file to arrays
-    while(datfile.getline(buf,BUFSIZ))
-    {
-      sscanf(buf,"%s",section_TXT);
-      param_name.assign(section_TXT,0,99);
-      
-      if(!param_name.compare(0,5,"n_pts"))
-      {
-        // get no. of pts
-        ord = param_name.substr(6);
-        stringstream str(ord);
-        str >> n_pts_file;
-        
-        // if pts matches order, read locs and weights
-        if (n_pts_file == n_pts) {
-          
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            locs(i) = atof(param.c_str());
-          }
-
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            weights(i) = atof(param.c_str());
-          }
-          break;
-        }
-      }
-    }
+    //skip lines
+    int skip = (1+order)*order;
+    datfile.seekg(sizeof(double) * skip, ios_base::beg);
+    //read file
+    datfile.read((char *)locs.get_ptr_cpu(), sizeof(double) * n_pts);
+    datfile.read((char *)weights.get_ptr_cpu(), sizeof(double) * n_pts);
+    //close file
+    datfile.close();
   }
-  else { FatalError("cubature rule not implemented."); }
+  else
+  {
+    datfile.close();
+    FatalError("cubature order not implemented.");
+  }
 }
 
 // copy constructor

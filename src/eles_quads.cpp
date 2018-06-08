@@ -128,8 +128,6 @@ void eles_quads::setup_ele_type_specific()
 
   temp_u.setup(n_fields);
   temp_f.setup(n_fields,n_dims);
-
-  set_area_coord();  // Not sure if this is the right place to call it - check later (some differences in the master version)
 }
 
 void eles_quads::set_connectivity_plot()
@@ -180,30 +178,10 @@ void eles_quads::set_shape(hf_array<int> &in_n_spts_per_ele)
 
 void eles_quads::set_loc_1d_upts(void)
 {
-  if(upts_type==0)
-    {
-      int get_order=order;
-
-      hf_array<double> loc_1d_gauss_pts(order+1);
-
-#include "../data/loc_1d_gauss_pts.dat"
-
-      loc_1d_upts=loc_1d_gauss_pts;
-    }
-  else if(upts_type==1)
-    {
-      int get_order=order;
-
-      hf_array<double> loc_1d_gauss_lobatto_pts(order+1);
-
-#include "../data/loc_1d_gauss_lobatto_pts.dat"
-
-      loc_1d_upts=loc_1d_gauss_lobatto_pts;
-    }
-  else
-    {
-      cout << "ERROR: Unknown solution point type.... " << endl;
-    }
+  cubature_1d cub_1d(upts_type, order);
+  loc_1d_upts.setup(order + 1);
+  for (int i = 0; i < order + 1; i++)
+    loc_1d_upts(i) = cub_1d.get_r(i);
 }
 
 // set location of 1d shape points in standard interval (required for tensor product element)
@@ -295,7 +273,7 @@ void eles_quads::set_inters_cubpts(void)
   weight_inters_cubpts.setup(n_inters_per_ele);
   tnorm_inters_cubpts.setup(n_inters_per_ele);
 
-  cubature_1d cub_1d(inters_cub_order);
+  cubature_1d cub_1d(0,inters_cub_order);
   int n_cubpts_1d = cub_1d.get_n_pts();
 
   for (int i=0;i<n_inters_per_ele;i++)
@@ -355,7 +333,7 @@ void eles_quads::set_inters_cubpts(void)
 
 void eles_quads::set_volume_cubpts(void)
 {
-  cubature_quad cub_quad(volume_cub_order);
+  cubature_quad cub_quad(0,volume_cub_order);
   int n_cubpts_quad = cub_quad.get_n_pts();
   n_cubpts_per_ele = n_cubpts_quad;
   loc_volume_cubpts.setup(n_dims,n_cubpts_quad);
@@ -558,7 +536,7 @@ void eles_quads::compute_filter_upts(void)
       double k_R, k_L, coeff;
       double res_0, res_L, res_R;
       hf_array<double> alpha(N);
-      cubature_1d cub_1d(inters_cub_order);
+      cubature_1d cub_1d(0,inters_cub_order);
       int n_cubpts_1d = cub_1d.get_n_pts();
       hf_array<double> wf(n_cubpts_1d);
 
@@ -813,10 +791,21 @@ void eles_quads::set_over_int_filter(void)
 {
   int N_under = run_input.N_under;
   int n_mode_under = (N_under + 1) * (N_under + 1); //projected n_upts_per_ele
-  hf_array<double> temp_proj(n_mode_under, n_upts_per_ele);
+  cubature_quad cub_quads(0,order);
+  hf_array<double> temp_proj(n_mode_under, cub_quads.get_n_pts());
   hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
-  cubature_quad cub_quads(order + 1);
-
+  hf_array<double> temp_opp(cub_quads.get_n_pts(), n_upts_per_ele);
+  hf_array<double> loc(n_dims);
+    //step 0. extrapolate solution from upts to cubpts with same order
+    for (int i = 0; i < n_upts_per_ele; i++)
+    {
+      for (int j = 0; j < cub_quads.get_n_pts(); j++)
+      {
+        loc(0) = cub_quads.get_r(j);
+        loc(1) = cub_quads.get_s(j);
+        temp_opp(j, i) = eval_nodal_basis(i, loc);
+      }
+    }
   //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*l_j}=>\phi_i(j)*w(j)
   for (int i = 0; i < n_mode_under; i++)
   {
@@ -825,53 +814,23 @@ void eles_quads::set_over_int_filter(void)
     get_legendre_basis_2D_index(i, N_under, n1, n2);
     norm1 = 2.0 / (2.0 * n1 + 1.0);
     norm2 = 2.0 / (2.0 * n2 + 1.0);
-    for (int j = 0; j < n_upts_per_ele; j++)
+    for (int j = 0; j < cub_quads.get_n_pts(); j++)
     {
-      hf_array<double> loc(n_dims);
-      loc(0) = loc_upts(0, j);
-      loc(1) = loc_upts(1, j);
+      loc(0) = cub_quads.get_r(j);
+      loc(1) = cub_quads.get_s(j);
       temp_proj(i, j) = eval_legendre_basis_2D_hierarchical(i, loc, N_under) / (norm1 * norm2) * cub_quads.get_weight(j);
     }
   }
   //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
   for (int j = 0; j < n_upts_per_ele; j++)
   {
-    hf_array<double> loc(n_dims);
     loc(0) = loc_upts(0, j);
     loc(1) = loc_upts(1, j);
     for (int i = 0; i < n_mode_under; i++)
       temp_vand(j, i) = eval_legendre_basis_2D_hierarchical(i, loc, N_under);
   }
-  over_int_filter = mult_arrays(temp_vand, temp_proj);
-}
-
-// Set area co-ordinates/shape functions for bilinear interpolation used in AV routines
-void eles_quads::set_area_coord(void)
-{
-  area_coord_upts.setup(4,n_upts_per_ele);
-  area_coord_fpts.setup(4,n_fpts_per_ele);
-
-  if(n_dims == 2)
-  {
-     for(int i=0;i<n_upts_per_ele;i++)
-     {
-        area_coord_upts(0,i) = 0.25*(1 - loc_upts(0,i))*(1 - loc_upts(1,i));
-        area_coord_upts(2,i) = 0.25*(1 - loc_upts(0,i))*(1 + loc_upts(1,i));
-        area_coord_upts(3,i) = 0.25*(1 + loc_upts(0,i))*(1 + loc_upts(1,i));
-        area_coord_upts(1,i) = 0.25*(1 + loc_upts(0,i))*(1 - loc_upts(1,i));
-     }
-
-//     for(int i=0;i<n_fpts_per_ele;i++)
-//     {
-//        area_coord_fpts(0,i) = 0.25*(1 - loc_fpts(0,i))*(1 - loc_fpts(1,i));
-//        area_coord_fpts(2,i) = 0.25*(1 - loc_fpts(0,i))*(1 + loc_fpts(1,i));
-//        area_coord_fpts(3,i) = 0.25*(1 + loc_fpts(0,i))*(1 + loc_fpts(1,i));
-//        area_coord_fpts(1,i) = 0.25*(1 + loc_fpts(0,i))*(1 - loc_fpts(1,i));
-//     }
-  }
-
-  else
-        cout<<"Area coordinate calculation has not yet been implemented for this dimension" << endl;
+  over_int_filter = mult_arrays(temp_proj, temp_opp);
+  over_int_filter = mult_arrays(temp_vand, over_int_filter);
 }
 
 // evaluate nodal basis

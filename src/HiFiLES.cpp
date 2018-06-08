@@ -156,10 +156,10 @@ int main(int argc, char *argv[]) {
 
   while(i_steps < FlowSol.n_steps) {
 
-    if (FlowSol.adv_type == 0) RKSteps = 1;
-    else if (FlowSol.adv_type==1||FlowSol.adv_type==2) RKSteps=4;
-    else if (FlowSol.adv_type == 3) RKSteps = 5;
-    else if (FlowSol.adv_type == 4) RKSteps = 14;
+    if (FlowSol.adv_type == 0) RKSteps = 1;//Euler
+    else if (FlowSol.adv_type==1||FlowSol.adv_type==2) RKSteps=4;//RK24/34
+    else if (FlowSol.adv_type == 3) RKSteps = 5;//RK45
+    else if (FlowSol.adv_type == 4) RKSteps = 14;//RK414
 
     for(i=0; i < RKSteps; i++) {
 
@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
     FlowSol.time += run_input.dt;
     run_input.time = FlowSol.time;
     i_steps++;
-    if(run_input.Pressure_Ramp)
+    if(run_input.pressure_ramp)
     run_input.ramp_counter++;
 
     /*! Copy solution and gradients from GPU to CPU, ready for the following routines */

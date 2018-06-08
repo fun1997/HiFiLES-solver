@@ -170,7 +170,7 @@ AUTOHEADER = ${SHELL} /home/weiqishen/Documents/HiFiLES-solver/missing --run aut
 AUTOMAKE = ${SHELL} /home/weiqishen/Documents/HiFiLES-solver/missing --run automake-1.11
 AWK = mawk
 BLAS_CXX =   -m64 -I /home/weiqishen/Documents/intel/mkl/include -D_MKL_BLAS
-BLAS_LD =  -Wl,--start-group /home/weiqishen/Documents/intel/mkl/lib/intel64/libmkl_intel_lp64.a /home/weiqishen/Documents/intel/mkl/lib/intel64/libmkl_sequential.a /home/weiqishen/Documents/intel/mkl/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm -ldl
+BLAS_LD =   -L/home/weiqishen/Documents/intel/mkl/lib/intel64 -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
 BLAS_LDFLAGS = 
 CC = gcc
 CCDEPMODE = depmode=gcc3

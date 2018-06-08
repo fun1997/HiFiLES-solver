@@ -38,7 +38,7 @@ public:
   cubature_quad();
 
   // constructor 1
-  cubature_quad(int in_rule); // set by order
+  cubature_quad(int in_rule,int in_order); // set by order
 
   // copy constructor
   cubature_quad(const cubature_quad& in_cubature);
@@ -66,7 +66,7 @@ public:
   // #### members ####
 
   // cubature rule
-  int rule;
+  int order;
 
   // number of cubature points
   int n_pts;

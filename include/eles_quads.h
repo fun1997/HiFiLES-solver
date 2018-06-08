@@ -114,12 +114,6 @@ public:
   /*! Element reference length calculation */
   double calc_h_ref_specific(int in_ele);
 
-  /*! set area coordinates of solution points and flux point */
-  void set_area_coord(void);
-
-  /*! set 2D Vandermonde matrix */
-  void set_vandermonde2D(void);
-
   /*! setup the concentration hf_array required for concentration method for shock capturing */
   void set_concentration_array(void);
 
@@ -143,9 +137,8 @@ protected:
   /*! set Vandermonde matrix */
   void set_vandermonde();
 
-  // members
-  //hf_array<double> vandermonde;
-  //hf_array<double> inv_vandermonde;
+  /*! set 2D Vandermonde matrix */
+  void set_vandermonde2D(void);
 
   /*! return position of 1d solution point */
   double get_loc_1d_upt(int in_index);

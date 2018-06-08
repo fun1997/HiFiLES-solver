@@ -86,6 +86,9 @@ void eles_tets::setup_ele_type_specific()
   set_volume_cubpts();
   set_opp_volume_cubpts();
 
+if(run_input.over_int)
+      set_over_int_filter();
+
   n_fpts_per_inter.setup(4);
 
   n_fpts_per_inter(0)=(order+2)*(order+1)/2;
@@ -216,40 +219,14 @@ void eles_tets::set_connectivity_plot()
 
 void eles_tets::set_loc_upts(void)
 {
-  int get_order=order;
   loc_upts.setup(n_dims,n_upts_per_ele);
-
-  if (upts_type==0) // internal points (good quadrature points)
-    {
-      hf_array<double> loc_inter_pts(n_upts_per_ele,3);
-#include "../data/loc_tet_inter_pts.dat"
-
-      for (int i=0;i<n_upts_per_ele;i++)
-        {
-          loc_upts(0,i) = loc_inter_pts(i,0);
-          loc_upts(1,i) = loc_inter_pts(i,1);
-          loc_upts(2,i) = loc_inter_pts(i,2);
-        }
-
-    }
-  else if (upts_type==1) // alpha optimized
-    {
-      hf_array<double> loc_alpha_pts(n_upts_per_ele,3);
-#include "../data/loc_tet_alpha_pts.dat"
-
-      for (int i=0;i<n_upts_per_ele;i++)
-        {
-          loc_upts(0,i) = loc_alpha_pts(i,0);
-          loc_upts(1,i) = loc_alpha_pts(i,1);
-          loc_upts(2,i) = loc_alpha_pts(i,2);
-        }
-    }
-  else
-    {
-      cout << "Error: Unknown solution points location type...." << endl;
-      exit(1);
-    }
-
+  cubature_tet cub_tet(upts_type, order);
+  for (int i = 0; i < n_upts_per_ele; i++)
+  {
+    loc_upts(0, i) = cub_tet.get_r(i);
+    loc_upts(1, i) = cub_tet.get_s(i);
+    loc_upts(2, i) = cub_tet.get_t(i);
+  }
 }
 
 // set location of flux points in standard element
@@ -258,27 +235,15 @@ void eles_tets::set_tloc_fpts(void)
 {
 
   int i,j,fpt;
-  int get_order=order;
   tloc_fpts.setup(n_dims,n_fpts_per_ele);
-
+  
   hf_array<double> loc_tri_fpts(n_fpts_per_inter(0),2);
-
-  if (fpts_type==0) // internal points
-    {
-      hf_array<double> loc_inter_pts(n_fpts_per_inter(0),2);
-#include "../data/loc_tri_inter_pts.dat"
-      loc_tri_fpts = loc_inter_pts;
-    }
-  else if(fpts_type==1) // alpha optimized
-    {
-      hf_array<double> loc_alpha_pts(n_fpts_per_inter(0),2);
-#include "../data/loc_tri_alpha_pts.dat"
-      loc_tri_fpts = loc_alpha_pts;
-    }
-  else
-    {
-      FatalError("Unknown tet fpts type");
-    }
+  cubature_tri cub_tri(fpts_type, order);
+  for (int i = 0; i < n_fpts_per_inter(0); i++)
+  {
+    loc_tri_fpts(i, 0) = cub_tri.get_r(i);
+    loc_tri_fpts(i, 1) = cub_tri.get_s(i);
+  }
 
   // Now map these points to 3D
 
@@ -348,7 +313,7 @@ void eles_tets::set_inters_cubpts(void)
   weight_inters_cubpts.setup(n_inters_per_ele);
   tnorm_inters_cubpts.setup(n_inters_per_ele);
 
-  cubature_tri cub_tri(inters_cub_order);
+  cubature_tri cub_tri(0,inters_cub_order);
   int n_cubpts_tri = cub_tri.get_n_pts();
 
   for (int i=0;i<n_inters_per_ele;i++)
@@ -415,7 +380,7 @@ void eles_tets::set_inters_cubpts(void)
 
 void eles_tets::set_volume_cubpts(void)
 {
-  cubature_tet cub_tet(volume_cub_order);
+  cubature_tet cub_tet(0,volume_cub_order);
   int n_cubpts_tet = cub_tet.get_n_pts();
   n_cubpts_per_ele = n_cubpts_tet;
 
@@ -783,6 +748,49 @@ void eles_tets::write_restart_info(ofstream& restart_file)
 
 }
 
+void eles_tets::set_over_int_filter()
+{
+  int N_under = run_input.N_under;
+  int n_mode_under = (N_under + 1) * (N_under + 2) * (N_under + 3) / 6; //projected n_upts_per_ele
+  cubature_tet cub_tet(0, order);
+  hf_array<double> temp_proj(n_mode_under, cub_tet.get_n_pts());
+  hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
+  hf_array<double> temp_opp(cub_tet.get_n_pts(), n_upts_per_ele);
+  hf_array<double> loc(n_dims);
+  //step 0. extrapolate solution from upts to cubpts with same order
+  for (int i = 0; i < n_upts_per_ele; i++)
+  {
+    for (int j = 0; j < cub_tet.get_n_pts(); j++)
+    {
+      loc(0) = cub_tet.get_r(j);
+      loc(1) = cub_tet.get_s(j);
+      loc(2) = cub_tet.get_t(j);
+      temp_opp(j, i) = eval_nodal_basis(i, loc);
+    }
+  }
+  //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*l_j}=>\phi_i(j)*w(j)
+  for (int i = 0; i < n_mode_under; i++)
+  {
+    for (int j = 0; j < cub_tet.get_n_pts(); j++)
+    {
+      loc(0) = cub_tet.get_r(j);
+      loc(1) = cub_tet.get_s(j);
+      loc(2) = cub_tet.get_t(j);
+      temp_proj(i, j) = eval_dubiner_basis_3d(loc(0), loc(1), loc(2), i, N_under) * cub_tet.get_weight(j);
+    }
+  }
+  //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
+  for (int j = 0; j < n_upts_per_ele; j++)
+  {
+    loc(0) = loc_upts(0, j);
+    loc(1) = loc_upts(1, j);
+    loc(2) = loc_upts(2, j);
+    for (int i = 0; i < n_mode_under; i++)
+      temp_vand(j, i) = eval_dubiner_basis_3d(loc(0), loc(1), loc(2), i, N_under);
+  }
+  over_int_filter = mult_arrays(temp_proj, temp_opp);
+  over_int_filter = mult_arrays(temp_vand, over_int_filter);
+}
 
 // evaluate nodal basis
 
@@ -1062,7 +1070,7 @@ double eles_tets::eval_div_dg_tet(int in_index, hf_array<double>& loc)
   // 2. Perform the edge integrals to obtain coefficients sigma_i
   for (int i=0;i<n_upts_per_ele;i++)
     {
-      cubature_tri cub2d(12); //TODO: Check if strong enough
+      cubature_tri cub2d(0,7); //TODO: Check if strong enough
       integral = 0.;
 
       for (int j=0;j<cub2d.get_n_pts();j++)
@@ -1201,7 +1209,7 @@ void eles_tets::compute_filt_matrix_tet(hf_array<double>& Filt, int vcjh_scheme_
   else
     FatalError("VCJH tetrahedral scheme not recognized");
 
-  cout << "c_tet " << c_tet << endl;
+//  cout << "c_tet " << c_tet << endl;
 
   run_input.c_tet = c_tet;
 

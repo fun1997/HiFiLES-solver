@@ -38,7 +38,7 @@ public:
   cubature_1d();
 
   // constructor 1
-  cubature_1d(int in_order); // set by order
+  cubature_1d(int in_rule,int in_order); // set by order
 
   // copy constructor
   cubature_1d(const cubature_1d& in_cubature_1d);
@@ -74,6 +74,4 @@ public:
   // weight of cubature_1d points
   hf_array<double> weights;
 
-  // cubature data file
-  ifstream datfile;
 };

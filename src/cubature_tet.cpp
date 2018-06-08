@@ -39,7 +39,7 @@ using namespace std;
 
 cubature_tet::cubature_tet()
 {	
-  rule=0;
+  order=0;
   n_pts=0;
   locs.setup(0,0);
   weights.setup(0);
@@ -47,142 +47,78 @@ cubature_tet::cubature_tet()
 
 // constructor 1
 
-cubature_tet::cubature_tet(int in_rule) // set by rule
-{	
-  ifstream datfile;
-  char buf[BUFSIZ]={""};
-  char section_TXT[100], param_TXT[100];
-  char* f;
-  string filename, param_name, param, ord;
-  istringstream strbuf;
-  int rule_file;
+cubature_tet::cubature_tet(int in_rule, int in_order) // set by order
+{
+  if (HIFILES_DIR == NULL)
+    FatalError("environment variable HIFILES_HOME is undefined");
 
-  rule=in_rule;
-
-  //Integration rules adapted from L. Zhang, T. Cui, H. Liu,
-  //"A Set of Symmetric Quadrature rules on Triangles and Tetrahedra,"
-  //Journal of Computational Mathematics, 2009
-
-  if (rule==2)
-    n_pts=4;
-  else if (rule==3)
-    n_pts=8;
-  else if (rule==4)
-    n_pts=14;
-  else if (rule==5)
-    n_pts=14;
-  else if (rule==6)
-    n_pts=24;
-  else if (rule==7)
-    n_pts=35;
-  else if (rule==8)
-    n_pts=46;
-  else if (rule==9)
-    n_pts=61;
-  else if (rule==10)
-    n_pts=81;
-  else if (rule==11)
-    n_pts=109;
-  else if (rule==12)
-    n_pts=140;
-  else if (rule==13)
-    n_pts=171;
-  else if (rule==14)
-    n_pts=236;
-  else {
-    rule=0;
-    n_pts=0;
-    locs.setup(0,0);
-    weights.setup(0);
-    
-    FatalError("ERROR: Cubature rule currently not implemented ....");
-  }
-
-  locs.setup(n_pts,3);
+  order = in_order;
+  n_pts = (order + 1) * (order + 2) * (order + 3) / 6;
+  locs.setup(n_pts, 3);
   weights.setup(n_pts);
+  string filename;
+  filename = HIFILES_DIR;
+  ifstream datfile;
+  int upper_order_lim, lower_order_lim;
 
-  if(rule < 15) {
-    
-    if (HIFILES_DIR == NULL)
-      FatalError("environment variable HIFILES_HOME is undefined");
-    
-    filename = HIFILES_DIR;
-    filename += "/data/cubature_tet.dat";
-    f = (char*)filename.c_str();
-    datfile.open(f, ifstream::in);
-    if (!datfile) FatalError("Unable to open cubature file");
+  //set rule-dependent variables
+  if (in_rule == 0) //internal
+  {
+    lower_order_lim = 0;
+    upper_order_lim = 6;
+    if_weight = 1;
+    filename += "/data/tet_inter.bin";
+  }
+  else if (in_rule == 1) //alpha
+  {
+    lower_order_lim = 1;
+    upper_order_lim = 15;
+    if_weight = 0;
+    filename += "/data/tet_alpha.bin";
+  }
+  else
+  FatalError("Cubature rule not implemented");
 
-    // read data from file to arrays
-    while(datfile.getline(buf,BUFSIZ))
+  if (order <= upper_order_lim && order >= lower_order_lim)
+  {
+    hf_array<double> temp_loc_0(n_pts);
+    hf_array<double> temp_loc_1(n_pts);
+    hf_array<double> temp_loc_2(n_pts);
+
+    //open file
+    datfile.open(filename.c_str(), ifstream::binary);
+    if (!datfile)
+      FatalError("Unable to open cubature file");
+    //skip lines
+    int skip = 0;
+    for (int i = lower_order_lim; i < order; i++)
+      skip += (3+if_weight) * (i + 1) * (i + 2) * (i + 3) / 6;
+    datfile.seekg(sizeof(double) * skip, ios_base::beg);
+    // read file
+    datfile.read((char *)temp_loc_0.get_ptr_cpu(), sizeof(double) * n_pts);
+    datfile.read((char *)temp_loc_1.get_ptr_cpu(), sizeof(double) * n_pts);
+    datfile.read((char *)temp_loc_2.get_ptr_cpu(), sizeof(double) * n_pts);
+    if (if_weight)
+      datfile.read((char *)weights.get_ptr_cpu(), sizeof(double) * n_pts);
+    //close file
+    datfile.close();
+    //assign values to locs
+    for (int i = 0; i < n_pts; i++)
     {
-      sscanf(buf,"%s",section_TXT);
-      param_name.assign(section_TXT,0,99);
-      
-      if(!param_name.compare(0,4,"rule"))
-      {
-        // get no. of pts
-        ord = param_name.substr(5);
-        stringstream str(ord);
-        str >> rule_file;
-        
-        // if pts matches order, read locs and weights
-        if (rule_file == rule) {
-          
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            locs(i,0) = atof(param.c_str());
-          }
-          
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            locs(i,1) = atof(param.c_str());
-          }
-
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            locs(i,2) = atof(param.c_str());
-          }
-
-          // skip next line
-          datfile.getline(buf,BUFSIZ);
-          
-          for(int i=0;i<n_pts;++i) {
-            datfile.getline(buf,BUFSIZ);
-            sscanf(buf,"%s",param_TXT);
-            param.assign(param_TXT,0,99);
-            strbuf.str(param);
-            weights(i) = atof(param.c_str());
-          }
-          break;
-        }
-      }
+      locs(i, 0) = temp_loc_0(i);
+      locs(i, 1) = temp_loc_1(i);
+      locs(i, 2) = temp_loc_2(i);
     }
   }
+  else
+    FatalError("cubature order not implemented.");
 }
 
 // copy constructor
 
 cubature_tet::cubature_tet(const cubature_tet& in_cubature)
 {
-  rule=in_cubature.rule;
+  order=in_cubature.order;
   n_pts=in_cubature.n_pts;
   locs=in_cubature.locs;
   weights=in_cubature.weights;
@@ -199,7 +135,7 @@ cubature_tet& cubature_tet::operator=(const cubature_tet& in_cubature)
     }
   else
     {
-      rule=in_cubature.rule;
+      order=in_cubature.order;
       n_pts=in_cubature.n_pts;
       locs=in_cubature.locs;
       weights=in_cubature.weights;
@@ -246,9 +182,8 @@ double cubature_tet::get_t(int in_pos)
 
 double cubature_tet::get_weight(int in_pos)
 {
-  return weights(in_pos);
+  if (if_weight)
+    return weights(in_pos);
+  else
+    FatalError("No weights for this rule");
 }
-
-
-
-
