@@ -615,7 +615,6 @@ void eles_pris::set_vandermonde_tri()
 // initialize the vandermonde matrix
 void eles_pris::set_vandermonde_tri_restart()
 {
-  hf_array<double> vandermonde_tri_rest;
   vandermonde_tri_rest.setup(n_upts_tri_rest,n_upts_tri_rest);
 
   // create the vandermonde matrix
@@ -725,15 +724,16 @@ void eles_pris::set_over_int_filter()
   //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*l_j}=>\phi_i(j)*w(j)
   for (int i = 0; i < n_mode_under; i++)
   {
-          int n1, n2;
-          n1= i/n_mode_under_tri;//z mode
-          n2= i%n_mode_under_tri;//xy mode
+    int dummy, dummy1, order_t;
+    double norm_t;
+    get_pris_basis_index(i, N_under, dummy, dummy1, order_t);
+    norm_t = 2.0 / (2.0 * order_t + 1.0);
     for (int j = 0; j < cub_pri.get_n_pts(); j++)
     {
       loc(0) = cub_pri.get_r(j);
       loc(1) = cub_pri.get_s(j);
-      loc(2)=cub_pri.get_t(j);
-      temp_proj(i, j) = eval_dubiner_basis_2d(loc(0), loc(1), n2, N_under)*eval_legendre(loc(2),n1) * cub_pri.get_weight(j);
+      loc(2) = cub_pri.get_t(j);
+      temp_proj(i, j) = eval_pris_basis_hierarchical(i, loc, N_under) / norm_t * cub_pri.get_weight(j);
     }
   }
   //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
@@ -741,12 +741,10 @@ void eles_pris::set_over_int_filter()
   {
     loc(0) = loc_upts(0, j);
     loc(1) = loc_upts(1, j);
+    loc(2) = loc_upts(2, j);
     for (int i = 0; i < n_mode_under; i++)
     {
-      int n1, n2;
-      n1 = i/n_mode_under_tri; //z mode
-      n2 = i%n_mode_under_tri; //xy mode
-      temp_vand(j, i) = eval_dubiner_basis_2d(loc(0), loc(1), n2, N_under)*eval_legendre(loc(2),n1);
+      temp_vand(j, i) = eval_pris_basis_hierarchical(i, loc, N_under);
     }
   }
   over_int_filter = mult_arrays(temp_proj, temp_opp);
@@ -1018,6 +1016,92 @@ void eles_pris::eval_d_nodal_s_basis(hf_array<double> &d_nodal_s_basis, hf_array
     {
       FatalError("Shape order not implemented yet, exiting");
     }
+}
+
+double eles_pris::eval_pris_basis_hierarchical(int in_mode, hf_array<double> in_loc, int in_order)
+{
+
+  double pris_basis;
+
+  int n_dof = ((in_order + 1) * (in_order + 1) * (in_order + 2)) / 2; //total number of solution pts/basis
+
+  if (in_mode < n_dof)
+  {
+    int i, j, k, l;
+    int mode;
+    double jacobi_0, jacobi_1;
+    hf_array<double> ab;
+
+    ab = rs_to_ab(in_loc(0), in_loc(1)); //transform r,s coord to a,b in dubiner basis
+
+    mode = 0;
+    for (k = 0; k < 2 * in_order + 1; k++) //sum of r,s,t modes less than 2*order+1
+    {
+      for (l = 0; l < k + 1; l++) //t basis from 0 to sum
+      {
+        for (j = 0; j < k - l + 1; j++) //s basis from 0 to sum-l
+        {
+          i = k - l - j; //r basis
+          if (l <= in_order && i + j <= in_order  && i<=in_order&&j<=in_order)
+          {
+            if (mode == in_mode) // found the correct mode
+            {
+              jacobi_0 = eval_jacobi(ab(0), 0, 0, i);
+              jacobi_1 = eval_jacobi(ab(1), (2 * i) + 1, 0, j);
+              pris_basis = sqrt(2.0) * jacobi_0 * jacobi_1 * pow(1.0 - ab(1), i) * eval_legendre(in_loc(2), l);
+              return pris_basis;
+            }
+            mode++;
+          }
+        }
+      }
+    }
+  }
+  else
+  {
+    cout << "ERROR: Invalid mode when evaluating Dubiner basis ...." << endl;
+  }
+  FatalError("No mode is founded");
+}
+
+int eles_pris::get_pris_basis_index(int in_mode, int in_order, int &out_r, int &out_s, int &out_t)
+{
+  int n_dof = ((in_order + 1) * (in_order + 1) * (in_order + 2)) / 2; //total number of solution pts/basis
+
+  if (in_mode < n_dof)
+  {
+    int i, j, k, l;
+    int mode;
+
+    mode = 0;
+    for (k = 0; k < 2 * in_order + 1; k++) //sum of r,s,t modes from 0 to 2*order
+    {
+      for (l = 0; l < k + 1; l++) //t basis from 0 to sum
+      {
+        for (j = 0; j < k - l + 1; j++) //s basis from 0 to sum-l
+        {
+          i = k - l - j; //r basis
+          if (l <= in_order && i + j <= in_order && i<=in_order&&j<=in_order)
+          {
+            if (mode == in_mode) // found the correct mode
+            {
+              out_r = i;
+              out_s = j;
+              out_t = l;
+              return 0;
+            }
+            mode++;
+          }
+        }
+      }
+    }
+  }
+  else
+  {
+    cout << "ERROR: Invalid mode when evaluating Dubiner basis ...." << endl;
+  }
+  cout<<in_mode<<endl;
+  return -1;
 }
 
 void eles_pris::fill_opp_3(hf_array<double>& opp_3)

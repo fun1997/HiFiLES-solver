@@ -684,15 +684,15 @@ void eles_tets::set_vandermonde(void)
 // initialize the vandermonde matrix
 void eles_tets::set_vandermonde_restart()
 {
-  vandermonde.setup(n_upts_per_ele_rest,n_upts_per_ele_rest);
+  vandermonde_rest.setup(n_upts_per_ele_rest,n_upts_per_ele_rest);
 
   // create the vandermonde matrix
   for (int i=0;i<n_upts_per_ele_rest;i++)
     for (int j=0;j<n_upts_per_ele_rest;j++)
-      vandermonde(i,j) = eval_dubiner_basis_3d(loc_upts_rest(0,i),loc_upts_rest(1,i),loc_upts_rest(2,i),j,order_rest);
+      vandermonde_rest(i,j) = eval_dubiner_basis_3d(loc_upts_rest(0,i),loc_upts_rest(1,i),loc_upts_rest(2,i),j,order_rest);
 
   // Store its inverse
-  inv_vandermonde_rest = inv_array(vandermonde);
+  inv_vandermonde_rest = inv_array(vandermonde_rest);
 }
 
 int eles_tets::read_restart_info(ifstream& restart_file)

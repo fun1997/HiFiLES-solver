@@ -114,6 +114,17 @@ public:
   /*! Element reference length calculation */
   double calc_h_ref_specific(int in_ele);
 
+  int calc_p2c(hf_array<double>& in_pos);
+  
+protected:
+
+  // methods
+  /*! set Vandermonde matrix */
+  void set_vandermonde();
+
+  /*! set 2D Vandermonde matrix */
+  void set_vandermonde2D(void);
+
   /*! setup the concentration hf_array required for concentration method for shock capturing */
   void set_concentration_array(void);
 
@@ -129,16 +140,6 @@ public:
   /*! Evaluate 2D Legendre Basis */
   double eval_legendre_basis_2D_hierarchical(int, hf_array<double>, int in_order);
   int get_legendre_basis_2D_index(int in_mode, int in_basis_order,int &out_i,int &out_j);
-
-  int calc_p2c(hf_array<double>& in_pos);
-protected:
-
-  // methods
-  /*! set Vandermonde matrix */
-  void set_vandermonde();
-
-  /*! set 2D Vandermonde matrix */
-  void set_vandermonde2D(void);
 
   /*! return position of 1d solution point */
   double get_loc_1d_upt(int in_index);

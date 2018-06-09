@@ -106,12 +106,25 @@ public:
 
   /*! Element reference length calculation */
   double calc_h_ref_specific(int in_ele);
-
-  void set_over_int_filter(void);
   
   int calc_p2c(hf_array<double>& in_pos);
 
 protected:
+
+  //methods
+
+  /*! set triangle Vandermonde matrix */
+  void set_vandermonde_tri();
+
+  /*! set restart triangle Vandermonde matrix */
+  void set_vandermonde_tri_restart();
+
+  /*! set over-integration filter array */
+  void set_over_int_filter(void);
+
+  /*! Evaluate prismatic Basis */
+  double eval_pris_basis_hierarchical(int, hf_array<double>, int in_order);
+  int get_pris_basis_index(int in_mode,int in_order,int &out_r,int &out_s,int &out_t);
 
   // members
   int n_upts_tri;
@@ -132,11 +145,8 @@ protected:
 
   hf_array<double> vandermonde_tri;
   hf_array<double> inv_vandermonde_tri;
+  hf_array<double> vandermonde_tri_rest;
   hf_array<double> inv_vandermonde_tri_rest;
-
-  //methods
-  void set_vandermonde_tri();
-  void set_vandermonde_tri_restart();
 
   /*! element edge lengths for h_ref calculation */
   hf_array<double> length;

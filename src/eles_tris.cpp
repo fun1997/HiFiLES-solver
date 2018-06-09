@@ -443,7 +443,6 @@ void eles_tris::set_vandermonde_restart()
 {
   //matrix vandermonde_rest;
   vandermonde_rest.setup(n_upts_per_ele_rest,n_upts_per_ele_rest);
-  inv_vandermonde_rest.setup(n_upts_per_ele_rest,n_upts_per_ele_rest);
 
   // create the vandermonde matrix
   for (int i=0;i<n_upts_per_ele_rest;i++)

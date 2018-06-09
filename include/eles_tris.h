@@ -99,29 +99,32 @@ public:
   /*! evaluate derivative of nodal shape basis */
   void eval_d_nodal_s_basis(hf_array<double> &d_nodal_s_basis, hf_array<double> in_loc, int in_n_spts);
 
-  /*! Compute the filter matrix for subgrid-scale models */
-  void compute_filter_upts(void);
-
   /*! Calculate element volume */
   double calc_ele_vol(double& detjac);
 
   /*! Element reference length calculation */
   double calc_h_ref_specific(int in_ele);
-
-  void set_over_int_filter(void);
   
   int calc_p2c(hf_array<double>& in_pos);
 
 protected:
 
   // methods
+
+  /*! set triangle Vandermonde matrix */
   void set_vandermonde();
+
+  /*! set restart triangle Vandermonde matrix */
   void set_vandermonde_restart();
 
+  /*! Compute the filter matrix for subgrid-scale models */
+  void compute_filter_upts(void);
+
+  /*! set over-integration filter array */
+  void set_over_int_filter(void);
+
   // members
-  hf_array<double> vandermonde;
   hf_array<double> vandermonde_rest;
-  hf_array<double> inv_vandermonde;
   hf_array<double> inv_vandermonde_rest;
 
   hf_array<double> loc_1d_fpts;

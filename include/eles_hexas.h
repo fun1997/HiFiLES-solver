@@ -136,11 +136,8 @@ protected:
   /*! Evaluate 3D Legendre Basis */
   double eval_legendre_basis_3D_hierarchical(int, hf_array<double>, int in_order);//in basis_order for error handling
   int get_legendre_basis_3D_index(int in_mode, int in_basis_order,int &out_i,int &out_j,int &out_k);
+
   // members
-  //hf_array<double> vandermonde;
-  //hf_array<double> inv_vandermonde;
-  //hf_array<double> vandermonde2D;
-  //hf_array<double> inv_vandermonde2D;
 
   /*! return position of 1d solution point */
   double get_loc_1d_upt(int in_index);
