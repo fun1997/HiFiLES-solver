@@ -77,16 +77,24 @@ void eles_pris::setup_ele_type_specific()
   upts_type_pri_1d = run_input.upts_type_pri_1d;
   set_loc_upts();
   set_vandermonde_tri();
-  /*
   set_vandermonde3D();
-  set_concentration_array();
-  set_filter_array();
-  */
-  set_inters_cubpts();
 
+  //set shock capturing arrays
+  if(run_input.shock_cap)
+  {
+    if (run_input.shock_det == 1)//concentration
+    {
+      //set_concentration_array();
+    }
+    if (run_input.shock_cap == 1)//exp filter
+      set_exp_filter();
+  }
+
+  set_inters_cubpts();
   set_volume_cubpts();
   set_opp_volume_cubpts();
-      
+  set_vandermonde_vol_cub();
+
   n_ppts_per_ele=(p_res+1)*(p_res)*(p_res)/2;
   n_peles_per_ele=( (p_res-1)*(p_res-1)*(p_res-1) );
   n_verts_per_ele = 6;
@@ -319,8 +327,8 @@ void eles_pris::set_inters_cubpts(void)
   weight_inters_cubpts.setup(n_inters_per_ele);
   tnorm_inters_cubpts.setup(n_inters_per_ele);
 
-  cubature_tri cub_tri(0,inters_cub_order);
-  cubature_quad cub_quad(0,inters_cub_order);
+  cubature_tri cub_tri(0,order);
+  cubature_quad cub_quad(0,order);
 
   int n_cubpts_tri = cub_tri.get_n_pts();
   int n_cubpts_quad = cub_quad.get_n_pts();
@@ -409,7 +417,7 @@ void eles_pris::set_inters_cubpts(void)
 
 void eles_pris::set_volume_cubpts(void)
 {
-  cubature_pris cub_pri(0, 0, volume_cub_order);
+  cubature_pris cub_pri(0, 0, order);
   n_cubpts_per_ele = cub_pri.get_n_pts();
   loc_volume_cubpts.setup(n_dims, n_cubpts_per_ele);
   weight_volume_cubpts.setup(n_cubpts_per_ele);
@@ -612,6 +620,172 @@ void eles_pris::set_vandermonde_tri()
   inv_vandermonde_tri = inv_array(vandermonde_tri);
 }
 
+void eles_pris::set_vandermonde3D(void)
+{
+  vandermonde.setup(n_upts_per_ele, n_upts_per_ele);
+  hf_array<double> loc(n_dims);
+  // create the vandermonde matrix
+  for (int i = 0; i < n_upts_per_ele; i++)
+  {
+    loc(0) = loc_upts(0, i);
+    loc(1) = loc_upts(1, i);
+    loc(2) = loc_upts(2, i);
+    for (int j = 0; j < n_upts_per_ele; j++)
+    {
+      vandermonde(i, j) = eval_pris_basis_hierarchical(j, loc, order);
+    }
+  }
+
+  // Store its inverse
+  inv_vandermonde = inv_array(vandermonde);
+}
+
+void eles_pris::set_vandermonde_vol_cub(void)
+{
+  vandermonde_vol_cub.setup(n_cubpts_per_ele, n_cubpts_per_ele);
+  hf_array<double> loc(n_dims);
+  // create the vandermonde matrix
+  for (int i = 0; i < n_cubpts_per_ele; i++)
+  {
+    loc(0) = loc_volume_cubpts(0, i);
+    loc(1) = loc_volume_cubpts(1, i);
+    loc(2) = loc_volume_cubpts(2, i);
+    for (int j = 0; j < n_cubpts_per_ele; j++)
+    {
+      vandermonde_vol_cub(i, j) = eval_pris_basis_hierarchical(j, loc, order);
+    }
+  }
+
+  // Store its inverse
+  inv_vandermonde_vol_cub = inv_array(vandermonde_vol_cub);
+}
+
+void eles_pris::set_exp_filter(void)
+{
+  exp_filter.setup(n_upts_per_ele, n_upts_per_ele);
+  exp_filter.initialize_to_zero();
+  int i, j, k, l, m, mode;
+  double eta;
+  for (m = 0; m < n_upts_per_ele; m++) //mode
+  {
+    mode = 0;
+    for (l = 0; l < 2 * order + 1; l++) //sum of x,y,z mode
+    {
+      for (k = 0; k < l + 1; k++) //k<=sum
+      {
+        for (j = 0; j < l - k + 1; j++) //j<=sum-k
+        {
+          i = l - k - j;
+          if (k <= order && i + j <= order)
+          {
+            if (mode == m) // found the correct mode
+            {
+              eta = (double)l / (double)(2*order);
+              exp_filter(m, m) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
+            }
+            mode++;
+          }
+        }
+      }
+    }
+  }
+
+  exp_filter = mult_arrays(exp_filter, inv_vandermonde);
+  exp_filter = mult_arrays(vandermonde, exp_filter);
+}
+
+//detect shock use persson's method
+void eles_pris::shock_det_persson(void)
+{
+
+  hf_array<double> temp_rho(n_upts_per_ele, n_eles);     //to store nodal value
+  hf_array<double> temp_rho_rho(n_upts_per_ele, n_eles); //to store square value/modal value
+
+  hf_array<double> inner_prod_uu(n_eles);
+  hf_array<double> inner_prod_un_un(n_eles);
+
+  if (upts_type == 1) //lobatto upts need interpolation to cubature points
+  {
+    temp_rho.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, opp_volume_cubpts.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho.get_ptr_cpu(), n_upts_per_ele);
+#else
+    dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, opp_volume_cubpts.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_rho.get_ptr_cpu());
+#endif
+  }
+  else //legendre upts directly copy arrays
+  {
+    for (int i = 0; i < n_upts_per_ele * n_eles; i++)
+      temp_rho(i) = disu_upts(0)(i);
+  }
+
+  //perform u*u at cub pts store in temp_rho_rho
+  for (int i = 0; i < n_upts_per_ele * n_eles; i++)
+    temp_rho_rho(i) = temp_rho(i) * temp_rho(i);
+
+  //calculate (u,u) store in inner_prod_u_u
+  inner_prod_uu.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemv(CblasColMajor, CblasTrans, n_upts_per_ele, n_eles, 1.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, weight_volume_cubpts.get_ptr_cpu(), 1, 0.0, inner_prod_uu.get_ptr_cpu(), 1);
+#else
+  for (int i = 0; i < n_eles; i++)
+    for (int j = 0; j < n_upts_per_ele; j++)
+      inner_prod_uu(i) += temp_rho_rho(j, i) * weight_volume_cubpts(j);
+#endif
+
+//calculate u-u_n
+//transform to modal space store in temp_rho_rho
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, inv_vandermonde_vol_cub.get_ptr_cpu(), n_upts_per_ele, temp_rho.get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele);
+#else
+  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde_vol_cub.get_ptr_cpu(), temp_rho.get_ptr_cpu(), temp_rho_rho.get_ptr_cpu());
+#endif
+
+  //clear lower modes, take into consideration over_integration
+  for (int ic = 0; ic < n_eles; ic++)
+  {
+    for (int j = 0; j < n_upts_per_ele; j++)
+    {
+      int x, y, z;
+      get_pris_basis_index(j, order, x, y, z);
+      if (run_input.over_int)
+      {
+        if (x + y < run_input.N_under && z < run_input.N_under)
+          temp_rho_rho(j, ic) = 0.0;
+      }
+      else
+      {
+        if (x + y < order && z < order)
+          temp_rho_rho(j, ic) = 0.0;
+      }
+    }
+  }
+
+//transform back to nodal store in temp_rho
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, vandermonde_vol_cub.get_ptr_cpu(), n_upts_per_ele, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho.get_ptr_cpu(), n_upts_per_ele);
+#else
+  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, vandermonde_vol_cub.get_ptr_cpu(), temp_rho_rho.get_ptr_cpu(), temp_rho.get_ptr_cpu());
+#endif
+
+  //perform (u-u_n)*(u-u_n) store in temp_rho_rho
+  for (int i = 0; i < n_upts_per_ele * n_eles; i++)
+    temp_rho_rho(i) = temp_rho(i) * temp_rho(i);
+
+  //calculate (u-u_n,u-u_n) store in inner_prod_un_un
+  inner_prod_un_un.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemv(CblasColMajor, CblasTrans, n_upts_per_ele, n_eles, 1.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, weight_volume_cubpts.get_ptr_cpu(), 1, 0.0, inner_prod_un_un.get_ptr_cpu(), 1);
+#else
+  for (int i = 0; i < n_eles; i++)
+    for (int j = 0; j < n_upts_per_ele; j++)
+      inner_prod_un_un(i) += temp_rho_rho(j, i) * weight_volume_cubpts(j);
+#endif
+  //calculate log((u-u_n,u-u_n)/(u,u)) store in sensor
+  for (int i = 0; i < n_eles; i++)
+    sensor(i) = inner_prod_un_un(i) / inner_prod_uu(i);
+}
+
 // initialize the vandermonde matrix
 void eles_pris::set_vandermonde_tri_restart()
 {
@@ -702,25 +876,13 @@ void eles_pris::write_restart_info(ofstream& restart_file)
 void eles_pris::set_over_int_filter()
 {
   int N_under = run_input.N_under;
-  int n_mode_under = (N_under + 1) *(N_under + 1)* (N_under + 2) / 2; //projected n_upts_per_ele
-  int n_mode_under_tri=(N_under + 1)* (N_under + 2) / 2;
-  int n_mode_under_1d=N_under+1;
-  cubature_pris cub_pri(0,0, order);
-  hf_array<double> temp_proj(n_mode_under, cub_pri.get_n_pts());
+  int n_mode_under = (N_under + 1) * (N_under + 1) * (N_under + 2) / 2; //projected n_upts_per_ele
+  int n_mode_under_tri = (N_under + 1) * (N_under + 2) / 2;
+  int n_mode_under_1d = N_under + 1;
+  hf_array<double> temp_proj(n_mode_under, n_cubpts_per_ele);
   hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
-  hf_array<double> temp_opp(cub_pri.get_n_pts(), n_upts_per_ele);
   hf_array<double> loc(n_dims);
-  //step 0. extrapolate solution from upts to cubpts with same order
-  for (int i = 0; i < n_upts_per_ele; i++)
-  {
-    for (int j = 0; j < cub_pri.get_n_pts(); j++)
-    {
-      loc(0) = cub_pri.get_r(j);
-      loc(1) = cub_pri.get_s(j);
-      loc(2) = cub_pri.get_t(j);
-      temp_opp(j, i) = eval_nodal_basis(i, loc);
-    }
-  }
+
   //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*l_j}=>\phi_i(j)*w(j)
   for (int i = 0; i < n_mode_under; i++)
   {
@@ -728,12 +890,12 @@ void eles_pris::set_over_int_filter()
     double norm_t;
     get_pris_basis_index(i, N_under, dummy, dummy1, order_t);
     norm_t = 2.0 / (2.0 * order_t + 1.0);
-    for (int j = 0; j < cub_pri.get_n_pts(); j++)
+    for (int j = 0; j < n_cubpts_per_ele; j++)
     {
-      loc(0) = cub_pri.get_r(j);
-      loc(1) = cub_pri.get_s(j);
-      loc(2) = cub_pri.get_t(j);
-      temp_proj(i, j) = eval_pris_basis_hierarchical(i, loc, N_under) / norm_t * cub_pri.get_weight(j);
+      loc(0) = loc_volume_cubpts(0, j);
+      loc(1) = loc_volume_cubpts(1, j);
+      loc(2) = loc_volume_cubpts(2, j);
+      temp_proj(i, j) = eval_pris_basis_hierarchical(i, loc, N_under) / norm_t * weight_volume_cubpts(j);
     }
   }
   //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
@@ -747,7 +909,7 @@ void eles_pris::set_over_int_filter()
       temp_vand(j, i) = eval_pris_basis_hierarchical(i, loc, N_under);
     }
   }
-  over_int_filter = mult_arrays(temp_proj, temp_opp);
+  over_int_filter = mult_arrays(temp_proj, opp_volume_cubpts);
   over_int_filter = mult_arrays(temp_vand, over_int_filter);
 }
 
@@ -1035,20 +1197,20 @@ double eles_pris::eval_pris_basis_hierarchical(int in_mode, hf_array<double> in_
     ab = rs_to_ab(in_loc(0), in_loc(1)); //transform r,s coord to a,b in dubiner basis
 
     mode = 0;
-    for (k = 0; k < 2 * in_order + 1; k++) //sum of r,s,t modes less than 2*order+1
+    for (l = 0; l < 2 * in_order + 1; l++) //sum of r,s,t modes less than 2*order+1
     {
-      for (l = 0; l < k + 1; l++) //t basis from 0 to sum
+      for (k = 0; k < l + 1; k++) //t basis from 0 to sum
       {
-        for (j = 0; j < k - l + 1; j++) //s basis from 0 to sum-l
+        for (j = 0; j < l - k + 1; j++) //s basis from 0 to sum-k
         {
-          i = k - l - j; //r basis
-          if (l <= in_order && i + j <= in_order  && i<=in_order&&j<=in_order)
+          i = l - k - j; //r basis
+          if (k <= in_order && i + j <= in_order)
           {
             if (mode == in_mode) // found the correct mode
             {
               jacobi_0 = eval_jacobi(ab(0), 0, 0, i);
               jacobi_1 = eval_jacobi(ab(1), (2 * i) + 1, 0, j);
-              pris_basis = sqrt(2.0) * jacobi_0 * jacobi_1 * pow(1.0 - ab(1), i) * eval_legendre(in_loc(2), l);
+              pris_basis = sqrt(2.0) * jacobi_0 * jacobi_1 * pow(1.0 - ab(1), i) * eval_legendre(in_loc(2), k);
               return pris_basis;
             }
             mode++;
@@ -1074,20 +1236,20 @@ int eles_pris::get_pris_basis_index(int in_mode, int in_order, int &out_r, int &
     int mode;
 
     mode = 0;
-    for (k = 0; k < 2 * in_order + 1; k++) //sum of r,s,t modes from 0 to 2*order
+    for (l = 0; l < 2 * in_order + 1; l++) //sum of r,s,t modes from 0 to 2*order
     {
-      for (l = 0; l < k + 1; l++) //t basis from 0 to sum
+      for (k = 0; k < l + 1; k++) //t basis from 0 to sum
       {
-        for (j = 0; j < k - l + 1; j++) //s basis from 0 to sum-l
+        for (j = 0; j < l - k + 1; j++) //s basis from 0 to sum-k
         {
-          i = k - l - j; //r basis
-          if (l <= in_order && i + j <= in_order && i<=in_order&&j<=in_order)
+          i = l - k - j; //r basis
+          if (k <= in_order && i + j <= in_order)
           {
             if (mode == in_mode) // found the correct mode
             {
               out_r = i;
               out_s = j;
-              out_t = l;
+              out_t = k;
               return 0;
             }
             mode++;
@@ -1100,7 +1262,6 @@ int eles_pris::get_pris_basis_index(int in_mode, int in_order, int &out_r, int &
   {
     cout << "ERROR: Invalid mode when evaluating Dubiner basis ...." << endl;
   }
-  cout<<in_mode<<endl;
   return -1;
 }
 

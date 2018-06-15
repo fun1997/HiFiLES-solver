@@ -75,17 +75,10 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     }
 
   /*! Shock capturing part - only concentration method and on quads for now */
-  /*! TO be added: Persson's method for triangles with artificial viscosity structure */
 
-    if(run_input.ArtifOn)
-    {
-      if(run_input.artif_type == 1)
-      {
-        /*! This routine does shock detection. For concentration method filter is also applied in this routine itself */
+    if(run_input.shock_cap)
         for(i=0;i<FlowSol->n_ele_types;i++)
-          FlowSol->mesh_eles(i)->shock_capture_concentration();
-      }
-    }
+          FlowSol->mesh_eles(i)->shock_capture();
 
     /*! Compute the solution at the flux points. */
     for(i=0; i<FlowSol->n_ele_types; i++)

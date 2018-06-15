@@ -76,6 +76,17 @@ void eles_tris::setup_ele_type_specific()
   set_loc_upts();
   set_vandermonde();
 
+  //set shock capturing arrays
+  if(run_input.shock_cap)
+  {
+    if (run_input.shock_det == 1)//concentration
+    {
+      //set_concentration_array();
+    }
+    if (run_input.shock_cap == 1)//exp filter
+      set_exp_filter();
+  }
+
   n_ppts_per_ele=(p_res+1)*p_res/2;
   n_peles_per_ele=(p_res-1)*(p_res-1);
   n_verts_per_ele = 3;
@@ -86,6 +97,7 @@ void eles_tris::setup_ele_type_specific()
   set_inters_cubpts();
   set_volume_cubpts();
   set_opp_volume_cubpts();
+  set_vandermonde_vol_cub();
 
 if(run_input.over_int)
       set_over_int_filter();
@@ -220,7 +232,7 @@ void eles_tris::set_tloc_fpts(void)
 
 void eles_tris::set_volume_cubpts(void)
 {
-  cubature_tri cub_tri(0,volume_cub_order);
+  cubature_tri cub_tri(0,order);
   int n_cubpts_tri = cub_tri.get_n_pts();
   n_cubpts_per_ele = n_cubpts_tri;
 
@@ -245,7 +257,7 @@ void eles_tris::set_inters_cubpts(void)
   weight_inters_cubpts.setup(n_inters_per_ele);
   tnorm_inters_cubpts.setup(n_inters_per_ele);
 
-  cubature_1d cub_1d(0,inters_cub_order);
+  cubature_1d cub_1d(0,order);
   int n_cubpts_1d = cub_1d.get_n_pts();
 
   for (int i=0;i<n_inters_per_ele;i++)
@@ -427,7 +439,6 @@ void eles_tris::set_tnorm_fpts(void)
 void eles_tris::set_vandermonde(void)
 {
   vandermonde.setup(n_upts_per_ele,n_upts_per_ele);
-  inv_vandermonde.setup(n_upts_per_ele,n_upts_per_ele);
 
   // create the vandermonde matrix
   for (int i=0;i<n_upts_per_ele;i++)
@@ -436,6 +447,134 @@ void eles_tris::set_vandermonde(void)
 
   // Store its inverse
   inv_vandermonde = inv_array(vandermonde);
+}
+
+void eles_tris::set_vandermonde_vol_cub(void)
+{
+  vandermonde_vol_cub.setup(n_cubpts_per_ele, n_cubpts_per_ele);
+
+  // create the vandermonde matrix
+  for (int i = 0; i < n_cubpts_per_ele; i++)
+    for (int j = 0; j < n_cubpts_per_ele; j++)
+      vandermonde_vol_cub(i, j) = eval_dubiner_basis_2d(loc_volume_cubpts(0, i), loc_volume_cubpts(1, i), j, order);
+
+  // Store its inverse
+  inv_vandermonde_vol_cub = inv_array(vandermonde_vol_cub);
+}
+
+void eles_tris::set_exp_filter(void)
+{
+  exp_filter.setup(n_upts_per_ele, n_upts_per_ele);
+  exp_filter.initialize_to_zero();
+  int j, k, l, mode;
+  double eta;
+  for (l = 0; l < n_upts_per_ele; l++) //mode
+  {
+    mode = 0;
+    for (k = 0; k < order+1; k++) //sum of x,y mode
+    {
+      for (j = 0; j < k + 1; j++) //j<=sum
+      {
+        if (mode == l) // found the correct mode
+        {
+          eta = (double)k / (double)(order);
+          exp_filter(l, l) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
+        }
+        mode++;
+      }
+    }
+  }
+
+  exp_filter = mult_arrays(exp_filter, inv_vandermonde);
+  exp_filter = mult_arrays(vandermonde, exp_filter);
+}
+
+//detect shock use persson's method
+void eles_tris::shock_det_persson(void)
+{
+  int n_upts_under = order * (order + 1) / 2;
+  hf_array<double> temp_rho(n_upts_per_ele, n_eles);     //to store nodal value
+  hf_array<double> temp_rho_rho(n_upts_per_ele, n_eles); //to store square value/modal value
+
+  hf_array<double> inner_prod_uu(n_eles);
+  hf_array<double> inner_prod_un_un(n_eles);
+
+  if (upts_type == 1) //lobatto upts need interpolation to cubature points
+  {
+    temp_rho.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, opp_volume_cubpts.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho.get_ptr_cpu(), n_upts_per_ele);
+#else
+    dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, opp_volume_cubpts.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_rho.get_ptr_cpu());
+#endif
+  }
+  else //legendre upts directly copy arrays
+  {
+    for (int i = 0; i < n_upts_per_ele * n_eles; i++)
+      temp_rho(i) = disu_upts(0)(i);
+  }
+
+  //perform u*u at cub pts store in temp_rho_rho
+  for (int i = 0; i < n_upts_per_ele * n_eles; i++)
+    temp_rho_rho(i) = temp_rho(i) * temp_rho(i);
+
+  //calculate (u,u) store in inner_prod_u_u
+  inner_prod_uu.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemv(CblasColMajor, CblasTrans, n_upts_per_ele, n_eles, 1.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, weight_volume_cubpts.get_ptr_cpu(), 1, 0.0, inner_prod_uu.get_ptr_cpu(), 1);
+#else
+  for (int i = 0; i < n_eles; i++)
+    for (int j = 0; j < n_upts_per_ele; j++)
+      inner_prod_uu(i) += temp_rho_rho(j, i) * weight_volume_cubpts(j);
+#endif
+
+//calculate u-u_n
+//transform to modal space store in temp_rho_rho
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, inv_vandermonde_vol_cub.get_ptr_cpu(), n_upts_per_ele, temp_rho.get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele);
+#else
+  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde_vol_cub.get_ptr_cpu(), temp_rho.get_ptr_cpu(), temp_rho_rho.get_ptr_cpu());
+#endif
+
+  //clear lower modes, take into consideration over_integration
+  for (int ic = 0; ic < n_eles; ic++)
+  {
+    if(run_input.over_int)
+    {
+    for (int j = 0; j < (run_input.N_under+1) * (run_input.N_under + 2) / 2; j++)
+      temp_rho_rho(j, ic) = 0.0;     
+    }
+    else
+    {
+    for (int j = 0; j < n_upts_under; j++)
+      temp_rho_rho(j, ic) = 0.0;      
+    }
+  }
+
+
+//transform back to nodal store in temp_rho
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, vandermonde_vol_cub.get_ptr_cpu(), n_upts_per_ele, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho.get_ptr_cpu(), n_upts_per_ele);
+#else
+  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, vandermonde_vol_cub.get_ptr_cpu(), temp_rho_rho.get_ptr_cpu(), temp_rho.get_ptr_cpu());
+#endif
+
+  //perform (u-u_n)*(u-u_n) store in temp_rho_rho
+  for (int i = 0; i < n_upts_per_ele * n_eles; i++)
+    temp_rho_rho(i) = temp_rho(i) * temp_rho(i);
+
+  //calculate (u-u_n,u-u_n) store in inner_prod_un_un
+  inner_prod_un_un.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemv(CblasColMajor, CblasTrans, n_upts_per_ele, n_eles, 1.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, weight_volume_cubpts.get_ptr_cpu(), 1, 0.0, inner_prod_un_un.get_ptr_cpu(), 1);
+#else
+  for (int i = 0; i < n_eles; i++)
+    for (int j = 0; j < n_upts_per_ele; j++)
+      inner_prod_un_un(i) += temp_rho_rho(j, i) * weight_volume_cubpts(j);
+#endif
+  //calculate log((u-u_n,u-u_n)/(u,u)) store in sensor
+  for (int i = 0; i < n_eles; i++)
+    sensor(i) = inner_prod_un_un(i) / inner_prod_uu(i);
 }
 
 // initialize the vandermonde matrix for the restart file
@@ -513,29 +652,18 @@ void eles_tris::set_over_int_filter()
 {
   int N_under = run_input.N_under;
   int n_mode_under = (N_under + 1) * (N_under + 2) / 2; //projected n_upts_per_ele
-  cubature_tri cub_tris(0, order);
-  hf_array<double> temp_proj(n_mode_under, cub_tris.get_n_pts());
+  hf_array<double> temp_proj(n_mode_under, n_cubpts_per_ele);
   hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
-  hf_array<double> temp_opp(cub_tris.get_n_pts(), n_upts_per_ele);
   hf_array<double> loc(n_dims);
-  //step 0. extrapolate solution from upts to cubpts with same order
-  for (int i = 0; i < n_upts_per_ele; i++)
-  {
-    for (int j = 0; j < cub_tris.get_n_pts(); j++)
-    {
-      loc(0) = cub_tris.get_r(j);
-      loc(1) = cub_tris.get_s(j);
-      temp_opp(j, i) = eval_nodal_basis(i, loc);
-    }
-  }
+
   //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*l_j}=>\phi_i(j)*w(j)
   for (int i = 0; i < n_mode_under; i++)
   {
-    for (int j = 0; j < cub_tris.get_n_pts(); j++)
+    for (int j = 0; j < n_cubpts_per_ele; j++)
     {
-      loc(0) = cub_tris.get_r(j);
-      loc(1) = cub_tris.get_s(j);
-      temp_proj(i, j) = eval_dubiner_basis_2d(loc(0), loc(1), i, N_under) * cub_tris.get_weight(j);
+      loc(0) = loc_volume_cubpts(0,j);
+      loc(1) = loc_volume_cubpts(1,j);
+      temp_proj(i, j) = eval_dubiner_basis_2d(loc(0), loc(1), i, N_under) *weight_volume_cubpts(j);
     }
   }
   //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
@@ -546,7 +674,7 @@ void eles_tris::set_over_int_filter()
     for (int i = 0; i < n_mode_under; i++)
       temp_vand(j, i) = eval_dubiner_basis_2d(loc(0), loc(1), i, N_under);
   }
-  over_int_filter = mult_arrays(temp_proj, temp_opp);
+  over_int_filter = mult_arrays(temp_proj, opp_volume_cubpts);
   over_int_filter = mult_arrays(temp_vand, over_int_filter);
 }
 
@@ -668,11 +796,6 @@ void eles_tris::compute_filter_upts(void)
       hf_array<double> X(n_dims,N);
       hf_array<double> B(N);
       hf_array<double> beta(N,N);
-
-      if(N != n_cubpts_per_ele)
-        {
-          FatalError("WARNING: Gaussian filter only currently possible for order 1, 2 or 4. If order 1, set vol_cub_order to 2. If order 2, set vol_cub_order to 3 or 4. If order 4, set vol_cub_order to 7. Exiting");
-        }
 
       X = loc_upts;
 

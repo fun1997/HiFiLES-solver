@@ -116,22 +116,23 @@ public:
 protected:
 
   /*! set Vandermonde matrix */
-  void set_vandermonde(void);
+  void set_vandermonde1D(void);
 
   /*! set 3D Vandermonde matrix */
   void set_vandermonde3D(void);
 
+  void set_vandermonde_vol_cub(void);
+
+  void shock_det_persson(void);
+  
   /*! setup the concentration hf_array required for concentration method for shock capturing */
   void set_concentration_array(void);
 
   /*! set filter hf_array */
-  void set_filter_array(void);
+  void set_exp_filter(void);
 
   /*! set over-integration filter array */
   void set_over_int_filter(void);
-
-  /*! exponential filter */
-  double exponential_filter(int, int);
 
   /*! Evaluate 3D Legendre Basis */
   double eval_legendre_basis_3D_hierarchical(int, hf_array<double>, int in_order);//in basis_order for error handling
@@ -148,6 +149,9 @@ protected:
   /*! location of solution points in standard interval (tensor product elements only)*/
   hf_array<double> loc_1d_upts_rest;
 
+  hf_array<double> vandermonde1D;
+  hf_array<double> inv_vandermonde1D;
+  
   /*! Matrix of filter weights at solution points in 1D */
   hf_array<double> filter_upts_1D;
   

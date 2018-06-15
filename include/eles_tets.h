@@ -124,9 +124,16 @@ protected:
   /*! set restart triangle Vandermonde matrix */
   void set_vandermonde_restart();
 
+  void set_vandermonde_vol_cub(void);
+
+  void shock_det_persson(void);
+  
   /*! Compute the filter matrix for subgrid-scale models */
   void compute_filter_upts(void);
 
+  /*! set exponential filter */
+  void set_exp_filter(void);
+  
   /*! set over-integration filter array */
   void set_over_int_filter(void);
   

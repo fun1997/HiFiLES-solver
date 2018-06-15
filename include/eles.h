@@ -254,10 +254,10 @@ public:
   /*! set opp_probe */
   void set_opp_probe(hf_array<double>& in_loc);
 
-  /*! set opp_p */
+  /*! set opp_inters_cubpts */
   void set_opp_inters_cubpts(void);
 
-  /*! set opp_p */
+  /*! set opp_volume_cubpts */
   void set_opp_volume_cubpts(void);
 
   /*! set opp_r */
@@ -625,7 +625,8 @@ public:
 //Shock capturing/de-aliasing functions
 //---------------------------------------
 
-  void shock_capture_concentration(void);
+  void shock_capture(void);
+
   void shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma);
   void dealias_over_integration(void);
 
@@ -639,6 +640,10 @@ public:
   int restart_counter;
   
 protected:
+  // #### methods ####
+
+  /*! methods to detect the shock*/
+  virtual void shock_det_persson()=0;
 
   // #### members ####
 
@@ -683,12 +688,6 @@ protected:
 
   /*! order of solution polynomials */
   int order;
-
-  /*! order of interface cubature rule */
-  int inters_cub_order;
-
-  /*! order of interface cubature rule */
-  int volume_cub_order;
 
   /*! order of solution polynomials in restart file*/
   int order_rest;
@@ -1238,12 +1237,14 @@ protected:
   /*! shock capturing/de-aliasing variables */
   hf_array<double> vandermonde;
   hf_array<double> inv_vandermonde;
-  hf_array<double> vandermonde2D;
-  hf_array<double> inv_vandermonde2D;
+
+  hf_array<double> vandermonde_vol_cub;
+  hf_array<double> inv_vandermonde_vol_cub;
+
+  hf_array<double> exp_filter;
   hf_array<double> area_coord_fpts;
   hf_array<double> concentration_array;
   hf_array<double> sensor;
-  hf_array<double> sigma;
   hf_array<double> over_int_filter;
 
   /*! Global cell number of element as in the code */

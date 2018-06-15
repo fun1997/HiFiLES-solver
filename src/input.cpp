@@ -102,8 +102,6 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("res_norm_field",res_norm_field,0);
     opts.getScalarValue("p_res",p_res,3);
     opts.getScalarValue("write_type",write_type,0);
-    opts.getScalarValue("inters_cub_order",inters_cub_order,3);
-    opts.getScalarValue("volume_cub_order", volume_cub_order,3);
     opts.getScalarValue("probe",probe,0);
     if(probe==1)
     {
@@ -399,15 +397,15 @@ void input::read_input_file(string fileName, int rank)
     if (over_int)
         opts.getScalarValue("N_under", N_under, order - 1);
 
-    opts.getScalarValue("ArtifOn",ArtifOn,0);
-    if (ArtifOn)
+    opts.getScalarValue("shock_cap", shock_cap, 0); //0: off 1: exponential filter 2: LFS filter
+    if (shock_cap)
     {
-        opts.getScalarValue("artif_type",artif_type,1); //default: concentration method
-        opts.getScalarValue("s0",s0);
-        if(artif_type==1)
+        opts.getScalarValue("shock_det", shock_det, 0); //0: persson 1: concentration method
+        opts.getScalarValue("s0", s0);                  //sensor threshold
+        if (shock_cap == 1)                             //exp filter
         {
-            opts.getScalarValue("con_fact",con_fact,36.0);
-            opts.getScalarValue("con_exp",con_exp,4.0);
+            opts.getScalarValue("expf_fac", expf_fac, 36.0);
+            opts.getScalarValue("expf_order", expf_order, 4.0);
         }
     }
 

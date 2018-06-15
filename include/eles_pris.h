@@ -119,6 +119,15 @@ protected:
   /*! set restart triangle Vandermonde matrix */
   void set_vandermonde_tri_restart();
 
+  void set_vandermonde3D(void);
+
+  void set_vandermonde_vol_cub(void);
+
+  void shock_det_persson(void);
+  
+  /*! set exponential filter */
+  void set_exp_filter(void);
+
   /*! set over-integration filter array */
   void set_over_int_filter(void);
 

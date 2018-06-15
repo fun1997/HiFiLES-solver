@@ -73,14 +73,22 @@ void eles_hexas::setup_ele_type_specific()
   upts_type=run_input.upts_type_hexa;
   set_loc_1d_upts();
   set_loc_upts();
-  set_vandermonde();
+  set_vandermonde1D();
   set_vandermonde3D();
-  set_concentration_array();
-  set_filter_array();
+
+  //set shock capturing arrays
+  if (run_input.shock_cap)
+  {
+    if (run_input.shock_det == 1) //concentration
+      set_concentration_array();
+    if (run_input.shock_cap == 1) //exp filter
+      set_exp_filter();
+  }
 
   set_inters_cubpts();
   set_volume_cubpts();
   set_opp_volume_cubpts();
+  set_vandermonde_vol_cub();
 
   //de-aliasing by over-integration
   if (run_input.over_int)
@@ -302,7 +310,7 @@ void eles_hexas::set_inters_cubpts(void)
   weight_inters_cubpts.setup(n_inters_per_ele);
   tnorm_inters_cubpts.setup(n_inters_per_ele);
 
-  cubature_quad cub_quad(0,inters_cub_order);
+  cubature_quad cub_quad(0,order);
   int n_cubpts_quad = cub_quad.get_n_pts();
 
   for (int i=0;i<n_inters_per_ele;++i)
@@ -388,7 +396,7 @@ void eles_hexas::set_inters_cubpts(void)
 
 void eles_hexas::set_volume_cubpts(void)
 {
-  cubature_hexa cub_hexa(0,volume_cub_order);
+  cubature_hexa cub_hexa(0,order);
   int n_cubpts_hexa = cub_hexa.get_n_pts();
   n_cubpts_per_ele = n_cubpts_hexa;
 
@@ -688,14 +696,9 @@ void eles_hexas::compute_filter_upts(void)
       double k_R, k_L, coeff;
       double res_0, res_L, res_R;
       hf_array<double> alpha(N);
-      cubature_1d cub_1d(0,inters_cub_order);
+      cubature_1d cub_1d(0,order);
       int n_cubpts_1d = cub_1d.get_n_pts();
       hf_array<double> wf(n_cubpts_1d);
-
-      if(N != n_cubpts_1d)
-        {
-          FatalError("WARNING: To build Gaussian filter, the interface cubature order must equal solution order, e.g. inters_cub_order=9 if order=4, inters_cub_order=7 if order=3, inters_cub_order=5 if order=2. Exiting");
-        }
       for (j=0;j<n_cubpts_1d;j++)
         wf(j) = cub_1d.get_weight(j);
 
@@ -763,7 +766,7 @@ void eles_hexas::compute_filter_upts(void)
       if (rank==0) cout<<"Building modal filter"<<endl;
 
       // Compute restriction-prolongation filter
-      compute_modal_filter_1d(filter_upts_1D, vandermonde, inv_vandermonde, N, order);
+      compute_modal_filter_1d(filter_upts_1D, vandermonde1D, inv_vandermonde1D, N, order);
 
       sum = 0;
       for(i=0;i<N;i++)
@@ -871,21 +874,21 @@ void eles_hexas::write_restart_info(ofstream& restart_file)
 }
 
 // initialize the vandermonde matrix
-void eles_hexas::set_vandermonde(void)
+void eles_hexas::set_vandermonde1D(void)
 {
-  vandermonde.setup(order+1,order+1);
+  vandermonde1D.setup(order+1,order+1);
 
   for (int i=0;i<order+1;i++)
     for (int j=0;j<order+1;j++)
-      vandermonde(i,j) = eval_legendre(loc_1d_upts(i),j);
+      vandermonde1D(i,j) = eval_legendre(loc_1d_upts(i),j);
 
   // Store its inverse
-  inv_vandermonde = inv_array(vandermonde);
+  inv_vandermonde1D = inv_array(vandermonde1D);
 }
 
 void eles_hexas::set_vandermonde3D(void)
 {
-    vandermonde2D.setup(n_upts_per_ele,n_upts_per_ele);
+    vandermonde.setup(n_upts_per_ele,n_upts_per_ele);
     hf_array<double> loc(n_dims);
     for (int i=0;i<n_upts_per_ele;i++)//location
     {
@@ -893,22 +896,158 @@ void eles_hexas::set_vandermonde3D(void)
         loc(1)=loc_upts(1,i);
         loc(2)=loc_upts(2,i);
         for (int j=0;j<n_upts_per_ele;j++)//in mode
-            vandermonde2D(i,j)=eval_legendre_basis_3D_hierarchical(j,loc,order);
+            vandermonde(i,j)=eval_legendre_basis_3D_hierarchical(j,loc,order);
     }
-    inv_vandermonde2D=inv_array(vandermonde2D);
+    inv_vandermonde=inv_array(vandermonde);
 }
 
-  void eles_hexas::set_filter_array(void)
+void eles_hexas::set_vandermonde_vol_cub(void)
+{
+  vandermonde_vol_cub.setup(n_cubpts_per_ele, n_cubpts_per_ele);
+  hf_array<double> loc(n_dims);
+  // create the temp vandermonde matrix at cub pts
+  for (int i = 0; i < n_cubpts_per_ele; i++)
   {
-      sigma.setup(n_upts_per_ele);
-      for (int i=0;i<n_upts_per_ele;i++)
-      {
-          sigma(i)=exponential_filter(i,order);
-      }
+    loc(0) = loc_volume_cubpts(0, i);
+    loc(1) = loc_volume_cubpts(1, i);
+    loc(2) = loc_volume_cubpts(2, i);
+
+    for (int j = 0; j < n_cubpts_per_ele; j++)
+      vandermonde_vol_cub(i, j) = eval_legendre_basis_3D_hierarchical(j, loc, order);
   }
 
-  void eles_hexas::set_concentration_array()
+  // Store its inverse
+  inv_vandermonde_vol_cub = inv_array(vandermonde_vol_cub);
+}
+
+void eles_hexas::set_exp_filter(void)
+{
+  exp_filter.setup(n_upts_per_ele, n_upts_per_ele);
+  exp_filter.initialize_to_zero();
+  int i, j, k, l, m, mode;
+  double eta;
+
+  for (m = 0; m < n_upts_per_ele; m++) //mode
   {
+    mode = 0;
+    for (l = 0; l < 3 * order + 1; l++) //sum of x,y,z mode
+    {
+      for (k = 0; k < l + 1; k++) //k no more than sum
+      {
+        for (j = 0; j < l - k + 1; j++) //j no more than sum-k
+        {
+          i = l - k - j; //i+j+k=l
+          if (i <= order && j <= order && k <= order)
+          {
+            if (mode == m) // found the correct mode
+            {
+              eta = (double)(l) / (double)(3 * order);
+              exp_filter(m, m) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
+            }
+            mode++;
+          }
+        }
+      }
+    }
+  }
+
+  exp_filter = mult_arrays(exp_filter, inv_vandermonde);
+  exp_filter = mult_arrays(vandermonde, exp_filter);
+}
+
+//detect shock use persson's method
+void eles_hexas::shock_det_persson(void)
+{
+  hf_array<double> temp_rho(n_upts_per_ele, n_eles);     //to store nodal value
+  hf_array<double> temp_rho_rho(n_upts_per_ele, n_eles); //to store square value/modal value
+
+  hf_array<double> inner_prod_uu(n_eles);
+  hf_array<double> inner_prod_un_un(n_eles);
+
+  if (upts_type == 1) //lobatto upts need interpolation to cubature points
+  {
+    temp_rho.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, opp_volume_cubpts.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho.get_ptr_cpu(), n_upts_per_ele);
+#else
+    dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, opp_volume_cubpts.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_rho.get_ptr_cpu());
+#endif
+  }
+  else //legendre upts directly copy arrays
+  {
+    for (int i = 0; i < n_upts_per_ele * n_eles; i++)
+      temp_rho(i) = disu_upts(0)(i);
+  }
+
+  //perform u*u at cub pts store in temp_rho_rho
+  for (int i = 0; i < n_upts_per_ele * n_eles; i++)
+    temp_rho_rho(i) = temp_rho(i) * temp_rho(i);
+
+  //calculate (u,u) store in inner_prod_u_u
+  inner_prod_uu.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemv(CblasColMajor, CblasTrans, n_upts_per_ele, n_eles, 1.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, weight_volume_cubpts.get_ptr_cpu(), 1, 0.0, inner_prod_uu.get_ptr_cpu(), 1);
+#else
+  for (int i = 0; i < n_eles; i++)
+    for (int j = 0; j < n_upts_per_ele; j++)
+      inner_prod_uu(i) += temp_rho_rho(j, i) * weight_volume_cubpts(j);
+#endif
+
+//calculate u-u_n
+//transform to modal space store in temp_rho_rho
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, inv_vandermonde_vol_cub.get_ptr_cpu(), n_upts_per_ele, temp_rho.get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele);
+#else
+  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde_vol_cub.get_ptr_cpu(), temp_rho.get_ptr_cpu(), temp_rho_rho.get_ptr_cpu());
+#endif
+
+  //clear lower modes, take into consideration over_integration
+  for (int ic = 0; ic < n_eles; ic++)
+  {
+    for (int j = 0; j < n_upts_per_ele; j++)
+    {
+      int x, y, z;
+      get_legendre_basis_3D_index(j, order, x, y, z);
+      if (run_input.over_int)
+      {
+        if (x < run_input.N_under && y < run_input.N_under && z < run_input.N_under)
+          temp_rho_rho(j, ic) = 0.0;
+      }
+      else
+      {
+        if (x < order && y < order && z < order)
+          temp_rho_rho(j, ic) = 0.0;
+      }
+    }
+  }
+
+//transform back to nodal store in temp_rho
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, vandermonde_vol_cub.get_ptr_cpu(), n_upts_per_ele, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho.get_ptr_cpu(), n_upts_per_ele);
+#else
+  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, vandermonde_vol_cub.get_ptr_cpu(), temp_rho_rho.get_ptr_cpu(), temp_rho.get_ptr_cpu());
+#endif
+
+  //perform (u-u_n)*(u-u_n) store in temp_rho_rho
+  for (int i = 0; i < n_upts_per_ele * n_eles; i++)
+    temp_rho_rho(i) = temp_rho(i) * temp_rho(i);
+
+  //calculate (u-u_n,u-u_n) store in inner_prod_un_un
+  inner_prod_un_un.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemv(CblasColMajor, CblasTrans, n_upts_per_ele, n_eles, 1.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, weight_volume_cubpts.get_ptr_cpu(), 1, 0.0, inner_prod_un_un.get_ptr_cpu(), 1);
+#else
+  for (int i = 0; i < n_eles; i++)
+    for (int j = 0; j < n_upts_per_ele; j++)
+      inner_prod_un_un(i) += temp_rho_rho(j, i) * weight_volume_cubpts(j);
+#endif
+  //calculate log((u-u_n,u-u_n)/(u,u)) store in sensor
+  for (int i = 0; i < n_eles; i++)
+    sensor(i) = inner_prod_un_un(i) / inner_prod_uu(i);
+}
+
+void eles_hexas::set_concentration_array()
+{
   int concen_type = 1;
   hf_array<double> concentration_factor(order+1);
   hf_array<double> grad_vandermonde;
@@ -946,22 +1085,10 @@ void eles_hexas::set_vandermonde3D(void)
   {
     int N_under = run_input.N_under;
     int n_mode_under = (N_under + 1) * (N_under + 1) * (N_under + 1); //projected n_upts_per_ele
-    cubature_hexa cub_hexas(0, order);
-    hf_array<double> temp_proj(n_mode_under, cub_hexas.get_n_pts());
+    hf_array<double> temp_proj(n_mode_under, n_cubpts_per_ele);
     hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
-    hf_array<double> temp_opp(cub_hexas.get_n_pts(), n_upts_per_ele);
     hf_array<double> loc(n_dims);
-    //step 0. extrapolate solution from upts to cubpts with same order
-    for (int i = 0; i < n_upts_per_ele; i++)
-    {
-      for (int j = 0; j < cub_hexas.get_n_pts(); j++)
-      {
-        loc(0) = cub_hexas.get_r(j);
-        loc(1) = cub_hexas.get_s(j);
-        loc(2) = cub_hexas.get_t(j);
-        temp_opp(j, i) = eval_nodal_basis(i, loc);
-      }
-    }
+
     //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*\l_j}=>\phi_i(j)*w(j)
     for (int i = 0; i < n_mode_under; i++)
     {
@@ -971,12 +1098,12 @@ void eles_hexas::set_vandermonde3D(void)
       norm1 = 2.0 / (2.0 * n1 + 1.0);
       norm2 = 2.0 / (2.0 * n2 + 1.0);
       norm3 = 2.0 / (2.0 * n3 + 1.0);
-      for (int j = 0; j < cub_hexas.get_n_pts(); j++)
+      for (int j = 0; j < n_cubpts_per_ele; j++)
       {
-        loc(0) = cub_hexas.get_r(j);
-        loc(1) = cub_hexas.get_s(j);
-        loc(2) = cub_hexas.get_t(j);
-        temp_proj(i, j) = eval_legendre_basis_3D_hierarchical(i, loc, N_under) / (norm1 * norm2 * norm3) * cub_hexas.get_weight(j);
+        loc(0) = loc_volume_cubpts(0, j);
+        loc(1) = loc_volume_cubpts(1, j);
+        loc(2) = loc_volume_cubpts(2, j);
+        temp_proj(i, j) = eval_legendre_basis_3D_hierarchical(i, loc, N_under) / (norm1 * norm2 * norm3) * weight_volume_cubpts(j);
       }
     }
     //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
@@ -988,7 +1115,7 @@ void eles_hexas::set_vandermonde3D(void)
       for (int i = 0; i < n_mode_under; i++)
         temp_vand(j, i) = eval_legendre_basis_3D_hierarchical(i, loc, N_under);
     }
-    over_int_filter = mult_arrays(temp_proj, temp_opp);
+    over_int_filter = mult_arrays(temp_proj, opp_volume_cubpts);
     over_int_filter = mult_arrays(temp_vand, over_int_filter);
   }
 
@@ -1304,49 +1431,6 @@ int eles_hexas::get_legendre_basis_3D_index(int in_mode, int in_basis_order, int
     cout << "ERROR: Invalid mode ...." << endl;
   }
   return -1;
-}
-
-double eles_hexas::exponential_filter(int in_mode, int in_basis_order)
-{
-        double sigma, eta;
-
-        int n_dof=(in_basis_order+1)*(in_basis_order+1)*(in_basis_order+1);
-
-        if(in_mode<n_dof)
-          {
-            int i,j,k,l;
-            int mode;
-
-            mode = 0;
-        for (l=0; l<3*in_basis_order+1; l++) //sum of x,y,z mode
-        {
-            for (k=0; k<l+1; k++) //k no more than sum
-            {
-                for (j=0; j<l-k+1; j++) //j no more than sum-k
-                {
-                    i = l-k-j;//i+j+k=l
-                    if(i<=in_basis_order && j<=in_basis_order && k<=in_basis_order)
-                    {
-                        if(mode==in_mode) // found the correct mode
-                        {
-                            eta = (double)(i+j+k)/n_dof;
-                            sigma = exp(-run_input.con_fact*pow(eta,run_input.con_exp));
-                            //cout<<"sigma values are "<<sigma<<endl;
-                        }
-
-                        mode++;
-                    }
-
-                }
-            }
-        }
-    }
-        else
-          {
-            cout << "ERROR: Invalid mode when evaluating exponential filter ...." << endl;
-          }
-
-        return sigma;
 }
 
 void eles_hexas::fill_opp_3(hf_array<double>& opp_3)

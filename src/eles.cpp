@@ -93,8 +93,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             if(sgs_model==3 || sgs_model==2 || sgs_model==4)
                 LES_filter = 1;
 
-        inters_cub_order = run_input.inters_cub_order;
-        volume_cub_order = run_input.volume_cub_order;
         n_bdy_eles=0;
 
         // Initialize the element specific static members
@@ -152,7 +150,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             sgsf_fpts.setup(n_fpts_per_ele,n_eles,n_fields,n_dims);
             sgsf_fpts.initialize_to_zero();
              // SVV model requires filtered solution
-            if(sgs_model==3 || sgs_model==2 || sgs_model==4)
+            if(LES_filter)
             {
                 disuf_upts.setup(n_upts_per_ele,n_eles,n_fields);
                 disuf_upts.initialize_to_zero();
@@ -268,7 +266,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         n_fields_mul_n_eles=n_fields*n_eles;
         n_dims_mul_n_upts_per_ele=n_dims*n_upts_per_ele;
 
-        //over-integration need second register to store transformed continuous divergence 
+        //over-integration need second register to store divergence of transformed continuous flux
         if (run_input.over_int)
             div_tconf_upts.setup(2);
         else
@@ -327,7 +325,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             grad_disu_fpts.initialize_to_zero();
         }
 
-        if(run_input.ArtifOn)
+        if(run_input.shock_cap)
         {
             sensor.setup(n_eles);
             sensor.initialize_to_zero();
@@ -966,19 +964,16 @@ void eles::mv_all_cpu_gpu(void)
             run_input.bound_vel_simple(0).mv_cpu_gpu();
         }
 
-        if(run_input.ArtifOn)
+        if(run_input.shock_cap)
         {
             // Needed for shock capturing routines
             sensor.cp_cpu_gpu();
             inv_vandermonde.mv_cpu_gpu();
-            inv_vandermonde2D.mv_cpu_gpu();
-            vandermonde2D.mv_cpu_gpu();
 
-            if(run_input.artif_type == 1)
-            {
+            if(run_input.shock_det == 1)
                 concentration_array.mv_cpu_gpu();
-                sigma.mv_cpu_gpu();
-            }
+                if(run_input.shock_cap==1)
+                 sigma.mv_cpu_gpu();
         }
     }
 }
@@ -3641,19 +3636,52 @@ void eles::extrapolate_sgsFlux(void)
 
 // sense shock and filter (for concentration method) - only on GPUs
 
-void eles::shock_capture_concentration(void)
+void eles::shock_capture(void)
 {
     if (n_eles!=0)
     {
-#ifdef _GPU
-        //shock_capture_concentration_gpu_kernel_wrapper(n_eles, n_upts_per_ele, n_fields, order, ele_type, run_input.artif_type, run_input.s0, run_input.kappa, disu_upts(0).get_ptr_gpu(), inv_vandermonde.get_ptr_gpu(), inv_vandermonde2D.get_ptr_gpu(), vandermonde2D.get_ptr_gpu(), concentration_array.get_ptr_gpu(), sensor.get_ptr_gpu(), sigma.get_ptr_gpu());
-        shock_capture_concentration_gpu_kernel_wrapper(n_eles, n_upts_per_ele, n_fields, order, ele_type, run_input.artif_type, run_input.s0, disu_upts(0).get_ptr_gpu(), inv_vandermonde.get_ptr_gpu(), inv_vandermonde2D.get_ptr_gpu(), vandermonde2D.get_ptr_gpu(), concentration_array.get_ptr_gpu(), sensor.get_ptr_gpu(), sigma.get_ptr_gpu());
-#endif
+        //shock detection
+        if(run_input.shock_det==0)//persson
+        {
+            shock_det_persson();
+        }
+       else if(run_input.shock_det==1)//concentration
+        {
+            //shock_det_concentration();
+        }
 
-#ifdef _CPU
-        //shock_capture_concentration_cpu(n_eles, n_upts_per_ele, n_fields, order, ele_type, run_input.artif_type, run_input.s0, run_input.kappa, disu_upts(0).get_ptr_cpu(), inv_vandermonde.get_ptr_cpu(), inv_vandermonde2D.get_ptr_cpu(), vandermonde2D.get_ptr_cpu(), concentration_array.get_ptr_cpu(), sensor.get_ptr_cpu(), sigma.get_ptr_cpu());
-        shock_capture_concentration_cpu(n_eles, n_upts_per_ele, n_fields, order, ele_type, run_input.artif_type, run_input.s0, disu_upts(0).get_ptr_cpu(), inv_vandermonde.get_ptr_cpu(), inv_vandermonde2D.get_ptr_cpu(), vandermonde2D.get_ptr_cpu(), concentration_array.get_ptr_cpu(), sensor.get_ptr_cpu(), sigma.get_ptr_cpu());
+        //shock capturing
+        if (run_input.shock_cap == 1) //exponential filter
+        {
+            hf_array<double> temp_sol(n_upts_per_ele, n_fields);
+            hf_array<double> filt_sol(n_upts_per_ele, n_fields);
+            filt_sol.initialize_to_zero();
+            int i, j, k;
+            for (i = 0; i < n_eles; i++)
+            {
+                if (sensor(i) >= run_input.s0)
+                {
+                    //copy solution to filt_sol
+                    for (j = 0; j < n_upts_per_ele; j++)
+                        for (k = 0; k < n_fields; k++)
+                            temp_sol(j, k) = disu_upts(0)(j, i, k);
+
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+                    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_fields, n_upts_per_ele, 1.0, exp_filter.get_ptr_cpu(), n_upts_per_ele, temp_sol.get_ptr_cpu(), n_upts_per_ele, 0.0, filt_sol.get_ptr_cpu(), n_upts_per_ele);
+#else
+                    dgemm(n_upts_per_ele, n_fields, n_upts_per_ele, 1.0, 0.0, exp_filter.get_ptr_cpu(), temp_sol.get_ptr_cpu(), filt_sol.get_ptr_cpu());
 #endif
+                    //copy filted solution back to disu_upts
+                    for (j = 0; j < n_upts_per_ele; j++)
+                        for (k = 0; k < n_fields; k++)
+                            disu_upts(0)(j, i, k) = filt_sol(j, k);
+                }
+            }
+        }
+        else if(run_input.shock_cap==2)//LFS filter
+        {
+FatalError("not implemented yet");
+        }
     }
 }
 

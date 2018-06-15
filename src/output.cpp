@@ -78,7 +78,7 @@ void write_tec(int in_file_num, struct solution* FlowSol)
   hf_array<double> disu_average_ppts_temp;
   hf_array<double> diag_ppts_temp;
 
-  /*! Sensor data for artificial viscosity at plot points */
+  /*! Sensor data for shock capturing at plot points */
   hf_array<double> sensor_ppts_temp;
 
   int n_ppts_per_ele;
@@ -255,7 +255,7 @@ void write_tec(int in_file_num, struct solution* FlowSol)
               FlowSol->mesh_eles(i)->calc_disu_ppts(j,disu_ppts_temp);
               FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j,grad_disu_ppts_temp);
 
-              if(run_input.ArtifOn)
+              if(run_input.shock_cap)
               {
                 /*! Calculate the sensor at the plot points */
                 FlowSol->mesh_eles(i)->calc_sensor_ppts(j,sensor_ppts_temp);
@@ -625,7 +625,7 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
   hf_array<double> disu_average_ppts_temp;
   /*! Grid velocity at plot points */
   hf_array<double> grid_vel_ppts_temp;
-  /*! Sensor data for artificial viscosity at plot points */
+  /*! Sensor data for shock capturing at plot points */
   hf_array<double> sensor_ppts_temp;
 
   /*! Plot sub-element connectivity hf_array (node IDs) */
@@ -841,7 +841,7 @@ void write_vtu(int in_file_num, struct solution* FlowSol)
                 /*! Calculate the gradient of the prognostic fields at the plot points */
                 FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j,grad_disu_ppts_temp);
 
-                if(run_input.ArtifOn)
+                if(run_input.shock_cap)
                 {
                   /*! Calculate the sensor at the plot points */
                   FlowSol->mesh_eles(i)->calc_sensor_ppts(j,sensor_ppts_temp);
@@ -1984,7 +1984,7 @@ void CopyGPUCPU(struct solution* FlowSol)
         FlowSol->mesh_eles(i)->cp_grad_disu_upts_gpu_cpu();
       }
 
-      if(run_input.ArtifOn)
+      if(run_input.shock_cap)
       {
         FlowSol->mesh_eles(i)->cp_sensor_gpu_cpu();
       }

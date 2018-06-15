@@ -128,9 +128,9 @@ public:
 
     /* --- Shock Capturing/dealiasing options --- */
     int over_int,N_under;
-    int artif_type, ArtifOn;
+    int shock_cap,shock_det;
     double s0;
-    double con_fact,con_exp;
+    double expf_fac,expf_order;
 
     /*--- moniter and output ---*/
     int p_res;
@@ -151,8 +151,6 @@ public:
     int res_norm_field;
     int probe;
     string probe_file_name;
-    int inters_cub_order;
-    int volume_cub_order;
 
     /*--- flux reconstruction parameters ---*/
     int upts_type_tri;
