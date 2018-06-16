@@ -67,14 +67,16 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
   int i;                            /*!< Loop iterator */
 
   /*! If at first RK step and using certain LES models, compute some model-related quantities. */
-  if(run_input.LES==1 && in_rk_stage==0) {
-      if(run_input.SGS_model==2 || run_input.SGS_model==3 || run_input.SGS_model==4) {//similarity and svv
-          for(i=0; i<FlowSol->n_ele_types; i++)
-            FlowSol->mesh_eles(i)->calc_sgs_terms();
-        }
+  if (run_input.LES == 1 && in_rk_stage == 0)
+  {
+    if (run_input.SGS_model == 2 || run_input.SGS_model == 3 || run_input.SGS_model == 4)
+    { //similarity and svv
+      for (i = 0; i < FlowSol->n_ele_types; i++)
+        FlowSol->mesh_eles(i)->calc_sgs_terms();
     }
+  }
 
-  /*! Shock capturing part - only concentration method and on quads for now */
+  /*! Shock capturing */
 
     if(run_input.shock_cap)
         for(i=0;i<FlowSol->n_ele_types;i++)
@@ -456,74 +458,69 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
     cout << "Rank=" << FlowSol->rank << " Done reading restart files" << endl;
 }
 
-void calc_time_step(int in_rk_stage, struct solution* FlowSol)
+void calc_time_step(struct solution *FlowSol)
 {
-  if (in_rk_stage == 0)
+  if (run_input.dt_type == 1) //global time step
   {
-    if (run_input.dt_type == 1) //global time step
+    // If using global minimum timestep based on CFL, determine
+    // global minimum
+    double dt_globe=1e12;//initialize to large value
+    double dt_globe_new;
+    for (int j = 0; j < FlowSol->n_ele_types; j++) //for each type of element
     {
-      // If using global minimum timestep based on CFL, determine
-      // global minimum
-      double dt_globe_new;
-      eles::dt_globe=1e12;//reset to large value at the beginning of each time step
-      for (int j = 0; j < FlowSol->n_ele_types; j++) //for each type of element
+      if (FlowSol->mesh_eles(j)->get_n_eles() != 0) //if have element
       {
-        if (FlowSol->mesh_eles(j)->get_n_eles() != 0) //if have element
+        for (int ic = 0; ic < FlowSol->mesh_eles(j)->get_n_eles(); ic++) //loop over each element
         {
-          for (int ic = 0; ic < FlowSol->mesh_eles(j)->get_n_eles(); ic++) //loop over each element
-          {
-            dt_globe_new = FlowSol->mesh_eles(j)->calc_dt_local(ic);
-            if (dt_globe_new < eles::dt_globe)
-              eles::dt_globe = dt_globe_new;
-          }
+          dt_globe_new = FlowSol->mesh_eles(j)->calc_dt_local(ic);
+          if (dt_globe_new < dt_globe)
+            dt_globe = dt_globe_new;
         }
       }
+    }
 
-      // If running in parallel, gather minimum timestep values from
-      // each partition and find global minumum across partitions
 #ifdef _MPI
-      // If in parallel and using global minumum timestep, allocate storage
-      // for minimum timesteps in each partition
-      if (FlowSol->nproc > 1)
-      {
-        double dt_globe_mpi;
-        MPI_Allreduce(&eles::dt_globe, &dt_globe_mpi, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        eles::dt_globe = dt_globe_mpi;
-      }
-#endif
-      run_input.dt = eles::dt_globe;//copy to run_input.dt
-    }
-    // If using local timestepping, just compute and store all local
-    // timesteps
-    else if (run_input.dt_type == 2)
+    // If in parallel and using global minumum timestep, allocate storage
+    // for minimum timesteps in each partition
+    if (FlowSol->nproc > 1)
     {
-      double dt_local_min=1e12;//initialize to large number
-      double dt_local_min_new;
-      
-      for (int j = 0; j < FlowSol->n_ele_types; j++) //for each type of element
-      {
-        if (FlowSol->mesh_eles(j)->get_n_eles() != 0) //if have element
-        {
-          for (int ic = 0; ic < FlowSol->mesh_eles(j)->get_n_eles(); ic++) //loop over each element
-          {
-            FlowSol->mesh_eles(j)->dt_local(ic) = FlowSol->mesh_eles(j)->calc_dt_local(ic);
-          }
-          //get local minimum time step
-          dt_local_min_new = FlowSol->mesh_eles(j)->dt_local.get_min();
-          if (dt_local_min_new < dt_local_min)
-            dt_local_min = dt_local_min_new;
-        }
-      }
-      //if run in parallel, find out global minimum time step
-#ifdef _MPI
-      if (FlowSol->nproc > 1)
-      {
-        double dt_local_mpi;
-        MPI_Allreduce(&dt_local_min, &dt_local_mpi, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        dt_local_min = dt_local_mpi;
-      }
-#endif
-      run_input.dt=dt_local_min;//copy to run_input.dt
+      double dt_globe_mpi;
+      MPI_Allreduce(&dt_globe, &dt_globe_mpi, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+      dt_globe = dt_globe_mpi;
     }
+#endif
+    run_input.dt = dt_globe; //copy to run_input.dt
+  }
+  // If using local timestepping, just compute and store all local
+  // timesteps
+  else if (run_input.dt_type == 2)
+  {
+    double dt_local_min = 1e12; //initialize to large number
+    double dt_local_min_new;
+
+    for (int j = 0; j < FlowSol->n_ele_types; j++) //for each type of element
+    {
+      if (FlowSol->mesh_eles(j)->get_n_eles() != 0) //if have element
+      {
+        for (int ic = 0; ic < FlowSol->mesh_eles(j)->get_n_eles(); ic++) //loop over each element
+        {
+          FlowSol->mesh_eles(j)->dt_local(ic) = FlowSol->mesh_eles(j)->calc_dt_local(ic);
+        }
+        //get local minimum time step
+        dt_local_min_new = FlowSol->mesh_eles(j)->dt_local.get_min();
+        if (dt_local_min_new < dt_local_min)
+          dt_local_min = dt_local_min_new;
+      }
+    }
+    //if run in parallel, find out global minimum time step
+#ifdef _MPI
+    if (FlowSol->nproc > 1)
+    {
+      double dt_local_mpi;
+      MPI_Allreduce(&dt_local_min, &dt_local_mpi, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+      dt_local_min = dt_local_mpi;
+    }
+#endif
+    run_input.dt = dt_local_min; //copy to run_input.dt
   }
 }

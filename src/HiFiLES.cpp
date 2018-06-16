@@ -59,8 +59,16 @@ int main(int argc, char *argv[]) {
 
   /*! Check the command line input. */
 
-  if (argc < 2) { cout << "ERROR: No input file specified ... " << endl; return(0); }
-
+  if (argc < 2)
+  {
+    cout << "ERROR: No input file specified ... " << endl;
+    return (0);
+  }
+  else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "-help"))
+  {
+    cout << "For help, go to https://github.com/weiqishen/HiFiLES-solver/wiki" << endl;
+    return (0);
+  }
   /*! Initialize MPI. */
 
 #ifdef _MPI
@@ -116,6 +124,15 @@ int main(int argc, char *argv[]) {
   FlowSol.ene_hist = 1000.;
   FlowSol.grad_ene_hist = 1000.;
 
+  if (FlowSol.adv_type == 0)
+    RKSteps = 1; //Euler
+  else if (FlowSol.adv_type == 1 || FlowSol.adv_type == 2)
+    RKSteps = 4; //RK24/34
+  else if (FlowSol.adv_type == 3)
+    RKSteps = 5; //RK45
+  else if (FlowSol.adv_type == 4)
+    RKSteps = 14; //RK414
+
   /*! Initialize forces, integral quantities, and residuals. */
 
   if (FlowSol.rank == 0) {
@@ -151,26 +168,20 @@ int main(int argc, char *argv[]) {
   /////////////////////////////////////////////////
 
   init_time = clock();
-  
+
   /*! Main solver loop (outer loop). */
 
   while(i_steps < FlowSol.n_steps) {
-
-    if (FlowSol.adv_type == 0) RKSteps = 1;//Euler
-    else if (FlowSol.adv_type==1||FlowSol.adv_type==2) RKSteps=4;//RK24/34
-    else if (FlowSol.adv_type == 3) RKSteps = 5;//RK45
-    else if (FlowSol.adv_type == 4) RKSteps = 14;//RK414
+    
+    //compute time step if using automatic time step
+    calc_time_step(&FlowSol);
 
     for(i=0; i < RKSteps; i++) {
-
-      //compute time step if using automatic time step and at first RK stage else do nothing
-      calc_time_step(i, &FlowSol);
-
       /* If using moving mesh, need to advance the Geometric Conservation Law
        * (GCL) first to get updated Jacobians. Necessary to preserve freestream
        * on arbitrarily deforming mesh. See Kui Ou's Ph.D. thesis for details. */
       if (run_input.motion > 0) {
-
+      
         /* Update the mesh */
         Mesh.move(FlowSol.ini_iter+i_steps,i,&FlowSol);
 
@@ -186,7 +197,7 @@ int main(int argc, char *argv[]) {
 
         FlowSol.mesh_eles(j)->AdvanceSolution(i, FlowSol.adv_type);
 
-      }
+    }
 
     }
 

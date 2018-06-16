@@ -630,9 +630,6 @@ public:
   void shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma);
   void dealias_over_integration(void);
 
-  //global time step
-  static double dt_globe;
-
   /*! element local timestep */
   hf_array<double> dt_local;
 

@@ -784,7 +784,7 @@ void eles_tets::shock_det_persson(void)
   {
     if(run_input.over_int)
     {
-    for (int j = 0; j < (run_input.N_under+1) * (run_input.N_under + 2) * (run_input.N_under + 3) / 6; j++)
+    for (int j = 0; j < (run_input.N_under) * (run_input.N_under + 1) * (run_input.N_under + 2) / 6; j++)
       temp_rho_rho(j, ic) = 0.0;    
     }
     else

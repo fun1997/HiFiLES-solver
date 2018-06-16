@@ -63,9 +63,6 @@ eles::~eles() {}
 
 // #### methods ####
 
-//initialize static variable of eles
-double eles::dt_globe = 1e12;
-
 // set number of elements
 
 void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
@@ -1079,19 +1076,13 @@ void eles::AdvanceSolution(int in_step, int adv_type)
     if (n_eles!=0)
     {
         int i, ic, inp;
-        double rhs;
-
-        /*! Time integration using a forwards Euler integration. */        
+        double rhs;     
       
+        /*! Time integration using a forwards Euler integration. */    
+
         if (adv_type == 0)
         {  
 
-            /*!
-             Performs B = B + (alpha*A) where: \n
-             alpha = -run_input.dt \n
-             A = div_tconf_upts(0)\n
-             B = disu_upts(0)
-             */
 #ifdef _CPU
 
             for (i=0; i<n_fields; i++)
@@ -1155,7 +1146,7 @@ void eles::AdvanceSolution(int in_step, int adv_type)
                         for (inp = 0; inp < n_upts_per_ele; inp++)
                         {
                             rhs = -div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) + run_input.const_src + src_upts(inp, ic, i); //function
-                            if (run_input.dt_type == 2)//local time steo
+                            if (run_input.dt_type == 2)//local time step
                                 disu_upts(0)(inp, ic, i) = 3.0 / 4.0 * disu_upts(0)(inp, ic, i) + 1.0 / 4.0 * disu_upts(1)(inp, ic, i) + dt_local(ic) / 4.0 * rhs;
                             else//global time step
                                 disu_upts(0)(inp, ic, i)= 3.0 / 4.0 * disu_upts(0)(inp, ic, i) + 1.0 / 4.0 * disu_upts(1)(inp, ic, i) + run_input.dt / 4.0 * rhs;
@@ -4939,7 +4930,7 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppt
                     }
                     else if (run_input.diagnostic_fields(k) == "q_criterion")
                     {
-                        FatalError("Not implemented in 2D");
+                        FatalError("Q criterion Not implemented in 2D");
                     }
                 }
                 else if (n_dims==3)
@@ -4987,7 +4978,10 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppt
             // Artificial Viscosity diagnostics
             else if (run_input.diagnostic_fields(k)=="sensor")
             {
-                diagfield_upt = in_sensor_ppts(j);
+                if (run_input.shock_cap)
+                    diagfield_upt = in_sensor_ppts(j);
+                else
+                    FatalError("Sensor unavailable");
             }
 
             else

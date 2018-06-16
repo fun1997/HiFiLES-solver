@@ -109,7 +109,7 @@ void InitSolution(struct solution* FlowSol);
 void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol);
 
 //calculate global time step size
-void calc_time_step(int in_rk_stage, struct solution* FlowSol);
+void calc_time_step(struct solution* FlowSol);
 
 
 
