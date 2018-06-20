@@ -381,7 +381,7 @@ void inters::convective_flux_boundary( hf_array<double> &f_l, hf_array<double> &
         }
     }
 
-  // calculate the normal transformed continuous flux at the flux points
+  // calculate the normal continuous flux at the flux points
   for(int k=0;k<n_fields;k++)
     fn(k)=0.5*(fn_l(k)+fn_r(k));
 }

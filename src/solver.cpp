@@ -76,12 +76,6 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     }
   }
 
-  /*! Shock capturing */
-
-    if(run_input.shock_cap)
-        for(i=0;i<FlowSol->n_ele_types;i++)
-          FlowSol->mesh_eles(i)->shock_capture();
-
     /*! Compute the solution at the flux points. */
     for(i=0; i<FlowSol->n_ele_types; i++)
       FlowSol->mesh_eles(i)->extrapolate_solution();

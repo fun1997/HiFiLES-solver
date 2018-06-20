@@ -171,35 +171,40 @@ int main(int argc, char *argv[]) {
 
   /*! Main solver loop (outer loop). */
 
-  while(i_steps < FlowSol.n_steps) {
-    
+  while (i_steps < FlowSol.n_steps)
+  {
+
     //compute time step if using automatic time step
+
     calc_time_step(&FlowSol);
 
-    for(i=0; i < RKSteps; i++) {
+    for (i = 0; i < RKSteps; i++)
+    {
       /* If using moving mesh, need to advance the Geometric Conservation Law
        * (GCL) first to get updated Jacobians. Necessary to preserve freestream
        * on arbitrarily deforming mesh. See Kui Ou's Ph.D. thesis for details. */
-      if (run_input.motion > 0) {
-      
-        /* Update the mesh */
-        Mesh.move(FlowSol.ini_iter+i_steps,i,&FlowSol);
+      if (run_input.motion > 0)
+      {
 
+        /* Update the mesh */
+        Mesh.move(FlowSol.ini_iter + i_steps, i, &FlowSol);
       }
 
       /*! Spatial integration. */
 
-      CalcResidual(FlowSol.ini_iter+i_steps, i, &FlowSol);
+      CalcResidual(FlowSol.ini_iter + i_steps, i, &FlowSol);
 
       /*! Time integration using a RK scheme */
 
-      for(j=0; j<FlowSol.n_ele_types; j++) {
-
+      for (j = 0; j < FlowSol.n_ele_types; j++)
         FlowSol.mesh_eles(j)->AdvanceSolution(i, FlowSol.adv_type);
-
     }
 
-    }
+    /*! Shock capturing */
+
+    if (run_input.shock_cap)
+      for (i = 0; i < FlowSol.n_ele_types; i++)
+        FlowSol.mesh_eles(i)->shock_capture();
 
     /*! Update total time, and increase the iteration index. */
 

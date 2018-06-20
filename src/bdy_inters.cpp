@@ -483,7 +483,7 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(double time_bound)
 
             if (boundary_type(i)==16) // Dual consistent BC
             {
-                /*! Set Normal flux to be right flux */
+                /*! Set common numerical flux to be normal left flux*/
                 right_flux(temp_f_l,norm,fn,n_dims,n_fields,run_input.gamma);
             }
             else // Call Riemann solver
@@ -526,7 +526,7 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(double time_bound)
                 /*! boundary specification */
                 bdy_spec = boundary_type(i);
 
-                if(bdy_spec == 12 || bdy_spec == 14)
+                if(bdy_spec == 12 || bdy_spec == 14)//adiabatic
                     flux_spec = 2;
                 else
                     flux_spec = 1;
@@ -572,8 +572,8 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
     double e_l, e_r;
     double p_l, p_r;
     double T_l,T_r;
-    double vn_l;
-    double v_sq;
+    double vn_l;//initialize to 0 before use
+    double v_sq;//initialize to 0 before use
     double mach;
     double machn_l;
     double* v_wall = &bdy_params[5];
@@ -1004,17 +1004,24 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             // extrapolate density
             rho_r = rho_l;
 
+            // extrapolate pressure
+            p_r = p_l;
+
             // Compute normal velocity on left side
             vn_l = 0.;
             for (int i=0; i<n_dims; i++)
                 vn_l += (v_l[i]-v_g[i])*norm[i];
 
-            // reflect normal velocity
+            // set normal velocity to 0
             for (int i=0; i<n_dims; i++)
-                v_r[i] = v_l[i] - 2.0*vn_l*norm[i];
+                v_r[i] = v_l[i] - vn_l*norm[i];
 
-            // extrapolate energy
-            e_r = e_l;
+            // energy
+            v_sq = 0.;
+            for (int i=0; i<n_dims; i++)
+                v_sq += (v_r[i]*v_r[i]);
+
+            e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
         }
 
         // Isothermal, no-slip wall (fixed)
@@ -1152,11 +1159,12 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
 
             c_star = 0.25*(gamma-1.)*(r_plus-r_minus);
             vn_star = 0.5*(r_plus+r_minus);
+            //calculate local mach number
+            mach = fabs(vn_l) / sqrt((gamma * R_ref * T_l));
 
             // Inflow
             if (vn_l<0)
             {
-                mach = fabs(vn_l) /sqrt((gamma * p_bound_far_field / rho_bound_far_field));
                 //if supersonic set the outgoing Riemann invariant to be far field value
                 if (mach>1)
                 {
@@ -1164,7 +1172,7 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                     c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
                     vn_star = 0.5 * (r_plus + r_minus);
                 }
-                //extrapolate entropy
+                //free stream entropy
                 one_over_s = pow(rho_bound_far_field,gamma)/p_bound_far_field;
 
                 rho_r = pow(1./gamma*(one_over_s*c_star*c_star),1./(gamma-1.));
@@ -1191,8 +1199,6 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
             // Outflow
             else
             {
-
-                mach = fabs(vn_l) / sqrt((gamma * R_ref * T_l));
                 //if supersonic set the incoming Riemann invariant to be local value
                 if (mach>1)
                 {
@@ -1200,6 +1206,7 @@ void bdy_inters::set_inv_boundary_conditions(int bdy_type, double* u_l, double* 
                     c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
                     vn_star = 0.5 * (r_plus + r_minus);
                 }
+                //extrapolate entropy
                 one_over_s = pow(rho_l,gamma)/p_l;
 
                 rho_r = pow(1./gamma*(one_over_s*c_star*c_star), 1./(gamma-1.));
@@ -1284,7 +1291,7 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
         /*! boundary specification */
         bdy_spec = boundary_type(i);
 
-        if(bdy_spec == 12 || bdy_spec == 14)
+        if(bdy_spec == 12 || bdy_spec == 14)//adiabatic
             flux_spec = 2;
         else
             flux_spec = 1;

@@ -735,7 +735,12 @@ void eles_tets::set_exp_filter(void)
 //detect shock use persson's method
 void eles_tets::shock_det_persson(void)
 {
-  int n_upts_under = order * (order + 1) * (order + 2) / 6;
+  int n_upts_under;
+  if (run_input.over_int)
+    n_upts_under = (run_input.N_under) * (run_input.N_under + 1) * (run_input.N_under + 2) / 6;
+  else
+    n_upts_under = order * (order + 1) * (order + 2) / 6;
+
   hf_array<double> temp_rho(n_upts_per_ele, n_eles);     //to store nodal value
   hf_array<double> temp_rho_rho(n_upts_per_ele, n_eles); //to store square value/modal value
 
@@ -781,18 +786,8 @@ void eles_tets::shock_det_persson(void)
 
   //clear lower modes, take into consideration over_integration
   for (int ic = 0; ic < n_eles; ic++)
-  {
-    if(run_input.over_int)
-    {
-    for (int j = 0; j < (run_input.N_under) * (run_input.N_under + 1) * (run_input.N_under + 2) / 6; j++)
-      temp_rho_rho(j, ic) = 0.0;    
-    }
-    else
-    {
     for (int j = 0; j < n_upts_under; j++)
-      temp_rho_rho(j, ic) = 0.0;         
-    }
-  }
+      temp_rho_rho(j, ic) = 0.0;
 
 //transform back to nodal store in temp_rho
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
