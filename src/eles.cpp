@@ -202,8 +202,8 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             ue.setup(1);
         }
 
-        // Allocate hf_array for wall distance if using a RANS-based turbulence model or LES wall model
-        if (run_input.turb_model > 0)
+        // Allocate hf_array for wall distance if using a RANS-based turbulence model or LES
+        if (run_input.turb_model > 0)//S-A
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
             wall_distance_mag.setup(n_upts_per_ele,n_eles);
@@ -211,15 +211,18 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             zero_array(wall_distance_mag);
             twall.setup(1);
         }
-        else if (wall_model > 0)
+        else if (LES)//for all LES calculation of wall distance is necessary
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
-            twall.setup(n_upts_per_ele,n_eles,n_fields);
             zero_array(wall_distance);
-            zero_array(twall);
+            if (wall_model)
+            {
+                twall.setup(n_upts_per_ele, n_eles, n_fields);
+                zero_array(twall);
+            }
             wall_distance_mag.setup(1);
         }
-        else
+        else//DNS
         {
             wall_distance.setup(1);
             wall_distance_mag.setup(1);
@@ -2626,6 +2629,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     double Smod=0.0;
     double ke=0.0;
     double Pr=0.5; // turbulent Prandtl number
+    double karman=0.41;//von_karman constant 
     double delta, mu, mu_t, vol;
     double rho, inte, rt_ratio;
     hf_array<double> u(n_dims);
@@ -2655,6 +2659,12 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     mu = (run_input.mu_inf)*pow(rt_ratio,1.5)*(1+(run_input.c_sth))/(rt_ratio+(run_input.c_sth));
     mu = mu + run_input.fix_vis*(run_input.mu_inf - mu);
 
+    // Magnitude of wall distance vector
+    y = 0.0;
+    for (i = 0; i < n_dims; i++)
+        y += wall_distance(upt, ele, i) * wall_distance(upt, ele, i);
+    y = sqrt(y);
+
     // Initialize SGS flux hf_array to zero
     zero_array(temp_sgsf);
 
@@ -2663,13 +2673,6 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
 
     if(wall_model != 0)
     {
-
-        // Magnitude of wall distance vector
-        y = 0.0;
-        for (i=0; i<n_dims; i++)
-            y += wall_distance(upt,ele,i)*wall_distance(upt,ele,i);
-
-        y = sqrt(y);
 
         // get subgrid momentum flux at previous timestep
         //utau = 0.0;
@@ -2871,7 +2874,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             if(sgs_model==0)
             {
 
-                mu_t = rho*C_s*C_s*delta*delta*Smod;
+                mu_t = rho*min(y*y*karman*karman,C_s*C_s*delta*delta)*Smod;
 
             }
 
@@ -2926,7 +2929,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
 
                 denom = pow(denom,2.5) + pow(num,1.25);
                 num = pow(num,1.5);
-                mu_t = rho*C_s*C_s*delta*delta*num/(denom+eps);
+                mu_t = rho*min(y*y*karman*karman,C_s*C_s*delta*delta)*num/(denom+eps);
             }
 
             // Add eddy-viscosity term to SGS fluxes

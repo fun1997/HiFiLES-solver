@@ -824,7 +824,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
     Mesh.ic2loc_c = local_c;
 
   // Flag interfaces for calculating LES wall model
-  if(run_input.wall_model>0 or run_input.turb_model>0) {
+  if(run_input.LES || run_input.turb_model) {
 
     if (FlowSol->rank==0) cout << "calculating wall distance... " << endl;
 
@@ -1360,7 +1360,9 @@ void read_boundary_gmsh(string& in_file_name, int &in_n_cells, hf_array<int>& in
     strcpy(bcTXT[bcid],bc_txt_temp);
     out_bclist(i) = bcid;
   }
-
+  
+    mesh_file.clear();
+    mesh_file.seekg(mesh_file.beg);
   // Move cursor to $Elements
   while(1) {
     getline(mesh_file,str);
@@ -1938,6 +1940,8 @@ void read_connectivity_gmsh(string& in_file_name, int &out_n_cells, hf_array<int
   if (run_input.turb_model==1 && FlowSol->n_dims == 3) {
     FatalError("ERROR: 3D geometry not supported with RANS equation yet ... ");
   }
+    mesh_file.clear();
+    mesh_file.seekg(mesh_file.beg);
 
   // Move cursor to $Elements
   while(1) {
