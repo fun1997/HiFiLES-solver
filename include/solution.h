@@ -46,6 +46,7 @@ struct solution {
 
   //basic parameters
   int rank;//defined in SetInput
+  int nproc;//defined in SetInput
   int viscous;//defined in SetInput
   double time;//defined in InitSolution
   int n_ele_types;//defined in Initializing Elements
@@ -103,7 +104,6 @@ struct solution {
 //mpi parameters
 #ifdef _MPI
 
-  int nproc;//defined in SetInput
   int n_mpi_inter_types;
   hf_array<mpi_inters> mesh_mpi_inters;
   hf_array<int> error_states;

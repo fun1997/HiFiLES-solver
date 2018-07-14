@@ -163,6 +163,7 @@ void input::read_input_file(string fileName, int rank)
     if (LES)
     {
         opts.getScalarValue("C_s",C_s);
+        opts.getScalarValue("Pr_t",Pr_t,0.9);
         opts.getScalarValue("filter_type",filter_type);
         opts.getScalarValue("filter_ratio",filter_ratio);
         opts.getScalarValue("SGS_model",SGS_model);
@@ -521,11 +522,15 @@ void input::setup_params(int rank)
 
     if (N_under > order||N_under<0)
         FatalError("Invalid under sampling order");
-        // --------------------------
-        // SETTING UP RK COEFFICIENTS
-        // --------------------------
+    // --------------------------
+    // SETTING UP RK COEFFICIENTS
+    // --------------------------
+#include "../data/RK_coeff.dat"
 
-    #include "../data/RK_coeff.dat"
+#ifndef _CGNS
+    if (write_type == 2)
+        FatalError("To use CGNS output format, build HiFiLES with CGNS support");
+#endif // !_CGNS
 
     // --------------------------
     // NON-DIMENSIONALIZATION

@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
   int i_steps = 0;                    /*!< Iteration index */
   int RKSteps;                        /*!< Number of RK steps */
   clock_t init_time, final_time;      /*!< To control the time */
-  struct solution FlowSol;            /*!< Main structure with the flow solution and geometry */
+  struct solution FlowSol;            /*!< Main structure with the flow solution and geometry */        
   ofstream write_hist;                /*!< Output files (forces, statistics, and history) */
   mesh Mesh;                          /*!< Store mesh details & perform mesh motion */
 
@@ -101,6 +101,10 @@ int main(int argc, char *argv[]) {
   /*! Read the mesh file from a file. */
 
   GeoPreprocess(&FlowSol, Mesh);
+
+  /*! initialize object to output result/restart files */   
+   
+  output run_output(&FlowSol); 
 
   /*! Initialize solution and patch solution if needed */
 
@@ -155,10 +159,11 @@ int main(int argc, char *argv[]) {
 
 #endif
 
-  /*! Dump initial Paraview or tecplot file. */
+  /*! Dump initial Paraview, tecplot or CGNS files. */
 
-  if (FlowSol.write_type == 0) write_vtu(FlowSol.ini_iter+i_steps, &FlowSol);
-  else if (FlowSol.write_type == 1) write_tec(FlowSol.ini_iter+i_steps, &FlowSol);
+  if (FlowSol.write_type == 0) run_output.write_vtu(FlowSol.ini_iter+i_steps);
+  else if (FlowSol.write_type == 1) run_output.write_tec(FlowSol.ini_iter+i_steps);
+  else if(FlowSol.write_type == 2) run_output.write_CGNS(FlowSol.ini_iter+i_steps);
   else FatalError("ERROR: Trying to write unrecognized file format ... ");
 
   if (FlowSol.rank == 0) cout << endl;
@@ -187,7 +192,7 @@ int main(int argc, char *argv[]) {
       {
 
         /* Update the mesh */
-        Mesh.move(FlowSol.ini_iter + i_steps, i, &FlowSol);
+       Mesh.move(FlowSol.ini_iter + i_steps, i, &FlowSol);
       }
 
       /*! Spatial integration. */
@@ -220,7 +225,7 @@ int main(int argc, char *argv[]) {
     if(i_steps == 1 || i_steps%FlowSol.plot_freq == 0 ||
        i_steps%run_input.monitor_res_freq == 0 || i_steps%FlowSol.restart_dump_freq==0) {
 
-      CopyGPUCPU(&FlowSol);
+      run_output.CopyGPUCPU(&FlowSol);
 
     }
 
@@ -231,38 +236,39 @@ int main(int argc, char *argv[]) {
     /*! Compute time-averaged quantities. */
     if ( i_steps==1)//set start time for averaging
         run_input.spinup_time=FlowSol.time;
-    CalcTimeAverageQuantities(&FlowSol);
+    run_output.CalcTimeAverageQuantities();
 
     if( i_steps == 1 || i_steps%run_input.monitor_res_freq == 0 ) {
 
       /*! Compute the value of the forces. */
 
       if (run_input.calc_force!=0)
-          CalcForces(FlowSol.ini_iter+i_steps, &FlowSol);
+          run_output.CalcForces(FlowSol.ini_iter+i_steps);
 
       /*! Compute integral quantities. */
 
       if (run_input.n_integral_quantities!=0)//if calculate integral quantities
-          CalcIntegralQuantities(FlowSol.ini_iter+i_steps, &FlowSol);
+         run_output. CalcIntegralQuantities(FlowSol.ini_iter+i_steps);
 
 
 
       /*! Compute the norm of the residual. */
 
-      CalcNormResidual(&FlowSol);
+      run_output.CalcNormResidual();
 
       /*! Output the history file. */
 
-      HistoryOutput(FlowSol.ini_iter+i_steps, init_time, &write_hist, &FlowSol);
+      run_output.HistoryOutput(FlowSol.ini_iter+i_steps, init_time, &write_hist);
 
       if (FlowSol.rank == 0) cout << endl;
 
     }
-    /*! Dump Paraview or Tecplot file. */
+    /*! Dump Paraview, Tecplot or CGNS files. */
 
     if(i_steps%FlowSol.plot_freq == 0) {
-      if(FlowSol.write_type == 0) write_vtu(FlowSol.ini_iter+i_steps, &FlowSol);
-      else if(FlowSol.write_type == 1) write_tec(FlowSol.ini_iter+i_steps, &FlowSol);
+      if(FlowSol.write_type == 0) run_output.write_vtu(FlowSol.ini_iter+i_steps);
+      else if(FlowSol.write_type == 1) run_output.write_tec(FlowSol.ini_iter+i_steps);
+      else if(FlowSol.write_type == 2) run_output.write_CGNS(FlowSol.ini_iter+i_steps);
       else FatalError("ERROR: Trying to write unrecognized file format ... ");
     }
 
@@ -271,13 +277,13 @@ int main(int argc, char *argv[]) {
         if(run_input.probe!=0)
         {
             if((i_steps%run_probe.probe_freq==0))
-                write_probe(&FlowSol);
+                run_output.write_probe();
         }
 
     /*! Dump restart file. */
 
     if(i_steps%FlowSol.restart_dump_freq==0) {
-      write_restart(FlowSol.ini_iter+i_steps, &FlowSol);
+      run_output.write_restart(FlowSol.ini_iter+i_steps);
     }
 
     /*! patch solution periodically */

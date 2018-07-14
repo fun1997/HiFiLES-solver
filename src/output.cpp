@@ -33,23 +33,15 @@
 #include <unistd.h>
 
 #include "../include/global.h"
+#include "../include/output.h"
 #include "../include/hf_array.h"
-#include "../include/input.h"
 #include "../include/geometry.h"
 #include "../include/solver.h"
-#include "../include/output.h"
 #include "../include/funcs.h"
 #include "../include/error.h"
-#include "../include/solution.h"
 
 #ifdef _TECIO
 #include "TECIO.h"
-#endif
-
-#ifdef _MPI
-#include "mpi.h"
-#include "metis.h"
-#include "parmetis.h"
 #endif
 
 #ifdef _GPU
@@ -58,13 +50,96 @@
 
 using namespace std;
 
-#define MAX_V_PER_F 4
-#define MAX_F_PER_C 6
-#define MAX_E_PER_C 12
-#define MAX_V_PER_C 27
+// #### constructors ####
+
+// default constructor
+
+output::output(struct solution *in_sol)
+{
+  FlowSol = in_sol;
+  if (run_input.write_type == 2) //initialize cgns parameter
+    setup_CGNS();
+}
+
+output::~output() { }
+
+
+void output::setup_CGNS(void)
+{
+  #ifdef _CGNS
+  hf_array<int> npele_list_local(FlowSol->n_ele_types);//local array for number of plot element per type
+  hf_array<int>npele_list(FlowSol->n_ele_types,FlowSol->nproc);//global array for number of plot element per type per processor
+  int n_ppts_per_ele,n_peles_per_ele,n_eles;
+
+//initialize typewise local plot element start/end index
+  pele_start.setup(FlowSol->n_ele_types);
+  pele_end.setup(FlowSol->n_ele_types);
+  pele_start.initialize_to_zero();
+  pele_end.initialize_to_zero();
+  pnode_start = 1;//local start index of node
+
+  //initialize global element number
+  glob_npeles = 0;//global number of plot elements
+  glob_npnodes = 0;//global number of nodes
+
+  sum_npele.setup(FlowSol->n_ele_types);//global typewise number of plot elements
+  sum_npele.initialize_to_zero();
+
+  //store local number of plot elements
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+  {
+    if (FlowSol->mesh_eles(i)->get_n_eles())
+      npele_list_local(i) = FlowSol->mesh_eles(i)->get_n_eles() *  FlowSol->mesh_eles(i)->get_n_peles_per_ele();
+    else
+      npele_list_local(i) = 0;
+  }
+
+//gather infomation from other processors
+#ifdef _MPI
+  MPI_Allgather(npele_list_local.get_ptr_cpu(), FlowSol->n_ele_types, MPI_INT, npele_list.get_ptr_cpu(), FlowSol->n_ele_types, MPI_INT, MPI_COMM_WORLD);
+#else
+  npele_list = npele_list_local;
+#endif // _MPI
+
+  //calculate global number of plot elements and nodes, typewise number of plot elements and nodes before this rank
+  for (int j = 0; j < FlowSol->nproc; j++)
+  {
+    for (int i = 0; i < FlowSol->n_ele_types; i++)
+    {
+      n_eles = FlowSol->mesh_eles(i)->get_n_eles();
+      if (n_eles)
+      {
+        n_ppts_per_ele = FlowSol->mesh_eles(i)->get_n_ppts_per_ele();
+        n_peles_per_ele = FlowSol->mesh_eles(i)->get_n_peles_per_ele();
+        glob_npeles += npele_list(i, j);
+        glob_npnodes += npele_list(i, j) * n_ppts_per_ele / n_peles_per_ele;
+        sum_npele(i) += npele_list(i, j); //global number of each type of element
+      }
+
+      if (j == FlowSol->rank - 1)
+      {
+        pele_start(i) = sum_npele(i); //set local typewise plot element start index despite the existence of other type of element
+      }
+      if (j == FlowSol->rank)
+        pele_end(i) = sum_npele(i); //set local typewise plot element end index despite the existence of other type of element
+    }
+    if (j == FlowSol->rank - 1)
+      pnode_start += glob_npnodes; //set start index for local nodes
+  }
+
+  //transform to local plot element start index, order by element type
+  for (int i = 1; i < FlowSol->n_ele_types; i++)//start from quad to hex
+    for (int j = 0; j < i; j++)
+      pele_start(i) += sum_npele(j);
+  //start index start form 1
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+    pele_start(i)++;
+
+#endif // _CGNS
+}
 
 // method to write out a tecplot file
-void write_tec(int in_file_num, struct solution* FlowSol)
+void output::write_tec(int in_file_num)
 {
   int i,j,k,l,m;
 
@@ -587,7 +662,7 @@ output: Mesh_<in_file_num>/Mesh_<in_file_num>_<rank>.vtu			(parallel) data file 
 output: Mesh_<in_file_num>.pvtu																(parallel) file stitching together all .vtu files (written by master node)
 */
 
-void write_vtu(int in_file_num, struct solution* FlowSol)
+void output::write_vtu(int in_file_num)
 {
   int i,j,k,l,m;
   /*! Current rank */
@@ -1057,13 +1132,406 @@ if(my_rank==0) cout<<"done."<<endl;
 #endif
 }
 
+
+#ifdef _CGNS
+#ifdef _MPI
+/*! write parallel CGNS file*/
+void output::write_CGNS(int in_file_num)
+{
+  int F, B, Z, S, Cx, Cy, Cz;
+  int E[5];                                             //element node
+  int Fs_rho, Fs_rhou, Fs_rhov, Fs_rhow, Fs_rhoe, Fs_mu, Fs_s ; //field variable
+  hf_array<int> Fs_diag, Fs_avg;
+  char fname[256];
+  cgsize_t sizes[3];
+  int temp_ptr, temp_ptr2;
+  hf_array<cgsize_t> conn; //connectivity
+
+  //data arrays
+  hf_array<double> pos_ppts_temp;
+  hf_array<double> disu_ppts_temp;
+  hf_array<double> grad_disu_ppts_temp;
+  hf_array<double> disu_average_ppts_temp;
+  hf_array<double> diag_ppts_temp;
+  hf_array<double> sensor_ppts_temp;
+
+  int n_dims = FlowSol->n_dims;
+  int n_eles, n_fields, n_ppts_per_ele;
+  int n_diag_fields = run_input.n_diagnostic_fields;
+  int n_average_fields = run_input.n_average_fields;
+
+  sprintf(fname, "%s_%.09d.cgns", run_input.data_file_name.c_str(), in_file_num);
+  cgp_mpi_comm(MPI_COMM_WORLD);
+  cgp_pio_mode(CGP_INDEPENDENT);
+  if (FlowSol->rank == 0)
+    cout << "Writing CGNS file " << fname << " ...." << flush;
+
+  /* open the file and create base and zone */
+  sizes[0] = glob_npnodes;
+  sizes[1] = glob_npeles;
+  sizes[2] = 0;
+
+  if (cgp_open(fname, CG_MODE_WRITE, &F) ||
+      cg_base_write(F, "Base", n_dims, n_dims, &B) ||
+      cg_zone_write(F, B, "Zone", sizes, Unstructured, &Z))
+    cgp_error_exit();
+
+  /* create data nodes for coordinates */
+  if (cgp_coord_write(F, B, Z, RealDouble, "CoordinateX", &Cx) ||
+      cgp_coord_write(F, B, Z, RealDouble, "CoordinateY", &Cy))
+    cgp_error_exit();
+  if (n_dims == 3)
+    if (cgp_coord_write(F, B, Z, RealDouble, "CoordinateZ", &Cz))
+      cgp_error_exit();
+
+  /*! create solution nodes */
+  if (cg_sol_write(F, B, Z, "Solution", Vertex, &S))
+    cgp_error_exit();
+  //default solutions
+  if (cgp_field_write(F, B, Z, S, RealDouble, "Density", &Fs_rho) ||
+      cgp_field_write(F, B, Z, S, RealDouble, "MomentumX", &Fs_rhou) ||
+      cgp_field_write(F, B, Z, S, RealDouble, "MomentumY", &Fs_rhov) ||
+      cgp_field_write(F, B, Z, S, RealDouble, "EnergyStagnationDensity", &Fs_rhoe))
+    cgp_error_exit();
+  if (n_dims == 3)
+    if (cgp_field_write(F, B, Z, S, RealDouble, "MomentumZ", &Fs_rhow))
+      cgp_error_exit();
+  if (run_input.turb_model)
+    if (cgp_field_write(F, B, Z, S, RealDouble, "mu", &Fs_mu))
+      cgp_error_exit();
+  //diagnostic fields
+  if (n_diag_fields)
+  {
+    Fs_diag.setup(n_diag_fields);
+    for (int i = 0; i < n_diag_fields; i++)
+      if (cgp_field_write(F, B, Z, S, RealDouble, run_input.diagnostic_fields(i).c_str(), Fs_diag.get_ptr_cpu(i)))
+        cgp_error_exit();
+  }
+  //average fields
+  if (n_average_fields)
+  {
+    Fs_avg.setup(n_diag_fields);
+    for (int i = 0; i < n_average_fields; i++)
+      if (cgp_field_write(F, B, Z, S, RealDouble, run_input.average_fields(i).c_str(), Fs_avg.get_ptr_cpu(i)))
+        cgp_error_exit();
+  }
+  //write solution data
+  temp_ptr = pnode_start;//pointer to the next node index to write the solution
+
+  for (int i = 0; i < FlowSol->n_ele_types; i++) //for each type of element
+  {
+    n_eles = FlowSol->mesh_eles(i)->get_n_eles();
+    if (n_eles) //have element
+    {
+      n_ppts_per_ele = FlowSol->mesh_eles(i)->get_n_ppts_per_ele();
+      n_fields = FlowSol->mesh_eles(i)->get_n_fields();
+      pos_ppts_temp.setup(n_ppts_per_ele, n_dims);
+      disu_ppts_temp.setup(n_ppts_per_ele, n_fields);
+      grad_disu_ppts_temp.setup(n_ppts_per_ele, n_fields, n_dims);
+      if (n_diag_fields)
+        diag_ppts_temp.setup(n_ppts_per_ele, n_diag_fields);
+      if (n_average_fields)
+        disu_average_ppts_temp.setup(n_ppts_per_ele, n_average_fields);
+      if (run_input.shock_cap)
+        sensor_ppts_temp.setup(n_ppts_per_ele);
+
+      for (int j = 0; j < n_eles; j++) //for each element
+      {
+        //coordinate
+        FlowSol->mesh_eles(i)->calc_pos_ppts(j, pos_ppts_temp); //get sub selemt coord
+        temp_ptr2 = temp_ptr + n_ppts_per_ele - 1;
+
+        if (cgp_coord_write_data(F, B, Z, Cx, &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu()) ||
+            cgp_coord_write_data(F, B, Z, Cy, &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(n_ppts_per_ele)))
+          cgp_error_exit();
+        if (n_dims == 3)
+          if (cgp_coord_write_data(F, B, Z, Cz, &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(n_ppts_per_ele * 2)))
+            cgp_error_exit();
+
+       //default solution
+        FlowSol->mesh_eles(i)->calc_disu_ppts(j, disu_ppts_temp);
+        if (cgp_field_write_data(F, B, Z, S, Fs_rho, &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu()) ||
+            cgp_field_write_data(F, B, Z, S, Fs_rhou, &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(n_ppts_per_ele)) ||
+            cgp_field_write_data(F, B, Z, S, Fs_rhov, &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(2 * n_ppts_per_ele)))
+          cgp_error_exit();
+        if (n_dims == 2)
+        {
+          if (cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(3 * n_ppts_per_ele)))
+            cgp_error_exit();
+          if (run_input.turb_model)
+            if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(4 * n_ppts_per_ele)))
+              cgp_error_exit();
+        }
+        else
+        {
+          if (cgp_field_write_data(F, B, Z, S, Fs_rhow, &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(3 * n_ppts_per_ele)) ||
+              cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(4 * n_ppts_per_ele)))
+            cgp_error_exit();
+          if (run_input.turb_model)
+            if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(5 * n_ppts_per_ele)))
+              cgp_error_exit();
+        }
+
+        if (run_input.shock_cap)
+          /*! Calculate the sensor at the plot points */
+          FlowSol->mesh_eles(i)->calc_sensor_ppts(j, sensor_ppts_temp);
+
+        /*! Calculate the diagnostic fields at the plot points */
+        if (n_diag_fields > 0)
+        {
+          FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
+          FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, diag_ppts_temp, FlowSol->time);
+          for (int k = 0; k < n_diag_fields; k++)
+            if (cgp_field_write_data(F, B, Z, S, Fs_diag(k), &temp_ptr, &temp_ptr2, diag_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele)))
+              cgp_error_exit();
+        }
+
+        /*! Calculate the time averaged fields at the plot points */
+        if (n_average_fields > 0)
+        {
+          FlowSol->mesh_eles(i)->calc_time_average_ppts(j, disu_average_ppts_temp);
+          for (int k = 0; j < n_average_fields; k++)
+            if (cgp_field_write_data(F, B, Z, S, Fs_avg(k), &temp_ptr, &temp_ptr2, disu_average_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele)))
+              cgp_error_exit();
+        }
+      temp_ptr += n_ppts_per_ele; //move pointer to next element
+      }
+    }
+  }
+
+  /* create data node for elements */
+  temp_ptr = pnode_start; //pointer to next node index to write
+  temp_ptr2 = 1;          //pointer to next index of each type of element
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+  {
+    n_eles = FlowSol->mesh_eles(i)->get_n_eles();
+
+    if (sum_npele(i)) //if have such type of element globally
+    {
+      switch (i) //write element node
+      {
+      case 0:
+        cgp_section_write(F, B, Z, "Tri", TRI_3, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, &E[0]);
+        temp_ptr2 += sum_npele(i);
+        break;
+      case 1:
+        cgp_section_write(F, B, Z, "Quad", QUAD_4, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, &E[1]);
+        temp_ptr2 += sum_npele(i);
+        break;
+      case 2:
+        cgp_section_write(F, B, Z, "Tetra", TETRA_4, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, &E[2]);
+        temp_ptr2 += sum_npele(i);
+        break;
+      case 3:
+        cgp_section_write(F, B, Z, "Pris", PENTA_6, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, &E[3]);
+        temp_ptr2 += sum_npele(i);
+        break;
+      case 4:
+        cgp_section_write(F, B, Z, "Hex", HEXA_8, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, &E[4]);
+        temp_ptr2 += sum_npele(i);
+        break;
+      }
+
+      if (n_eles) //if have such type element locally, write connectivity
+      {
+        //calculate connectivity
+        calc_connectivity(conn, i, temp_ptr);
+        // write the element connectivity in parallel
+        if (cgp_elements_write_data(F, B, Z, E[i], pele_start(i), pele_end(i), conn.get_ptr_cpu()))
+          cgp_error_exit();
+      }
+    }
+  }
+  conn.setup(0); //free memory
+
+  /* close the file */
+  cgp_close(F);
+
+  if (FlowSol->rank == 0)
+    cout << "done" << endl;
+}
+
+#else
+/*! write serial CGNS file*/
+void output::write_CGNS(int in_file_num)
+{
+  int F, B, Z, S, Cx, Cy, Cz;
+  int E[5];                                             //element node
+  int Fs_rho, Fs_rhou, Fs_rhov, Fs_rhow, Fs_rhoe, Fs_mu, Fs_s ; //field variable
+  hf_array<int> Fs_diag, Fs_avg;
+  char fname[256];
+  cgsize_t sizes[3];
+  int temp_ptr, temp_ptr2;
+  hf_array<cgsize_t> conn; //connectivity
+
+  //data arrays
+  hf_array<double> pos_ppts_temp;
+  hf_array<double> disu_ppts_temp;
+  hf_array<double> grad_disu_ppts_temp;
+  hf_array<double> disu_average_ppts_temp;
+  hf_array<double> diag_ppts_temp;
+  hf_array<double> sensor_ppts_temp;
+
+  int n_dims = FlowSol->n_dims;
+  int n_eles, n_fields, n_ppts_per_ele;
+  int n_diag_fields = run_input.n_diagnostic_fields;
+  int n_average_fields = run_input.n_average_fields;
+
+  sprintf(fname, "%s_%.09d.cgns", run_input.data_file_name.c_str(), in_file_num);
+
+  if (FlowSol->rank == 0)
+    cout << "Writing CGNS file " << fname << " ...." << flush;
+
+ /* open the file and create base and zone */
+  sizes[0] = glob_npnodes;
+  sizes[1] = glob_npeles;
+  sizes[2] = 0;
+
+  if (cg_open(fname, CG_MODE_WRITE, &F) ||
+      cg_base_write(F, "Base", n_dims, n_dims, &B) ||
+      cg_zone_write(F, B, "Zone", sizes, Unstructured, &Z)||
+      cg_sol_write(F, B, Z, "Solution", Vertex, &S))
+    cg_error_exit();
+
+//write solution data
+  temp_ptr = 1;//next node index to write
+
+  for (int i = 0; i < FlowSol->n_ele_types; i++) //for each type of element
+  {
+    n_eles = FlowSol->mesh_eles(i)->get_n_eles();
+    if (n_eles) //have element
+    {
+      n_ppts_per_ele = FlowSol->mesh_eles(i)->get_n_ppts_per_ele();
+      n_fields = FlowSol->mesh_eles(i)->get_n_fields();
+      pos_ppts_temp.setup(n_ppts_per_ele, n_dims);
+      disu_ppts_temp.setup(n_ppts_per_ele, n_fields);
+      grad_disu_ppts_temp.setup(n_ppts_per_ele, n_fields, n_dims);
+      if (n_diag_fields)
+        diag_ppts_temp.setup(n_ppts_per_ele, n_diag_fields);
+      if (n_average_fields)
+        disu_average_ppts_temp.setup(n_ppts_per_ele, n_average_fields);
+      if (run_input.shock_cap)
+        sensor_ppts_temp.setup(n_ppts_per_ele);
+
+      for (int j = 0; j < n_eles; j++) //for each element
+      {
+        //coordinate
+        FlowSol->mesh_eles(i)->calc_pos_ppts(j, pos_ppts_temp); //get sub selemt coord
+        temp_ptr2 = temp_ptr + n_ppts_per_ele - 1;
+
+        if (cg_coord_partial_write(F, B, Z, RealDouble, "CoordinateX", &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(), &Cx) ||
+            cg_coord_partial_write(F, B, Z, RealDouble, "CoordinateY", &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(n_ppts_per_ele), &Cy))
+          cg_error_exit();
+        if (n_dims == 3)
+          if (cg_coord_partial_write(F, B, Z, RealDouble, "CoordinateZ", &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(n_ppts_per_ele * 2), &Cz))
+            cg_error_exit();
+
+        //default solution
+        FlowSol->mesh_eles(i)->calc_disu_ppts(j, disu_ppts_temp);
+        if (cg_field_partial_write(F, B, Z, S, RealDouble, "Density", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(), &Fs_rho) ||
+            cg_field_partial_write(F, B, Z, S, RealDouble, "MomentumX", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(n_ppts_per_ele), &Fs_rhou) ||
+            cg_field_partial_write(F, B, Z, S, RealDouble, "MomentumY", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(2 * n_ppts_per_ele), &Fs_rhov))
+          cg_error_exit();
+        if (n_dims == 2)
+        {
+          if (cg_field_partial_write(F, B, Z, S, RealDouble, "EnergyStagnationDensity", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(3 * n_ppts_per_ele), &Fs_rhoe))
+            cg_error_exit();
+          if (run_input.turb_model)
+            if (cg_field_partial_write(F, B, Z, S, RealDouble, "mu", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(4 * n_ppts_per_ele), &Fs_mu))
+              cg_error_exit();
+        }
+        else
+        {
+          if (cg_field_partial_write(F, B, Z, S, RealDouble, "MomentumZ", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(3 * n_ppts_per_ele), &Fs_rhow) ||
+              cg_field_partial_write(F, B, Z, S, RealDouble, "EnergyStagnationDensity", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(4 * n_ppts_per_ele), &Fs_rhoe))
+            cg_error_exit();
+          if (run_input.turb_model)
+            if (cg_field_partial_write(F, B, Z, S, RealDouble, "mu", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(5 * n_ppts_per_ele), &Fs_mu))
+              cg_error_exit();
+        }
+
+        if (run_input.shock_cap)
+          /*! Calculate the sensor at the plot points */
+          FlowSol->mesh_eles(i)->calc_sensor_ppts(j, sensor_ppts_temp);
+
+        /*! Calculate the diagnostic fields at the plot points */
+        if (n_diag_fields > 0)
+        {
+          FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
+          FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, diag_ppts_temp, FlowSol->time);
+          for (int k = 0; k < n_diag_fields; k++)
+            if (cg_field_partial_write(F, B, Z, S, RealDouble, run_input.diagnostic_fields(i).c_str(), &temp_ptr, &temp_ptr2, diag_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele), Fs_diag.get_ptr_cpu(k)))
+              cg_error_exit();
+        }
+
+        /*! Calculate the time averaged fields at the plot points */
+        if (n_average_fields > 0)
+        {
+          FlowSol->mesh_eles(i)->calc_time_average_ppts(j, disu_average_ppts_temp);
+          for (int k = 0; j < n_average_fields; k++)
+            if (cg_field_partial_write(F, B, Z, S, RealDouble, run_input.average_fields(i).c_str(), &temp_ptr, &temp_ptr2, disu_average_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele), &Fs_avg(k)))
+              cg_error_exit();
+        }
+        temp_ptr += n_ppts_per_ele; //move pointer to next element
+      }
+    }
+  }
+
+  /* create data node for elements */
+  temp_ptr = 1; //next node index to write
+  temp_ptr2 = 1;//next start point of element type
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+  {
+    n_eles = FlowSol->mesh_eles(i)->get_n_eles();
+
+      if (n_eles) //if have such type element locally, write connectivity
+      {
+        //calculate connectivity
+        calc_connectivity(conn, i, temp_ptr);
+
+        switch (i) //write element node
+        {
+        case 0:
+          cg_section_write(F, B, Z, "Tri", TRI_3, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[0]);
+          temp_ptr2 += sum_npele(i);
+          break;
+        case 1:
+          cg_section_write(F, B, Z, "Quad", QUAD_4, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[1]);
+          temp_ptr2 += sum_npele(i);
+          break;
+        case 2:
+          cg_section_write(F, B, Z, "Tetra", TETRA_4, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[2]);
+          temp_ptr2 += sum_npele(i);
+          break;
+        case 3:
+          cg_section_write(F, B, Z, "Pris", PENTA_6, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[3]);
+          temp_ptr2 += sum_npele(i);
+          break;
+        case 4:
+          cg_section_write(F, B, Z, "Hex", HEXA_8, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[4]);
+          temp_ptr2 += sum_npele(i);
+          break;
+        }
+      }
+  }
+  conn.setup(0); //free memory
+
+  /* close the file */
+  cg_close(F);
+
+  if (FlowSol->rank == 0)
+    cout << "done" << endl;
+}
+#endif
+#endif
+
 /*! Method to write out a probe file.
 Used in run mode.
 input: FlowSol						solution structure
 output: probe_<probe_index>.dat		probe data file
 */
 
-void write_probe(struct solution* FlowSol)
+void output::write_probe(void)
 {
     /*! Current rank*/
     int myrank=FlowSol->rank;
@@ -1234,7 +1702,7 @@ void write_probe(struct solution* FlowSol)
     if (myrank==0) cout<<"done."<<endl;
 }
 
-void write_restart(int in_file_num, struct solution* FlowSol)
+void output::write_restart(int in_file_num)
 {
 
   char file_name_s[256], file_name_s2[256], folder[50];
@@ -1301,7 +1769,7 @@ if (FlowSol->nproc>1)
 
 }
 
-void CalcForces(int in_file_num, struct solution* FlowSol) {
+void output::CalcForces(int in_file_num) {
 
   char file_name_s[256], *file_name;
   char forcedir_s[256], *forcedir;
@@ -1433,7 +1901,7 @@ void CalcForces(int in_file_num, struct solution* FlowSol) {
 }
 
 // Calculate integral diagnostic quantities
-void CalcIntegralQuantities(int in_file_num, struct solution* FlowSol) {
+void output::CalcIntegralQuantities(int in_file_num) {
 
   int nintq = run_input.n_integral_quantities;
 
@@ -1465,7 +1933,7 @@ void CalcIntegralQuantities(int in_file_num, struct solution* FlowSol) {
 }
 
 // Calculate time averaged diagnostic quantities
-void CalcTimeAverageQuantities(struct solution* FlowSol) {
+void output::CalcTimeAverageQuantities(void) {
 
   // Loop over element types
   for(int i=0;i<FlowSol->n_ele_types;i++)
@@ -1477,7 +1945,7 @@ void CalcTimeAverageQuantities(struct solution* FlowSol) {
     }
 }
 
-void compute_error(int in_file_num, struct solution* FlowSol)
+void output::compute_error(int in_file_num)
 {
   int n_fields;
 
@@ -1644,7 +2112,7 @@ void compute_error(int in_file_num, struct solution* FlowSol)
 
 }
 
-void CalcNormResidual(struct solution* FlowSol) {
+void output::CalcNormResidual(void) {
 
   int n_upts = 0;
   int n_fields;
@@ -1722,7 +2190,7 @@ void CalcNormResidual(struct solution* FlowSol) {
   }
 }
 
-void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct solution* FlowSol) {
+void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) {
 
   int i, n_fields;
   clock_t final;
@@ -1843,7 +2311,7 @@ void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct s
   }
 }
 
-void check_stability(struct solution* FlowSol)
+void output::check_stability(void)
 {
   int n_fields;
   int bisect_ind, file_lines;
@@ -1968,7 +2436,7 @@ void check_stability(struct solution* FlowSol)
 }
 
 #ifdef _GPU
-void CopyGPUCPU(struct solution* FlowSol)
+void output::CopyGPUCPU(void)
 {
   // copy solution to cpu
 
@@ -1993,3 +2461,24 @@ void CopyGPUCPU(struct solution* FlowSol)
 }
 #endif
 
+void output::calc_connectivity(hf_array<int> &out_conn, int ele_type, int &start_index)
+{
+  int p_res = run_input.p_res;
+  int i, j, k, l;
+  int n_eles, n_peles_per_ele, n_ppts_per_ele, n_verts_per_ele;
+  hf_array<int> vertex(FlowSol->mesh_eles(ele_type)->get_n_verts_per_ele());
+  int count = 0; //plot element ounter;
+
+  n_eles = FlowSol->mesh_eles(ele_type)->get_n_eles();
+  n_peles_per_ele = FlowSol->mesh_eles(ele_type)->get_n_peles_per_ele();
+  n_ppts_per_ele = FlowSol->mesh_eles(ele_type)->get_n_ppts_per_ele();
+  n_verts_per_ele = FlowSol->mesh_eles(ele_type)->get_n_verts_per_ele();
+
+  out_conn.setup(n_verts_per_ele, n_peles_per_ele, n_eles);
+  for (int j = 0; j < n_eles; j++)
+    for (int k = 0; k < n_peles_per_ele; k++)
+      for (int i = 0; i < n_verts_per_ele; i++)
+        out_conn(i, k, j) = FlowSol->mesh_eles(ele_type)->get_connectivity_plot()(i, k) + j * n_ppts_per_ele + start_index;
+
+  start_index += n_eles * n_ppts_per_ele;
+}

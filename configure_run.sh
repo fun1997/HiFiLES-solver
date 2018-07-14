@@ -29,10 +29,11 @@ export HIFILES_HOME=$(pwd)
 # Basic User-Modifiable Build Settings [Change these as desired]
 NODE="CPU"              # CPU or GPU
 CODE="RELEASE"            # DEBUG or RELEASE
-BLAS="ATLAS"               # ATLAS, STANDARD, ACCLERATE, or NO
+BLAS="MKL"               # ATLAS, STANDARD, ACCLERATE, or NO
 PARALLEL="YES"           # YES or NO
 TECIO="NO"              # YES or NO
-METIS="YES"              # Build & link to the HiFiLES-supplied ParMETIS libraries? YES or NO
+METIS="NO"              # Build & link to the HiFiLES-supplied ParMETIS libraries? YES or NO
+CGNS="YES"                # Build with CGNS support? YES or NO
 # ---------------------------------------------------------------
 # Compiler Selections [Change compilers or add full filepaths if needed]
 CXX="g++"               # C++ compiler - Typically g++ (default, GNU) or icpc (Intel)
@@ -40,21 +41,25 @@ NVCC="nvcc"             # NVidia CUDA compiler
 MPICC="mpicxx"          # MPI C compiler
 # ---------------------------------------------------------------
 # Library & Header File Locations [Change filepaths as needed]
-BLAS_LIB="/usr/local/atlas/lib"
-BLAS_INCLUDE="/usr/local/atlas/include"
+BLAS_LIB="/home/weiqishen/Documents/intel/mkl/lib/intel64"
+BLAS_INCLUDE="/home/weiqishen/Documents/intel/mkl/include"
 
 TECIO_LIB="lib/tecio-2008/lib"
 TECIO_INCLUDE="lib/tecio-2008/include"
 
 # If building the supplied ParMETIS libraries, need the MPI header location
-MPI_INCLUDE="/usr/include/mpich2"       # location of mpi.h
+MPI_INCLUDE="/usr/local/openmpi/include"       # location of mpi.h
 
 # If NOT building the supplied ParMetis library, location of installed libraries
-PARMETIS_LIB="/usr/local/lib"           # location of libparmetis.a
-PARMETIS_INCLUDE="/usr/local/include"   # location of parmetis.h
+PARMETIS_LIB="/home/weiqishen/Documents/parmetis-4.0.3/build/Linux-x86_64/libparmetis"           # location of libparmetis.a
+PARMETIS_INCLUDE="/home/weiqishen/Documents/parmetis-4.0.3/include"   # location of parmetis.h
 
-METIS_LIB="/usr/local/lib"              # location of libmetis.a
-METIS_INCLUDE="/usr/local/include"      # location of metis.h
+METIS_LIB="/home/weiqishen/Documents/parmetis-4.0.3/build/Linux-x86_64/libmetis"              # location of libmetis.a
+METIS_INCLUDE="/home/weiqishen/Documents/parmetis-4.0.3/metis/include"      # location of metis.h
+
+CGNS_INCLUDE="/usr/local/include"   # location of cgnslib.h
+CGNS_LIB="/usr/local/lib"           # location of libcgns.a
+HDF5_LIB="/home/weiqishen/Documents/hdf5-1.10.2/hdf5/lib"
 
 # GPU Architechture Selection: -gencode=arch=compute_xx,code=sm_xx (default: 20)
 #   compute_10	 Basic features
@@ -89,6 +94,13 @@ then
     TECIO_LIB="NO"
     TECIO_INCLUDE="NO"
 fi
+if [[ "$CGNS" == "NO" ]]
+then
+    CGNS_INCLUDE="NO"
+    CGNS_LIB="NO"
+    HDF5_LIB="NO"
+fi
+
 ./configure --prefix=$HIFILES_RUN/.. \
             --with-CXX=$CXX \
             --with-BLAS=$BLAS \
@@ -106,5 +118,9 @@ fi
             --with-Metis-include=$METIS_INCLUDE \
             --with-Tecio-lib=$TECIO_LIB \
             --with-Tecio-include=$TECIO_INCLUDE \
+            --with-CGNS=$CGNS \
+            --with-CGNS-lib=$CGNS_LIB \
+            --with-CGNS-include=$CGNS_INCLUDE \
+            --with-HDF5-lib=$HDF5_LIB \
             --enable-metis=$METIS \
             --enable-release=$CODE

@@ -92,5 +92,10 @@ ___bin_HiFiLES_CXXFLAGS += @BLAS_CXX@
 ___bin_HiFiLES_LDFLAGS += @BLAS_LDFLAGS@
 ___bin_HiFiLES_LDADD += @BLAS_LD@
 
+# CGNS
+___bin_HiFiLES_CXXFLAGS += @CGNS_CXX@
+___bin_HiFiLES_LDFLAGS += @CGNS_LDFLAGS@
+___bin_HiFiLES_LDADD += @CGNS_LD@
+
 # MPI
 ___bin_HiFiLES_CXXFLAGS += @MPI_INCLUDE@

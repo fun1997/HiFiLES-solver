@@ -1282,7 +1282,7 @@ double eles::calc_dt_local(int in_ele)
             v = disu_upts(0)(i,in_ele,2)/disu_upts(0)(i,in_ele,0);
             p = (run_input.gamma - 1.0) * (disu_upts(0)(i,in_ele,3) - 0.5*disu_upts(0)(i,in_ele,0)*(u*u+v*v));
             c = sqrt(run_input.gamma * p/disu_upts(0)(i,in_ele,0));
-            inte=disu_upts(0)(i,in_ele,3)/disu_upts(0)(i,in_ele,0) - 0.5*(u*u+v*v);
+            inte=p/((run_input.gamma-1.0)*disu_upts(0)(i,in_ele,0));
 
             rt_ratio = (run_input.gamma-1.0)*inte/(run_input.rt_inf);
             mu = (run_input.mu_inf)*pow(rt_ratio,1.5)*(1.+(run_input.c_sth))/(rt_ratio+(run_input.c_sth));
@@ -1321,7 +1321,7 @@ double eles::calc_dt_local(int in_ele)
             w = disu_upts(0)(i,in_ele,3)/disu_upts(0)(i,in_ele,0);
             p = (run_input.gamma - 1.0) * (disu_upts(0)(i,in_ele,4) - 0.5*disu_upts(0)(i,in_ele,0)*(u*u+v*v+w*w));
             c = sqrt(run_input.gamma * p/disu_upts(0)(i,in_ele,0));
-            inte=disu_upts(0)(i,in_ele,4)/disu_upts(0)(i,in_ele,0) - 0.5*(u*u+v*v+w*w);
+            inte=p/((run_input.gamma-1.0)*disu_upts(0)(i,in_ele,0));
 
             rt_ratio = (run_input.gamma-1.0)*inte/(run_input.rt_inf);
             mu = (run_input.mu_inf)*pow(rt_ratio,1.5)*(1.+(run_input.c_sth))/(rt_ratio+(run_input.c_sth));
@@ -2487,7 +2487,7 @@ void eles::evaluate_viscFlux(void)
                 {
                     temp_u(k)=disu_upts(0)(j,i,k);
 
-                    // gradient in dynamic-physical domain
+                    // gradient in static-physical domain
                     for (m=0; m<n_dims; m++)
                     {
                         temp_grad_u(k,m) = grad_disu_upts(j,i,k,m);
@@ -2523,10 +2523,20 @@ void eles::evaluate_viscFlux(void)
                     calc_sgsf_upts(temp_u,temp_grad_u,detjac,i,j,temp_sgsf);
 
                     // Add SGS or wall flux to viscous flux
+
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+
+                    cblas_daxpy(n_fields * n_dims, 1.0, temp_sgsf.get_ptr_cpu(), 1, temp_f.get_ptr_cpu(), 1);
+
+#elif defined _NO_BLAS
+
+                    daxpy_wrapper(n_fields * n_dims, 1.0, temp_sgsf.get_ptr_cpu(), 1, temp_f.get_ptr_cpu(), 1);
+
+#else
                     for(k=0; k<n_fields; k++)
                         for(l=0; l<n_dims; l++)
                             temp_f(k,l) += temp_sgsf(k,l);
-
+#endif
                 }
 
                 // If LES, add SGS flux to global hf_array (needed for interface flux calc)
@@ -2628,7 +2638,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     double diag=0.0;
     double Smod=0.0;
     double ke=0.0;
-    double Pr=0.5; // turbulent Prandtl number
+    double Pr_t=run_input.Pr_t; // turbulent Prandtl number
     double karman=0.41;//von_karman constant 
     double delta, mu, mu_t, vol;
     double rho, inte, rt_ratio;
@@ -2806,6 +2816,9 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             FatalError("SGS model not implemented");
         }
 
+        // The modelling term can be written as
+        //tau_{ij}=-2\mu_t(S_{ij)-1/3*S_{kk}\delta_{ij})
+
         if(eddy==1)
         {
 
@@ -2848,6 +2861,8 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
                 de(i) = (dene(i)-dke(i)-drho(i)*inte)/rho;
             }
 
+            /*! calculate traceless strain rate */
+
             // Strain rate tensor
             for (i=0; i<n_dims; i++)
             {
@@ -2860,20 +2875,19 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
 
             // Subtract diag
             for (i=0; i<n_dims; i++) S(i,i) -= diag;
-
-            // Strain modulus
-            for (i=0; i<n_dims; i++)
-                for (j=0; j<n_dims; j++)
-                    Smod += 2.0*S(i,j)*S(i,j);
-
-            Smod = sqrt(Smod);
+            /*!-----------------------------------------*/
 
             // Eddy viscosity
 
             // Smagorinsky model
             if(sgs_model==0)
             {
+            // Strain modulus
+            for (i=0; i<n_dims; i++)
+                for (j=0; j<n_dims; j++)
+                    Smod += 2.0*S(i,j)*S(i,j);
 
+            Smod = sqrt(Smod);
                 mu_t = rho*min(y*y*karman*karman,C_s*C_s*delta*delta)*Smod;
 
             }
@@ -2936,7 +2950,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             for (j=0; j<n_dims; j++)
             {
                 temp_sgsf(0,j) = 0.0; // Density flux
-                temp_sgsf(n_fields-1,j) = -1.0*run_input.gamma*mu_t/Pr*de(j); // Energy flux
+                temp_sgsf(n_fields-1,j) = -1.0*run_input.gamma*mu_t/Pr_t*de(j); // Energy flux
 
                 for (i=1; i<n_fields-1; i++)
                 {

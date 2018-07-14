@@ -62,6 +62,7 @@ void SetInput(struct solution* FlowSol) {
 
   /*! Basic allocation using the input file. */
   FlowSol->rank               = 0;
+  FlowSol->nproc              = 1;
   FlowSol->n_steps            = run_input.n_steps;
   FlowSol->adv_type           = run_input.adv_type;
   FlowSol->viscous            = run_input.viscous;
@@ -154,12 +155,12 @@ int get_bc_number(string& bcname) {
 void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
   hf_array<double> xv;
   hf_array<int> c2v,c2n_v,ctype,bctype_c,ic2icg,iv2ivg;
-
+  int n_verts_global;
   /*! Reading vertices and cells. */
-  ReadMesh(run_input.mesh_file, xv, c2v, c2n_v, ctype, ic2icg, iv2ivg, FlowSol->num_eles, FlowSol->num_verts, Mesh.n_verts_global, FlowSol);
+  ReadMesh(run_input.mesh_file, xv, c2v, c2n_v, ctype, ic2icg, iv2ivg, FlowSol->num_eles, FlowSol->num_verts, n_verts_global, FlowSol);
 
   //store necesary mesh data into mesh object
-  Mesh.setup(FlowSol,xv,c2v,c2n_v,iv2ivg,ctype,ic2icg);//todo: see if is needed by limiter
+  //Mesh.setup(FlowSol,xv,c2v,c2n_v,iv2ivg,ctype,ic2icg);//todo: see if is needed by limiter
 
   /////////////////////////////////////////////////
   /// Set connectivity
@@ -201,8 +202,8 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
                    unmatched_inters, n_unmatched_inters, icvsta, icvert, FlowSol->num_inters, FlowSol->num_edges, FlowSol);
 
   //store cell to vertex arrays in Mesh
-  Mesh.icvsta=icvsta;
-  Mesh.icvert=icvert;
+  //Mesh.icvsta=icvsta;
+  //Mesh.icvert=icvert;
 
   if (FlowSol->rank==0) cout << "Done setting up mesh connectivity" << endl;
 
@@ -212,7 +213,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
             icvsta,icvert,iv2ivg,FlowSol->num_eles,FlowSol->num_verts,FlowSol);
 
   // ** TODO: see id needed by limiter **
-        Mesh.c2f = c2f;
+       /* Mesh.c2f = c2f;
         Mesh.c2e = c2e;
         Mesh.f2c = f2c;
         Mesh.f2n_v = f2nv;
@@ -223,6 +224,7 @@ void GeoPreprocess(struct solution* FlowSol, mesh &Mesh) {
         {
             Mesh.nBndPts(i) = Mesh.boundPts(i).get_dim(0);
         }
+        */
   /////////////////////////////////////////////////
   /// Initializing Elements
   /////////////////////////////////////////////////

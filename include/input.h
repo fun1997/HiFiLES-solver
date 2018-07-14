@@ -99,7 +99,7 @@ public:
 
     /* ---LES options --- */
     int LES;
-    double C_s;
+    double C_s,Pr_t;
     int filter_type;
     double filter_ratio;
     int SGS_model;

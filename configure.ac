@@ -23,7 +23,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HiFiLES.  If not, see <http://www.gnu.org/licenses/>.
 #####################################################
-AC_INIT([HiFiLES], [0.1], [HiFiLES-dev@lists.stanford.edu],
+AC_INIT([HiFiLES], [0.5], [HiFiLES-dev@lists.stanford.edu],
         [HiFiLES], [http://hifiles.stanford.edu])
 AC_PREREQ([2.59])
 AC_CONFIG_MACRO_DIR([m4])
@@ -86,6 +86,22 @@ AC_ARG_WITH(BLAS-lib,
 AC_ARG_WITH(BLAS-include,
     AS_HELP_STRING([--with-BLAS-include[=ARG]], [BLAS include directory, ARG = path to cblas.h]), 
     [with_BLAS_include=$withval], [with_BLAS_include="NO"])
+
+AC_ARG_WITH(CGNS,
+    AS_HELP_STRING([--with-CGNS[=ARG]], [Build using support for a CGNS variant, ARG= yes/no]), 
+    [with_CGNS=$withval], [with_CGNS="NO"])
+
+AC_ARG_WITH(CGNS-lib,
+    AS_HELP_STRING([--with-CGNS-lib[=ARGS]],[CGNS library directory, ARG =  path to libcgns.a]),
+    [with_CGNS_lib=$withval], [with_CGNS_lib="NO"])
+
+AC_ARG_WITH(CGNS-include,
+    AS_HELP_STRING([--with-CGNS-include[=ARG]], [CGNS include directory, ARG = path to cgnslib.h/pcgnslib.h]), 
+    [with_CGNS_include=$withval], [with_CGNS_include="NO"])
+
+AC_ARG_WITH(HDF5-lib,
+    AS_HELP_STRING([--with-HDF5-lib[=ARG]], [HDF5 include directory, ARG = path to libhdf5.a]), 
+    [with_HDF5_lib=$withval], [with_HDF5_lib="NO"])
 
 AC_ARG_WITH(CXX,
     AS_HELP_STRING([--with-CXX[=ARG]], [Optional: Specify C++ compiler, ARG = C++ compiler]), [with_CXX=$withval], [with_CXX="GCC"])
@@ -406,6 +422,47 @@ AC_SUBST([BLAS_CXX])
 AC_SUBST([BLAS_LDFLAGS])
 AC_SUBST([BLAS_LD])
 
+########################### CGNS
+cgnslib=libcgns.a
+cgnsinclude=cgnslib.h
+pcgnsinclude=pcgnslib.h
+hdf5lib=libhdf5.a
+if test "$with_CGNS" == "YES"
+then
+  AC_CHECK_FILES([$with_CGNS_lib/$cgnslib],[have_CGNS="YES"],[have_CGNS="NO"])
+  if test "$with_HDF5_lib" != "NO"
+  then
+  AC_CHECK_FILES([$with_HDF5_lib/$hdf5lib],[have_CGNS="YES"],[have_CGNS="NO"]) 
+  fi
+  if test "$with_MPI" =="YES"
+  then
+    AC_CHECK_FILES([$with_CGNS_include/$pcgnsinclude],[have_CGNS="YES"],[have_CGNS="NO"]) 
+  else
+    AC_CHECK_FILES([$with_CGNS_include/$cgnsinclude],[have_CGNS="YES"],[have_CGNS="NO"]) 
+  fi
+  if test "$have_CGNS" != "NO"
+	then
+      CGNS_CXX=" -I $with_CGNS_include -D_CGNS"
+      CGNS_LD=" $with_CGNS_lib/$cgnslib"
+      if test "$with_HDF5_lib" != "NO"
+      then
+      CGNS_LD+=" $with_HDF5_lib/$hdf5lib"
+      fi
+      CGNS_LDFLAGS=
+  else
+      AC_MSG_ERROR([CGNS linking requested but library files not found.])
+  fi
+else
+    CGNS_CXX="-D_NO_CGNS"
+    CGNS_LD=
+    CGNS_LDFLAGS=
+    have_CGNS="NO"
+fi
+
+AC_SUBST([CGNS_CXX])
+AC_SUBST([CGNS_LD])
+AC_SUBST([CGNS_LDFLAGS])
+
 ###########################
 # AC_CONFIG_HEADERS([config.h])
 AC_PROG_CXX
@@ -429,15 +486,15 @@ Build Configuration Summary:
     Version:              ${VERSION}
     Code Type:            ${code_type}
     Compiler:             ${CXX}
-    Preprocessor flags:   ${CPPFLAGS} ${BLAS_CXX} ${PARMETIS_CXX} ${CUDA_CXX} ${MPI_INCLUDE}
+    Preprocessor flags:   ${CPPFLAGS} ${BLAS_CXX} ${PARMETIS_CXX} ${CUDA_CXX} ${MPI_INCLUDE} ${CGNS_CXX}
     Compiler flags:       ${CXXFLAGS} ${NVCCFLAGS}
-    Linker flags:         ${LDFLAGS} ${BLAS_LDFLAGS} ${CUDA_LDFLSGS}
-    Libraries:            ${BLAS_LD} ${PARMETIS_LD} ${CUDA_LIBS}
+    Linker flags:         ${LDFLAGS} ${BLAS_LDFLAGS} ${CUDA_LDFLSGS} ${CGNS_LDFLAGS}
+    Libraries:            ${BLAS_LD} ${PARMETIS_LD} ${CUDA_LIBS} ${CGNS_LD}
     BLAS support:         $have_BLAS
     MPI support:          $have_MPI
     CUDA support:         $have_CUDA $CUDA_ARCH
     TecIO support:        $have_Tecio
-
+    CGNS support:         $have_CGNS
 Additionally, don't forget to set the environment variable HIFILES_HOME
 
 ])
