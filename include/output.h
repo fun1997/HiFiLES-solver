@@ -112,7 +112,7 @@ class output
     void check_stability(void);
 
     /*! calculate connectivity for each element (used by cgns)*/
-    void calc_connectivity(hf_array<int> &in_conn,int ele_type,int &start_index);
+    void calc_connectivity(hf_array<int> &out_conn,int ele_type,int &start_index);
 
 #ifdef _GPU
     /*! copy solution and gradients from GPU to CPU for above routines !*/

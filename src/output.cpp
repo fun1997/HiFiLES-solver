@@ -156,12 +156,15 @@ void output::write_tec(int in_file_num)
   /*! Sensor data for shock capturing at plot points */
   hf_array<double> sensor_ppts_temp;
 
+  /*! Plot sub-element connectivity hf_array (node IDs) */
+  hf_array<int> con;
+
   int n_ppts_per_ele;
   int n_dims = FlowSol->n_dims;
   int n_fields;
   int n_diag_fields;
   int n_average_fields;
-  int num_pts, num_elements;
+  int num_pts, num_elements,n_peles_per_ele,n_verts_per_ele;
 
   char  file_name_s[256];
   char  dumpnum_s[256];
@@ -277,7 +280,8 @@ void output::write_tec(int in_file_num)
           n_ppts_per_ele = FlowSol->mesh_eles(i)->get_n_ppts_per_ele();
           num_pts = (FlowSol->mesh_eles(i)->get_n_eles())*n_ppts_per_ele;
           num_elements = (FlowSol->mesh_eles(i)->get_n_eles())*(FlowSol->mesh_eles(i)->get_n_peles_per_ele());
-
+          n_peles_per_ele=FlowSol->mesh_eles(i)->get_n_peles_per_ele();
+          n_verts_per_ele = FlowSol->mesh_eles(i)->get_n_verts_per_ele();
           pos_ppts_temp.setup(n_ppts_per_ele,n_dims);
           disu_ppts_temp.setup(n_ppts_per_ele,n_fields);
           disu_ppts_temp.initialize_to_zero();
@@ -391,253 +395,20 @@ void output::write_tec(int in_file_num)
                 }
             }
 
-          // write element specific connectivity
-
-          if(FlowSol->mesh_eles(i)->get_ele_type()==0) // tri
+            // write element specific connectivity
+            con = FlowSol->mesh_eles(i)->get_connectivity_plot();
+            for (int j = 0; j < FlowSol->mesh_eles(i)->get_n_eles(); j++)
             {
-              for (j=0;j<FlowSol->mesh_eles(i)->get_n_eles();j++)
+              for (int k = 0; k < n_peles_per_ele; k++)
+              {
+                for (int l = 0; l < n_verts_per_ele; l++)
                 {
-                  for(k=0;k<p_res-1;k++) // look to right from each point
-                    {
-                      for(l=0;l<p_res-k-1;l++)
-                        {
-                          vertex_0=l+(k*(p_res+1))-((k*(k+1))/2);
-                          vertex_1=vertex_0+1;
-                          vertex_2=l+((k+1)*(p_res+1))-(((k+1)*(k+2))/2);
-                          vertex_0+=j*(p_res*(p_res+1)/2);
-                          vertex_1+=j*(p_res*(p_res+1)/2);
-                          vertex_2+=j*(p_res*(p_res+1)/2);
-
-                          write_tec << vertex_0+1  << " " <<  vertex_1+1  << " " <<  vertex_2+1  << endl;
-                        }
-                    }
-
-                  for(k=0;k<p_res-2;k++) //  look to left from each point
-                    {
-                      for(l=1;l<p_res-k-1;l++)
-                        {
-                          vertex_0=l+(k*(p_res+1))-((k*(k+1))/2);
-                          vertex_1=l+((k+1)*(p_res+1))-(((k+1)*(k+2))/2);
-                          vertex_2=l-1+((k+1)*(p_res+1))-(((k+1)*(k+2))/2);
-
-                          vertex_0+=j*(p_res*(p_res+1)/2);
-                          vertex_1+=j*(p_res*(p_res+1)/2);
-                          vertex_2+=j*(p_res*(p_res+1)/2);
-
-                          write_tec << vertex_0+1  << " " <<  vertex_1+1  << " " <<  vertex_2+1  << endl;
-                        }
-                    }
+                  write_tec << con(l, k) + j * n_ppts_per_ele + 1;
+                  if (l != n_verts_per_ele - 1)
+                    write_tec << " ";
                 }
-
-            }
-          else if(FlowSol->mesh_eles(i)->get_ele_type()==1) // quad
-            {
-              for (j=0;j<FlowSol->mesh_eles(i)->get_n_eles();j++)
-                {
-                  for(k=0;k<p_res-1;k++)
-                    {
-                      for(l=0;l<p_res-1;l++)
-                        {
-                          vertex_0=l+(p_res*k);
-                          vertex_1=vertex_0+1;
-                          vertex_2=vertex_0+p_res+1;
-                          vertex_3=vertex_0+p_res;
-
-                          vertex_0 += j*p_res*p_res;
-                          vertex_1 += j*p_res*p_res;
-                          vertex_2 += j*p_res*p_res;
-                          vertex_3 += j*p_res*p_res;
-
-                          write_tec << vertex_0+1  << " " <<  vertex_1+1  << " " <<  vertex_2+1 << " " <<  vertex_3+1  << endl;
-                        }
-                    }
-                }
-            }
-          else if (FlowSol->mesh_eles(i)->get_ele_type()==2) // tet
-            {
-              int temp = (p_res)*(p_res+1)*(p_res+2)/6;
-
-              for (int m=0;m<FlowSol->mesh_eles(i)->get_n_eles();m++)
-                {
-
-                  for(int k=0;k<p_res-1;k++)
-                    {
-                      for(int j=0;j<p_res-1-k;j++)
-                        {
-                          for(int i=0;i<p_res-1-k-j;i++)
-                            {
-
-                              vertex_0 = temp - (p_res-k)*(p_res+1-k)*(p_res+2-k)/6 + j*(p_res-k) - (j-1)*j/2 + i;
-
-                              vertex_1 = temp - (p_res-k)*(p_res+1-k)*(p_res+2-k)/6 + j*(p_res-k) - (j-1)*j/2 + i + 1;
-
-                              vertex_2 = temp - (p_res-k)*(p_res+1-k)*(p_res+2-k)/6 + (j+1)*(p_res-k) - (j)*(j+1)/2 + i;
-
-                              vertex_3 = temp - (p_res-(k+1))*(p_res+1-(k+1))*(p_res+2-(k+1))/6 + j*(p_res-(k+1)) - (j-1)*j/2 + i;
-
-                              vertex_0+=m*temp;
-                              vertex_1+=m*temp;
-                              vertex_2+=m*temp;
-                              vertex_3+=m*temp;
-
-                              write_tec << vertex_0+1  << " " <<  vertex_1+1  << " " <<  vertex_2+1  << " " << vertex_3+1 << endl;
-
-                            }
-                        }
-                    }
-
-                  for(int k=0;k<p_res-2;k++)
-                    {
-                      for(int j=0;j<p_res-2-k;j++)
-                        {
-                          for(int i=0;i<p_res-2-k-j;i++)
-                            {
-
-                              vertex_0 = temp - (p_res-k)*(p_res+1-k)*(p_res+2-k)/6 + j*(p_res-k) - (j-1)*j/2 + i + 1;
-
-                              vertex_1 = temp - (p_res-k)*(p_res+1-k)*(p_res+2-k)/6 + (j+1)*(p_res-k) - (j)*(j+1)/2 + i + 1;
-                              vertex_2 = temp - (p_res-(k+1))*(p_res+1-(k+1))*(p_res+2-(k+1))/6 + j*(p_res-(k+1)) - (j-1)*j/2 + i + 1;
-                              vertex_3 = temp - (p_res-(k+1))*(p_res+1-(k+1))*(p_res+2-(k+1))/6 + (j+1)*(p_res-(k+1)) - (j)*(j+1)/2 + (i-1) + 1;
-                              vertex_4 = temp - (p_res-(k+1))*(p_res+1-(k+1))*(p_res+2-(k+1))/6 + (j)*(p_res-(k+1)) - (j-1)*(j)/2 + (i-1) + 1;
-                              vertex_5 = temp - (p_res-(k))*(p_res+1-(k))*(p_res+2-(k))/6 + (j+1)*(p_res-(k)) - (j)*(j+1)/2 + (i-1) + 1;
-
-                              vertex_0+=m*temp;
-                              vertex_1+=m*temp;
-                              vertex_2+=m*temp;
-                              vertex_3+=m*temp;
-                              vertex_4+=m*temp;
-                              vertex_5+=m*temp;
-
-                              write_tec << vertex_0+1  << " " <<  vertex_1+1  << " " <<  vertex_2+1  << " " << vertex_5+1 << endl;
-                              write_tec << vertex_0+1  << " " <<  vertex_2+1  << " " <<  vertex_4+1  << " " << vertex_5+1 << endl;
-                              write_tec << vertex_2+1  << " " <<  vertex_3+1  << " " <<  vertex_4+1  << " " << vertex_5+1 << endl;
-                              write_tec << vertex_1+1  << " " <<  vertex_2+1  << " " <<  vertex_3+1  << " " << vertex_5+1 << endl;
-                            }
-                        }
-                    }
-
-                  for(int k=0;k<p_res-3;k++)
-                    {
-                      for(int j=0;j<p_res-3-k;j++)
-                        {
-                          for(int i=0;i<p_res-3-k-j;i++)
-                            {
-
-                              vertex_0 = temp - (p_res-k)*(p_res+1-k)*(p_res+2-k)/6 + (j+1)*(p_res-k) - (j)*(j+1)/2 + i + 1;
-                              vertex_1 = temp - (p_res-(k+1))*(p_res+1-(k+1))*(p_res+2-(k+1))/6 + (j)*(p_res-(k+1)) - (j-1)*(j)/2 + i + 1;
-                              vertex_2 = temp - (p_res-(k+1))*(p_res+1-(k+1))*(p_res+2-(k+1))/6 + (j+1)*(p_res-(k+1)) - (j)*(j+1)/2 + i ;
-                              vertex_3 = temp - (p_res-(k+1))*(p_res+1-(k+1))*(p_res+2-(k+1))/6 + (j+1)*(p_res-(k+1)) - (j)*(j+1)/2 + i + 1;
-
-                              vertex_0+=m*temp;
-                              vertex_1+=m*temp;
-                              vertex_2+=m*temp;
-                              vertex_3+=m*temp;
-
-                              write_tec << vertex_0+1  << " " <<  vertex_1+1  << " " <<  vertex_2+1  << " " << vertex_3+1 << endl;
-                            }
-                        }
-                    }
-                }
-
-            }
-          else if (FlowSol->mesh_eles(i)->get_ele_type()==3) // prisms
-            {
-              int temp = (p_res)*(p_res+1)/2;
-
-              for (int m=0;m<FlowSol->mesh_eles(i)->get_n_eles();m++)
-                {
-
-                  for (int l=0;l<p_res-1;l++)
-                    {
-                      for(int j=0;j<p_res-1;j++) // look to right from each point
-                        {
-                          for(int k=0;k<p_res-j-1;k++)
-                            {
-                              vertex_0=k+(j*(p_res+1))-((j*(j+1))/2) + l*temp;
-                              vertex_1=vertex_0+1;
-                              vertex_2=k+((j+1)*(p_res+1))-(((j+1)*(j+2))/2) + l*temp;
-
-                              vertex_3 = vertex_0 + temp;
-                              vertex_4 = vertex_1 + temp;
-                              vertex_5 = vertex_2 + temp;
-
-                              vertex_0+=m*(p_res*(p_res+1)/2*p_res);
-                              vertex_1+=m*(p_res*(p_res+1)/2*p_res);
-                              vertex_2+=m*(p_res*(p_res+1)/2*p_res);
-                              vertex_3+=m*(p_res*(p_res+1)/2*p_res);
-                              vertex_4+=m*(p_res*(p_res+1)/2*p_res);
-                              vertex_5+=m*(p_res*(p_res+1)/2*p_res);
-
-                              write_tec << vertex_0+1  << " " <<  vertex_1+1  << " " <<  vertex_2+1  << " " << vertex_2+1 << " " << vertex_3+1 << " " << vertex_4+1 << " " << vertex_5+1 << " " << vertex_5+1 << endl;
-                            }
-                        }
-                    }
-
-                  for (int l=0;l<p_res-1;l++)
-                    {
-                      for(int j=0;j<p_res-2;j++) //  look to left from each point
-                        {
-                          for(int k=1;k<p_res-j-1;k++)
-                            {
-                              vertex_0=k+(j*(p_res+1))-((j*(j+1))/2) + l*temp;
-                              vertex_1=k+((j+1)*(p_res+1))-(((j+1)*(j+2))/2) + l*temp;
-                              vertex_2=k-1+((j+1)*(p_res+1))-(((j+1)*(j+2))/2) + l*temp;
-
-                              vertex_3 = vertex_0 + temp;
-                              vertex_4 = vertex_1 + temp;
-                              vertex_5 = vertex_2 + temp;
-
-                              vertex_0+=m*(p_res*(p_res+1)/2*p_res);
-                              vertex_1+=m*(p_res*(p_res+1)/2*p_res);
-                              vertex_2+=m*(p_res*(p_res+1)/2*p_res);
-                              vertex_3+=m*(p_res*(p_res+1)/2*p_res);
-                              vertex_4+=m*(p_res*(p_res+1)/2*p_res);
-                              vertex_5+=m*(p_res*(p_res+1)/2*p_res);
-
-                              write_tec << vertex_0+1  << " " <<  vertex_1+1  << " " <<  vertex_2+1  << " " << vertex_2+1 << " " << vertex_3+1 << " " << vertex_4+1 << " " << vertex_5+1 << " " << vertex_5+1 << endl;
-                            }
-                        }
-                    }
-                }
-            }
-          else if(FlowSol->mesh_eles(i)->get_ele_type()==4) // hexa
-            {
-              for (int j=0;j<FlowSol->mesh_eles(i)->get_n_eles();j++)
-                {
-                  for(int k=0;k<p_res-1;k++)
-                    {
-                      for(int l=0;l<p_res-1;l++)
-                        {
-                          for(int m=0;m<p_res-1;m++)
-                            {
-                              vertex_0=m+(p_res*l)+(p_res*p_res*k);
-                              vertex_1=vertex_0+1;
-                              vertex_2=vertex_0+p_res+1;
-                              vertex_3=vertex_0+p_res;
-
-                              vertex_4=vertex_0+p_res*p_res;
-                              vertex_5=vertex_4+1;
-                              vertex_6=vertex_4+p_res+1;
-                              vertex_7=vertex_4+p_res;
-
-                              vertex_0 += j*p_res*p_res*p_res;
-                              vertex_1 += j*p_res*p_res*p_res;
-                              vertex_2 += j*p_res*p_res*p_res;
-                              vertex_3 += j*p_res*p_res*p_res;
-                              vertex_4 += j*p_res*p_res*p_res;
-                              vertex_5 += j*p_res*p_res*p_res;
-                              vertex_6 += j*p_res*p_res*p_res;
-                              vertex_7 += j*p_res*p_res*p_res;
-
-                              write_tec << vertex_0+1  << " " <<  vertex_1+1  << " " <<  vertex_2+1 << " " <<  vertex_3+1  << " " << vertex_4+1 << " " << vertex_5+1 << " " << vertex_6+1 << " " << vertex_7+1 <<endl;
-                            }
-                        }
-                    }
-                }
-            }
-          else
-            {
-              FatalError("ERROR: Invalid element type ... ");
+                write_tec << endl;
+              }
             }
         }
     }
@@ -874,7 +645,7 @@ void output::write_vtu(int in_file_num)
           /*! Temporary hf_array of time averaged fields at the plot points */
           if(n_average_fields > 0) {
             disu_average_ppts_temp.setup(n_points,n_average_fields);
-            disu_average_ppts_temp.setup(n_points, n_average_fields);
+            disu_average_ppts_temp.initialize_to_zero();
           }
 
           if(n_diag_fields > 0) {
@@ -2462,17 +2233,19 @@ void output::calc_connectivity(hf_array<int> &out_conn, int ele_type, int &start
 {
   int i, j, k;
   int n_eles, n_peles_per_ele, n_ppts_per_ele, n_verts_per_ele;
-
+  hf_array<int> temp_con;
+  
   n_eles = FlowSol->mesh_eles(ele_type)->get_n_eles();
   n_peles_per_ele = FlowSol->mesh_eles(ele_type)->get_n_peles_per_ele();
   n_ppts_per_ele = FlowSol->mesh_eles(ele_type)->get_n_ppts_per_ele();
   n_verts_per_ele = FlowSol->mesh_eles(ele_type)->get_n_verts_per_ele();
-
+  temp_con = FlowSol->mesh_eles(ele_type)->get_connectivity_plot();
   out_conn.setup(n_verts_per_ele, n_peles_per_ele, n_eles);
+
   for (int j = 0; j < n_eles; j++)
     for (int k = 0; k < n_peles_per_ele; k++)
       for (int i = 0; i < n_verts_per_ele; i++)
-        out_conn(i, k, j) = FlowSol->mesh_eles(ele_type)->get_connectivity_plot()(i, k) + j * n_ppts_per_ele + start_index;
+        out_conn(i, k, j) = temp_con(i, k) + j * n_ppts_per_ele + start_index;
 
   start_index += n_eles * n_ppts_per_ele;
 }
