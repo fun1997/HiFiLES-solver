@@ -38,6 +38,14 @@
 #include "bdy_inters.h"
 #include "solution.h"
 
+#ifdef _CGNS
+#ifdef _MPI
+#include "pcgnslib.h"
+#else
+#include "cgnslib.h"
+#endif
+#endif
+
 #ifdef _MPI
 #include "mpi.h"
 #include "mpi_inters.h"
@@ -46,42 +54,81 @@
 #ifdef _GPU
 #include "util.h"
 #endif
+class output
+{
 
-/*! write an output file in Tecplot ASCII format */
-void write_tec(int in_file_num, struct solution* FlowSol);
+  public:
+    // #### constructors ####
 
-/*! write an output file in VTK ASCII format */
-void write_vtu(int in_file_num, struct solution* FlowSol);
+    // default constructor
 
-/*! write an probe data file */
-void write_probe(struct solution* FlowSol);
+    output(struct solution *in_sol);
 
-/*! writing a restart file */
-void write_restart(int in_file_num, struct solution* FlowSol);
+    // default destructor
 
-/*! compute forces on wall faces*/
-void CalcForces(int in_file_num, struct solution* FlowSol);
+    ~output();
 
-/*! compute integral diagnostic quantities */
-void CalcIntegralQuantities(int in_file_num, struct solution* FlowSol);
+    void setup_CGNS();
 
-/*! Calculate time averaged diagnostic quantities */
-void CalcTimeAverageQuantities(struct solution* FlowSol);
 
-/*! compute error */
-void compute_error(int in_file_num, struct solution* FlowSol);
+    //driver methods
 
-/*! calculate residual */
-void CalcNormResidual(struct solution* FlowSol);
+    /*! write an output file in Tecplot ASCII format */
+    void write_tec(int in_file_num);
 
-/*! monitor convergence of residual */
-void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist, struct solution* FlowSol);
+    /*! write an output file in VTK ASCII format */
+    void write_vtu(int in_file_num);
 
-/*! check if the solution is bounded !*/
-void check_stability(struct solution* FlowSol);
+    /*! write an output file in CGNS format */
+    void write_CGNS(int in_file_num);
+
+    /*! write an probe data file */
+    void write_probe(void);
+
+    /*! writing a restart file */
+    void write_restart(int in_file_num);
+
+    /*! monitor convergence of residual */
+    void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist);
+
+    /*! compute forces on wall faces*/
+    void CalcForces(int in_file_num);
+    
+    //helper methods
+
+    /*! compute integral diagnostic quantities */
+    void CalcIntegralQuantities(int in_file_num);
+
+    /*! Calculate time averaged diagnostic quantities */
+    void CalcTimeAverageQuantities(void);
+
+    /*! compute error */
+    void compute_error(int in_file_num);
+
+    /*! calculate residual */
+    void CalcNormResidual(void);
+
+    /*! check if the solution is bounded !*/
+    void check_stability(void);
+
+    /*! calculate connectivity for each element (used by cgns)*/
+    void calc_connectivity(hf_array<int> &in_conn,int ele_type,int &start_index);
 
 #ifdef _GPU
-/*! copy solution and gradients from GPU to CPU for above routines !*/
-void CopyGPUCPU(struct solution* FlowSol);
+    /*! copy solution and gradients from GPU to CPU for above routines !*/
+    void CopyGPUCPU(void);
 #endif
 
+  protected:
+    //data members
+
+    struct solution *FlowSol; //the solution structure
+#ifdef _CGNS
+    int cell_dim, phy_dim;
+    cgsize_t glob_npnodes; //total number of plot nodes globally
+    cgsize_t glob_npeles;  //total number of plot elements globally
+    hf_array<cgsize_t> pele_start, pele_end;//local element list start end index
+    hf_array<int> sum_npele;//global number of each type of plot element
+    cgsize_t pnode_start;//local node list start index
+#endif
+};

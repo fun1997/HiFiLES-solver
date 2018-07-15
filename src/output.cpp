@@ -1290,7 +1290,7 @@ void output::write_CGNS(int in_file_num)
         if (n_average_fields > 0)
         {
           FlowSol->mesh_eles(i)->calc_time_average_ppts(j, disu_average_ppts_temp);
-          for (int k = 0; j < n_average_fields; k++)
+          for (int k = 0; k < n_average_fields; k++)
             if (cgp_field_write_data(F, B, Z, S, Fs_avg(k), &temp_ptr, &temp_ptr2, disu_average_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele)))
               cgp_error_exit();
         }
@@ -1468,7 +1468,7 @@ void output::write_CGNS(int in_file_num)
         if (n_average_fields > 0)
         {
           FlowSol->mesh_eles(i)->calc_time_average_ppts(j, disu_average_ppts_temp);
-          for (int k = 0; j < n_average_fields; k++)
+          for (int k = 0; k < n_average_fields; k++)
             if (cg_field_partial_write(F, B, Z, S, RealDouble, run_input.average_fields(i).c_str(), &temp_ptr, &temp_ptr2, disu_average_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele), &Fs_avg(k)))
               cg_error_exit();
         }
@@ -2463,11 +2463,8 @@ void output::CopyGPUCPU(void)
 
 void output::calc_connectivity(hf_array<int> &out_conn, int ele_type, int &start_index)
 {
-  int p_res = run_input.p_res;
-  int i, j, k, l;
+  int i, j, k;
   int n_eles, n_peles_per_ele, n_ppts_per_ele, n_verts_per_ele;
-  hf_array<int> vertex(FlowSol->mesh_eles(ele_type)->get_n_verts_per_ele());
-  int count = 0; //plot element ounter;
 
   n_eles = FlowSol->mesh_eles(ele_type)->get_n_eles();
   n_peles_per_ele = FlowSol->mesh_eles(ele_type)->get_n_peles_per_ele();
