@@ -1133,11 +1133,12 @@ if(my_rank==0) cout<<"done."<<endl;
 }
 
 
+
+void output::write_CGNS(int in_file_num)
+{
 #ifdef _CGNS
 #ifdef _MPI
 /*! write parallel CGNS file*/
-void output::write_CGNS(int in_file_num)
-{
   int F, B, Z, S, Cx, Cy, Cz;
   int E[5];                                             //element node
   int Fs_rho, Fs_rhou, Fs_rhov, Fs_rhow, Fs_rhoe, Fs_mu, Fs_s ; //field variable
@@ -1347,14 +1348,9 @@ void output::write_CGNS(int in_file_num)
   /* close the file */
   cgp_close(F);
 
-  if (FlowSol->rank == 0)
-    cout << "done" << endl;
-}
-
 #else
 /*! write serial CGNS file*/
-void output::write_CGNS(int in_file_num)
-{
+
   int F, B, Z, S, Cx, Cy, Cz;
   int E[5];                                             //element node
   int Fs_rho, Fs_rhou, Fs_rhov, Fs_rhow, Fs_rhoe, Fs_mu, Fs_s ; //field variable
@@ -1518,12 +1514,13 @@ void output::write_CGNS(int in_file_num)
 
   /* close the file */
   cg_close(F);
-
+  
+#endif
   if (FlowSol->rank == 0)
     cout << "done" << endl;
+#endif
 }
-#endif
-#endif
+
 
 /*! Method to write out a probe file.
 Used in run mode.
