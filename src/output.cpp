@@ -69,7 +69,8 @@ void output::setup_CGNS(void)
   #ifdef _CGNS
   hf_array<int> npele_list_local(FlowSol->n_ele_types);//local array for number of plot element per type
   hf_array<int>npele_list(FlowSol->n_ele_types,FlowSol->nproc);//global array for number of plot element per type per processor
-  int n_ppts_per_ele,n_peles_per_ele,n_eles;
+  int n_ppts_per_ele,n_peles_per_ele;
+  int p_res=run_input.p_res;
 
 //initialize typewise local plot element start/end index
   pele_start.setup(FlowSol->n_ele_types);
@@ -102,15 +103,36 @@ void output::setup_CGNS(void)
 #endif // _MPI
 
   //calculate global number of plot elements and nodes, typewise number of plot elements and nodes before this rank
-  for (int j = 0; j < FlowSol->nproc; j++)
+  for (int j = 0; j < FlowSol->nproc; j++)//for each processor
   {
-    for (int i = 0; i < FlowSol->n_ele_types; i++)
+    for (int i = 0; i < FlowSol->n_ele_types; i++)//for each type
     {
-      n_eles = FlowSol->mesh_eles(i)->get_n_eles();
-      if (n_eles)
+      if (npele_list(i, j))//if have element
       {
-        n_ppts_per_ele = FlowSol->mesh_eles(i)->get_n_ppts_per_ele();
-        n_peles_per_ele = FlowSol->mesh_eles(i)->get_n_peles_per_ele();
+        switch (i) //calc n_ppts and n_peles per element
+        {
+        case 0:
+          n_ppts_per_ele = (p_res + 1) * p_res / 2;
+          n_peles_per_ele = (p_res - 1) * (p_res - 1);
+          break;
+        case 1:
+          n_ppts_per_ele = p_res * p_res;
+          n_peles_per_ele = (p_res - 1) * (p_res - 1);
+          break;
+        case 2:
+          n_ppts_per_ele = (p_res + 2) * (p_res + 1) * p_res / 6;
+          n_peles_per_ele = (p_res - 1) * (p_res) * (p_res + 1) / 6 + 4 * (p_res - 2) * (p_res - 1) * (p_res) / 6 + (p_res - 3) * (p_res - 2) * (p_res - 1) / 6;
+          break;
+        case 3:
+          n_ppts_per_ele = (p_res + 1) * (p_res) * (p_res) / 2;
+          n_peles_per_ele = ((p_res - 1) * (p_res - 1) * (p_res - 1));
+          break;
+        case 4:
+          n_ppts_per_ele = p_res * p_res * p_res;
+          n_peles_per_ele = (p_res - 1) * (p_res - 1) * (p_res - 1);
+          break;
+        }
+
         glob_npeles += npele_list(i, j);
         glob_npnodes += npele_list(i, j) * n_ppts_per_ele / n_peles_per_ele;
         sum_npele(i) += npele_list(i, j); //global number of each type of element
@@ -128,9 +150,12 @@ void output::setup_CGNS(void)
   }
 
   //transform to local plot element start index, order by element type
-  for (int i = 1; i < FlowSol->n_ele_types; i++)//start from quad to hex
-    for (int j = 0; j < i; j++)
+  for (int i = 1; i < FlowSol->n_ele_types; i++) //start from quad to hex
+    for (int j = 0; j < i; j++)//loop over former types
+    {
       pele_start(i) += sum_npele(j);
+      pele_end(i) += sum_npele(j);
+    }
   //start index start form 1
   for (int i = 0; i < FlowSol->n_ele_types; i++)
     pele_start(i)++;
@@ -142,10 +167,6 @@ void output::setup_CGNS(void)
 void output::write_tec(int in_file_num)
 {
   int i,j,k,l,m;
-
-  int vertex_0, vertex_1, vertex_2, vertex_3, vertex_4, vertex_5, vertex_6, vertex_7;
-
-  int p_res=run_input.p_res; // HACK
 
   hf_array<double> pos_ppts_temp;
   hf_array<double> disu_ppts_temp;
