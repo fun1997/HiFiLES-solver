@@ -930,7 +930,7 @@ void output::write_CGNS(int in_file_num)
 {
 #ifdef _CGNS
 #ifdef _MPI
-/*! write parallel CGNS file*/
+  /*! write parallel CGNS file*/
   int F, B, Z, S, Cx, Cy, Cz;
   int E[5];                                             //element node
   int Fs_rho, Fs_rhou, Fs_rhov, Fs_rhow, Fs_rhoe, Fs_mu, Fs_s ; //field variable
@@ -955,7 +955,6 @@ void output::write_CGNS(int in_file_num)
 
   sprintf(fname, "%s_%.09d.cgns", run_input.data_file_name.c_str(), in_file_num);
   cgp_mpi_comm(MPI_COMM_WORLD);
-  cgp_pio_mode(CGP_INDEPENDENT);
   if (FlowSol->rank == 0)
     cout << "Writing CGNS file " << fname << " ...." << flush;
 
@@ -964,9 +963,11 @@ void output::write_CGNS(int in_file_num)
   sizes[1] = glob_npeles;
   sizes[2] = 0;
 
-  if (cgp_open(fname, CG_MODE_WRITE, &F) ||
-      cg_base_write(F, "Base", n_dims, n_dims, &B) ||
-      cg_zone_write(F, B, "Zone", sizes, Unstructured, &Z))
+  if (cgp_open(fname, CG_MODE_WRITE, &F))
+    cgp_error_exit();
+  if (cg_base_write(F, "Base", n_dims, n_dims, &B))
+    cgp_error_exit();
+  if (cg_zone_write(F, B, "Zone", sizes, Unstructured, &Z))
     cgp_error_exit();
 
   /* create data nodes for coordinates */
@@ -1008,6 +1009,40 @@ void output::write_CGNS(int in_file_num)
       if (cgp_field_write(F, B, Z, S, RealDouble, run_input.average_fields(i).c_str(), Fs_avg.get_ptr_cpu(i)))
         cgp_error_exit();
   }
+
+  /* create data node for elements */
+  temp_ptr = 1;          //pointer to next index of each type of element
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+  {
+    if (sum_npele(i)) //if have such type of element globally
+    {
+      switch (i) //write element node
+      {
+      case 0:
+        cgp_section_write(F, B, Z, "Tri", TRI_3, temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[0]);
+        temp_ptr += sum_npele(i);
+        break;
+      case 1:
+        cgp_section_write(F, B, Z, "Quad", QUAD_4, temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[1]);
+        temp_ptr += sum_npele(i);
+        break;
+      case 2:
+        cgp_section_write(F, B, Z, "Tetra", TETRA_4, temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[2]);
+        temp_ptr += sum_npele(i);
+        break;
+      case 3:
+        cgp_section_write(F, B, Z, "Pris", PENTA_6, temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[3]);
+        temp_ptr += sum_npele(i);
+        break;
+      case 4:
+        cgp_section_write(F, B, Z, "Hex", HEXA_8, temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[4]);
+        temp_ptr += sum_npele(i);
+        break;
+      }
+    }
+  }
+
+  cgp_pio_mode(CGP_INDEPENDENT);
   //write solution data
   temp_ptr = pnode_start;//pointer to the next node index to write the solution
 
@@ -1094,47 +1129,19 @@ void output::write_CGNS(int in_file_num)
 
   /* create data node for elements */
   temp_ptr = pnode_start; //pointer to next node index to write
-  temp_ptr2 = 1;          //pointer to next index of each type of element
   for (int i = 0; i < FlowSol->n_ele_types; i++)
   {
     n_eles = FlowSol->mesh_eles(i)->get_n_eles();
-
-    if (sum_npele(i)) //if have such type of element globally
+    if (n_eles) //if have such type element locally, write connectivity
     {
-      switch (i) //write element node
-      {
-      case 0:
-        cgp_section_write(F, B, Z, "Tri", TRI_3, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, &E[0]);
-        temp_ptr2 += sum_npele(i);
-        break;
-      case 1:
-        cgp_section_write(F, B, Z, "Quad", QUAD_4, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, &E[1]);
-        temp_ptr2 += sum_npele(i);
-        break;
-      case 2:
-        cgp_section_write(F, B, Z, "Tetra", TETRA_4, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, &E[2]);
-        temp_ptr2 += sum_npele(i);
-        break;
-      case 3:
-        cgp_section_write(F, B, Z, "Pris", PENTA_6, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, &E[3]);
-        temp_ptr2 += sum_npele(i);
-        break;
-      case 4:
-        cgp_section_write(F, B, Z, "Hex", HEXA_8, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, &E[4]);
-        temp_ptr2 += sum_npele(i);
-        break;
-      }
-
-      if (n_eles) //if have such type element locally, write connectivity
-      {
-        //calculate connectivity
-        calc_connectivity(conn, i, temp_ptr);
-        // write the element connectivity in parallel
-        if (cgp_elements_write_data(F, B, Z, E[i], pele_start(i), pele_end(i), conn.get_ptr_cpu()))
-          cgp_error_exit();
-      }
+      //calculate connectivity
+      calc_connectivity(conn, i, temp_ptr);
+      // write the element connectivity in parallel
+      if (cgp_elements_write_data(F, B, Z, E[i], pele_start(i), pele_end(i), conn.get_ptr_cpu()))
+        cgp_error_exit();
     }
   }
+
   conn.setup(0); //free memory
 
   /* close the file */

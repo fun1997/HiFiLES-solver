@@ -481,7 +481,7 @@ void input::setup_params(int rank)
     // --------------------
     // ERROR CHECKING
     // --------------------
-
+    if (p_res<2) FatalError("Plot resolution must be larger than 2");
     if (monitor_res_freq == 0) monitor_res_freq = 1000;
     if (monitor_cp_freq == 0) monitor_cp_freq = 1000;
 
