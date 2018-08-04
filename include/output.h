@@ -111,8 +111,10 @@ class output
     /*! check if the solution is bounded !*/
     void check_stability(void);
 
+#ifdef _CGNS
     /*! calculate connectivity for each element (used by cgns)*/
-    void calc_connectivity(hf_array<int> &out_conn,int ele_type,int &start_index);
+    void calc_connectivity(hf_array<cgsize_t> &out_conn,int ele_type,cgsize_t &start_index);
+#endif
 
 #ifdef _GPU
     /*! copy solution and gradients from GPU to CPU for above routines !*/

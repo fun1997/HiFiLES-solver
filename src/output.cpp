@@ -107,41 +107,36 @@ void output::setup_CGNS(void)
   {
     for (int i = 0; i < FlowSol->n_ele_types; i++)//for each type
     {
-      if (npele_list(i, j))//if have element
+      switch (i) //calc n_ppts and n_peles per element
       {
-        switch (i) //calc n_ppts and n_peles per element
-        {
-        case 0:
-          n_ppts_per_ele = (p_res + 1) * p_res / 2;
-          n_peles_per_ele = (p_res - 1) * (p_res - 1);
-          break;
-        case 1:
-          n_ppts_per_ele = p_res * p_res;
-          n_peles_per_ele = (p_res - 1) * (p_res - 1);
-          break;
-        case 2:
-          n_ppts_per_ele = (p_res + 2) * (p_res + 1) * p_res / 6;
-          n_peles_per_ele = (p_res - 1) * (p_res) * (p_res + 1) / 6 + 4 * (p_res - 2) * (p_res - 1) * (p_res) / 6 + (p_res - 3) * (p_res - 2) * (p_res - 1) / 6;
-          break;
-        case 3:
-          n_ppts_per_ele = (p_res + 1) * (p_res) * (p_res) / 2;
-          n_peles_per_ele = ((p_res - 1) * (p_res - 1) * (p_res - 1));
-          break;
-        case 4:
-          n_ppts_per_ele = p_res * p_res * p_res;
-          n_peles_per_ele = (p_res - 1) * (p_res - 1) * (p_res - 1);
-          break;
-        }
-
-        glob_npeles += npele_list(i, j);
-        glob_npnodes += npele_list(i, j) * n_ppts_per_ele / n_peles_per_ele;
-        sum_npele(i) += npele_list(i, j); //global number of each type of element
+      case 0:
+        n_ppts_per_ele = (p_res + 1) * p_res / 2;
+        n_peles_per_ele = (p_res - 1) * (p_res - 1);
+        break;
+      case 1:
+        n_ppts_per_ele = p_res * p_res;
+        n_peles_per_ele = (p_res - 1) * (p_res - 1);
+        break;
+      case 2:
+        n_ppts_per_ele = (p_res + 2) * (p_res + 1) * p_res / 6;
+        n_peles_per_ele = (p_res - 1) * (p_res) * (p_res + 1) / 6 + 4 * (p_res - 2) * (p_res - 1) * (p_res) / 6 + (p_res - 3) * (p_res - 2) * (p_res - 1) / 6;
+        break;
+      case 3:
+        n_ppts_per_ele = (p_res + 1) * (p_res) * (p_res) / 2;
+        n_peles_per_ele = ((p_res - 1) * (p_res - 1) * (p_res - 1));
+        break;
+      case 4:
+        n_ppts_per_ele = p_res * p_res * p_res;
+        n_peles_per_ele = (p_res - 1) * (p_res - 1) * (p_res - 1);
+        break;
       }
+
+      glob_npeles += npele_list(i, j);
+      glob_npnodes += npele_list(i, j) * n_ppts_per_ele / n_peles_per_ele;
+      sum_npele(i) += npele_list(i, j); //global number of each type of element
 
       if (j == FlowSol->rank - 1)
-      {
         pele_start(i) = sum_npele(i); //set local typewise plot element start index despite the existence of other type of element
-      }
       if (j == FlowSol->rank)
         pele_end(i) = sum_npele(i); //set local typewise plot element end index despite the existence of other type of element
     }
@@ -937,7 +932,7 @@ void output::write_CGNS(int in_file_num)
   hf_array<int> Fs_diag, Fs_avg;
   char fname[256];
   cgsize_t sizes[3];
-  int temp_ptr, temp_ptr2;
+  cgsize_t temp_ptr, temp_ptr2;
   hf_array<cgsize_t> conn; //connectivity
 
   //temp data arrays for each cell
@@ -972,39 +967,39 @@ void output::write_CGNS(int in_file_num)
 
   if (cgp_open(fname, CG_MODE_WRITE, &F) ||
       cg_base_write(F, "Base", n_dims, n_dims, &B) ||
-      cg_zone_write(F, B, "Zone", sizes, Unstructured, &Z))
+      cg_zone_write(F, B, "Zone", sizes, CGNS_ENUMV(Unstructured), &Z))
     cgp_error_exit();
 
   /* create data nodes for coordinates */
-  if (cgp_coord_write(F, B, Z, RealDouble, "CoordinateX", &Cx) ||
-      cgp_coord_write(F, B, Z, RealDouble, "CoordinateY", &Cy))
+  if (cgp_coord_write(F, B, Z, CGNS_ENUMV(RealDouble), "CoordinateX", &Cx) ||
+      cgp_coord_write(F, B, Z, CGNS_ENUMV(RealDouble), "CoordinateY", &Cy))
     cgp_error_exit();
   if (n_dims == 3)
-    if (cgp_coord_write(F, B, Z, RealDouble, "CoordinateZ", &Cz))
+    if (cgp_coord_write(F, B, Z, CGNS_ENUMV(RealDouble), "CoordinateZ", &Cz))
       cgp_error_exit();
 
   /*! create solution nodes */
-  if (cg_sol_write(F, B, Z, "Solution", Vertex, &S))
+  if (cg_sol_write(F, B, Z, "Solution", CGNS_ENUMV(Vertex), &S))
     cgp_error_exit();
   //default solutions
-  if (cgp_field_write(F, B, Z, S, RealDouble, "Density", &Fs_rho) ||
-      cgp_field_write(F, B, Z, S, RealDouble, "MomentumX", &Fs_rhou) ||
-      cgp_field_write(F, B, Z, S, RealDouble, "MomentumY", &Fs_rhov))
+  if (cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "Density", &Fs_rho) ||
+      cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "MomentumX", &Fs_rhou) ||
+      cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "MomentumY", &Fs_rhov))
     cgp_error_exit();
   if (n_dims == 3)
-    if (cgp_field_write(F, B, Z, S, RealDouble, "MomentumZ", &Fs_rhow))
+    if (cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "MomentumZ", &Fs_rhow))
       cgp_error_exit();
-  if (cgp_field_write(F, B, Z, S, RealDouble, "EnergyStagnationDensity", &Fs_rhoe))
+  if (cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "EnergyStagnationDensity", &Fs_rhoe))
     cgp_error_exit();
   if (run_input.turb_model)
-    if (cgp_field_write(F, B, Z, S, RealDouble, "mu", &Fs_mu))
+    if (cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "mu", &Fs_mu))
       cgp_error_exit();
   //diagnostic fields
   if (n_diag_fields)
   {
     Fs_diag.setup(n_diag_fields);
     for (int i = 0; i < n_diag_fields; i++)
-      if (cgp_field_write(F, B, Z, S, RealDouble, run_input.diagnostic_fields(i).c_str(), Fs_diag.get_ptr_cpu(i)))
+      if (cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), run_input.diagnostic_fields(i).c_str(), Fs_diag.get_ptr_cpu(i)))
         cgp_error_exit();
   }
   //average fields
@@ -1012,7 +1007,7 @@ void output::write_CGNS(int in_file_num)
   {
     Fs_avg.setup(n_diag_fields);
     for (int i = 0; i < n_average_fields; i++)
-      if (cgp_field_write(F, B, Z, S, RealDouble, run_input.average_fields(i).c_str(), Fs_avg.get_ptr_cpu(i)))
+      if (cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), run_input.average_fields(i).c_str(), Fs_avg.get_ptr_cpu(i)))
         cgp_error_exit();
   }
 
@@ -1025,19 +1020,19 @@ void output::write_CGNS(int in_file_num)
       switch (i) //write element node
       {
       case 0:
-        cgp_section_write(F, B, Z, "Tri", TRI_3, temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[0]);
+        cgp_section_write(F, B, Z, "Tri", CGNS_ENUMV(TRI_3), temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[0]);
         break;
       case 1:
-        cgp_section_write(F, B, Z, "Quad", QUAD_4, temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[1]);
+        cgp_section_write(F, B, Z, "Quad", CGNS_ENUMV(QUAD_4), temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[1]);
         break;
       case 2:
-        cgp_section_write(F, B, Z, "Tetra", TETRA_4, temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[2]);
+        cgp_section_write(F, B, Z, "Tetra", CGNS_ENUMV(TETRA_4), temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[2]);
         break;
       case 3:
-        cgp_section_write(F, B, Z, "Pris", PENTA_6, temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[3]);
+        cgp_section_write(F, B, Z, "Pris", CGNS_ENUMV(PENTA_6), temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[3]);
         break;
       case 4:
-        cgp_section_write(F, B, Z, "Hex", HEXA_8, temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[4]);
+        cgp_section_write(F, B, Z, "Hex", CGNS_ENUMV(HEXA_8), temp_ptr, temp_ptr + sum_npele(i) - 1, 0, &E[4]);
         break;
       }
       temp_ptr += sum_npele(i);
@@ -1244,7 +1239,7 @@ void output::write_CGNS(int in_file_num)
   hf_array<int> Fs_diag, Fs_avg;
   char fname[256];
   cgsize_t sizes[3];
-  int temp_ptr, temp_ptr2;
+  cgsize_t temp_ptr, temp_ptr2;
   hf_array<cgsize_t> conn; //connectivity
 
   //data arrays
@@ -1272,8 +1267,8 @@ void output::write_CGNS(int in_file_num)
 
   if (cg_open(fname, CG_MODE_WRITE, &F) ||
       cg_base_write(F, "Base", n_dims, n_dims, &B) ||
-      cg_zone_write(F, B, "Zone", sizes, Unstructured, &Z)||
-      cg_sol_write(F, B, Z, "Solution", Vertex, &S))
+      cg_zone_write(F, B, "Zone", sizes, CGNS_ENUMV(Unstructured), &Z)||
+      cg_sol_write(F, B, Z, "Solution", CGNS_ENUMV(Vertex), &S))
     cg_error_exit();
 
 //write solution data
@@ -1302,34 +1297,34 @@ void output::write_CGNS(int in_file_num)
         FlowSol->mesh_eles(i)->calc_pos_ppts(j, pos_ppts_temp); //get sub selemt coord
         temp_ptr2 = temp_ptr + n_ppts_per_ele - 1;
 
-        if (cg_coord_partial_write(F, B, Z, RealDouble, "CoordinateX", &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(), &Cx) ||
-            cg_coord_partial_write(F, B, Z, RealDouble, "CoordinateY", &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(n_ppts_per_ele), &Cy))
+        if (cg_coord_partial_write(F, B, Z, CGNS_ENUMV(RealDouble), "CoordinateX", &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(), &Cx) ||
+            cg_coord_partial_write(F, B, Z, CGNS_ENUMV(RealDouble), "CoordinateY", &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(n_ppts_per_ele), &Cy))
           cg_error_exit();
         if (n_dims == 3)
-          if (cg_coord_partial_write(F, B, Z, RealDouble, "CoordinateZ", &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(n_ppts_per_ele * 2), &Cz))
+          if (cg_coord_partial_write(F, B, Z, CGNS_ENUMV(RealDouble), "CoordinateZ", &temp_ptr, &temp_ptr2, pos_ppts_temp.get_ptr_cpu(n_ppts_per_ele * 2), &Cz))
             cg_error_exit();
 
         //default solution
         FlowSol->mesh_eles(i)->calc_disu_ppts(j, disu_ppts_temp);
-        if (cg_field_partial_write(F, B, Z, S, RealDouble, "Density", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(), &Fs_rho) ||
-            cg_field_partial_write(F, B, Z, S, RealDouble, "MomentumX", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(n_ppts_per_ele), &Fs_rhou) ||
-            cg_field_partial_write(F, B, Z, S, RealDouble, "MomentumY", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(2 * n_ppts_per_ele), &Fs_rhov))
+        if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "Density", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(), &Fs_rho) ||
+            cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "MomentumX", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(n_ppts_per_ele), &Fs_rhou) ||
+            cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "MomentumY", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(2 * n_ppts_per_ele), &Fs_rhov))
           cg_error_exit();
         if (n_dims == 2)
         {
-          if (cg_field_partial_write(F, B, Z, S, RealDouble, "EnergyStagnationDensity", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(3 * n_ppts_per_ele), &Fs_rhoe))
+          if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "EnergyStagnationDensity", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(3 * n_ppts_per_ele), &Fs_rhoe))
             cg_error_exit();
           if (run_input.turb_model)
-            if (cg_field_partial_write(F, B, Z, S, RealDouble, "mu", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(4 * n_ppts_per_ele), &Fs_mu))
+            if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "mu", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(4 * n_ppts_per_ele), &Fs_mu))
               cg_error_exit();
         }
         else
         {
-          if (cg_field_partial_write(F, B, Z, S, RealDouble, "MomentumZ", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(3 * n_ppts_per_ele), &Fs_rhow) ||
-              cg_field_partial_write(F, B, Z, S, RealDouble, "EnergyStagnationDensity", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(4 * n_ppts_per_ele), &Fs_rhoe))
+          if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "MomentumZ", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(3 * n_ppts_per_ele), &Fs_rhow) ||
+              cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "EnergyStagnationDensity", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(4 * n_ppts_per_ele), &Fs_rhoe))
             cg_error_exit();
           if (run_input.turb_model)
-            if (cg_field_partial_write(F, B, Z, S, RealDouble, "mu", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(5 * n_ppts_per_ele), &Fs_mu))
+            if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "mu", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(5 * n_ppts_per_ele), &Fs_mu))
               cg_error_exit();
         }
 
@@ -1343,7 +1338,7 @@ void output::write_CGNS(int in_file_num)
           FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
           FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, diag_ppts_temp, FlowSol->time);
           for (int k = 0; k < n_diag_fields; k++)
-            if (cg_field_partial_write(F, B, Z, S, RealDouble, run_input.diagnostic_fields(i).c_str(), &temp_ptr, &temp_ptr2, diag_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele), Fs_diag.get_ptr_cpu(k)))
+            if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), run_input.diagnostic_fields(i).c_str(), &temp_ptr, &temp_ptr2, diag_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele), Fs_diag.get_ptr_cpu(k)))
               cg_error_exit();
         }
 
@@ -1352,7 +1347,7 @@ void output::write_CGNS(int in_file_num)
         {
           FlowSol->mesh_eles(i)->calc_time_average_ppts(j, disu_average_ppts_temp);
           for (int k = 0; k < n_average_fields; k++)
-            if (cg_field_partial_write(F, B, Z, S, RealDouble, run_input.average_fields(i).c_str(), &temp_ptr, &temp_ptr2, disu_average_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele), &Fs_avg(k)))
+            if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), run_input.average_fields(i).c_str(), &temp_ptr, &temp_ptr2, disu_average_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele), &Fs_avg(k)))
               cg_error_exit();
         }
         temp_ptr += n_ppts_per_ele; //move pointer to next element
@@ -1375,23 +1370,23 @@ void output::write_CGNS(int in_file_num)
         switch (i) //write element node
         {
         case 0:
-          cg_section_write(F, B, Z, "Tri", TRI_3, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[0]);
+          cg_section_write(F, B, Z, "Tri", CGNS_ENUMV(TRI_3), temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[0]);
           temp_ptr2 += sum_npele(i);
           break;
         case 1:
-          cg_section_write(F, B, Z, "Quad", QUAD_4, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[1]);
+          cg_section_write(F, B, Z, "Quad", CGNS_ENUMV(QUAD_4), temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[1]);
           temp_ptr2 += sum_npele(i);
           break;
         case 2:
-          cg_section_write(F, B, Z, "Tetra", TETRA_4, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[2]);
+          cg_section_write(F, B, Z, "Tetra", CGNS_ENUMV(TETRA_4), temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[2]);
           temp_ptr2 += sum_npele(i);
           break;
         case 3:
-          cg_section_write(F, B, Z, "Pris", PENTA_6, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[3]);
+          cg_section_write(F, B, Z, "Pris", CGNS_ENUMV(PENTA_6), temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[3]);
           temp_ptr2 += sum_npele(i);
           break;
         case 4:
-          cg_section_write(F, B, Z, "Hex", HEXA_8, temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[4]);
+          cg_section_write(F, B, Z, "Hex", CGNS_ENUMV(HEXA_8), temp_ptr2, temp_ptr2 + sum_npele(i) - 1, 0, conn.get_ptr_cpu(), &E[4]);
           temp_ptr2 += sum_npele(i);
           break;
         }
@@ -2344,7 +2339,8 @@ void output::CopyGPUCPU(void)
 }
 #endif
 
-void output::calc_connectivity(hf_array<int> &out_conn, int ele_type, int &start_index)
+#ifdef _CGNS
+void output::calc_connectivity(hf_array<cgsize_t> &out_conn, int ele_type, cgsize_t &start_index)
 {
   int i, j, k;
   int n_eles, n_peles_per_ele, n_ppts_per_ele, n_verts_per_ele;
@@ -2364,3 +2360,4 @@ void output::calc_connectivity(hf_array<int> &out_conn, int ele_type, int &start
 
   start_index += n_eles * n_ppts_per_ele;
 }
+#endif // _CGNS
