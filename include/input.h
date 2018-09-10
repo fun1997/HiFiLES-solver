@@ -144,7 +144,6 @@ public:
     int error_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
     int res_norm_field;
     int probe;
-    string probe_file_name;
 
     /*--- flux reconstruction parameters ---*/
     int upts_type_tri;

@@ -40,7 +40,6 @@ public:
     hf_array<string> probe_fields;
     int n_probe;
     int probe_freq;
-    int probe_layout;
     int n_probe_fields;
     hf_array<double> pos_probe;
     //point source
@@ -62,13 +61,12 @@ public:
     hf_array<int> p2t;//probe point to cell type
     hf_array<double> loc_probe;
     //entrance
-    void setup(string filenameS,struct solution* FlowSol, int rank);
-protected:
-    void read_probe_input(string filename, int rank);
-    void set_probe_connectivity(struct solution* FlowSol,int rank);
-    void set_probe_gambit(string filename);
-    void set_loc_probepts(struct solution* FlowSol);
+    void setup(char *fileNameC,struct solution* FlowSol, int rank);
 private:
+    void read_probe_input(int rank);
+    void set_probe_connectivity(struct solution* FlowSol,int rank);
+    void set_probe_mesh(string filename);
+    void set_loc_probepts(struct solution* FlowSol);
     int n_dims;
-    string probe_mesh_file;
+    string fileNameS,probe_source_file;
 };

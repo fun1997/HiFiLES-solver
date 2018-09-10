@@ -40,16 +40,17 @@ probe_input::~probe_input()
 {
     //dtor
 }
-void probe_input::setup(string filenameS,struct solution* FlowSol, int rank)
+void probe_input::setup(char *fileNameC,struct solution* FlowSol, int rank)
 {
+    fileNameS.assign(fileNameC);
     n_dims=FlowSol->n_dims;
-    read_probe_input(filenameS,rank);
+    read_probe_input(rank);
     set_probe_connectivity(FlowSol,rank);
 }
-void probe_input::read_probe_input(string filename, int rank)
+void probe_input::read_probe_input(int rank)
 
 {
-    param_reader probf(filename);
+    param_reader probf(fileNameS);
     probf.openFile();
     if (rank==0)
         cout << endl << "---------------------- Setting up probes ---------------------" << endl;
@@ -57,7 +58,6 @@ void probe_input::read_probe_input(string filename, int rank)
 
     /*!----------read probe input parameters ------------*/
     probf.getVectorValue("probe_fields",probe_fields);//name of probe fields
-    probf.getScalarValue("probe_layout",probe_layout,0);
     n_probe_fields=probe_fields.get_dim(0);
     for (int i=0; i<n_probe_fields; i++)
     {
@@ -67,7 +67,7 @@ void probe_input::read_probe_input(string filename, int rank)
     probf.getScalarValue("probe_freq",probe_freq);
 
     /*!----------calculate probes coordinates ------------*/
-    if(probe_layout==0)//point probes
+    if(run_input.probe==1)//point probes
     {
         probf.getVectorValueOptional("probe_x",probe_x);
         probf.getVectorValueOptional("probe_y",probe_y);
@@ -91,7 +91,7 @@ void probe_input::read_probe_input(string filename, int rank)
             }
         }
     }
-    else if(probe_layout==1)//probes along line input
+    else if(run_input.probe==2)//probes along line input
     {
         double l_length;
         probf.getVectorValueOptional("p_0",p_0);
@@ -147,20 +147,24 @@ void probe_input::read_probe_input(string filename, int rank)
         }
 
     }
-    else if(probe_layout==2)//probes on surface/in volume
+    else if(run_input.probe==3)//probes on surface/in volume
     {
-        probf.getScalarValue("probe_mesh_file",probe_mesh_file);
-        set_probe_gambit(probe_mesh_file);
+        probf.getScalarValue("probe_source_file",probe_source_file);
+        set_probe_mesh(probe_source_file);
+    }
+    else if (run_input.probe==4)//script surface/line
+    {
+        
     }
     else
-        FatalError("Probe layout not implemented")
+        FatalError("Probe type not implemented")
 
     if (rank==0)
     {
-        if (probe_layout!=2)
+        if (run_input.probe!=2)
         {
             cout<<"Number of probe points: "<<n_probe<<endl;
-            if(probe_layout==1)
+            if(run_input.probe==1)
                 cout<<"Growth rate: "<<growth_rate<<endl;
         }
         else
@@ -240,7 +244,7 @@ void probe_input::set_probe_connectivity(struct solution* FlowSol,int rank)
         cout<<"done"<<endl;
 }
 
-void probe_input::set_probe_gambit(string filename)//potentially be able to read 3D sufaces, 2D planes and 3D volumes
+void probe_input::set_probe_mesh(string filename)//potentially be able to read 3D sufaces, 2D planes and 3D volumes
 {
     if (filename.compare(filename.size()-3,3,"neu"))
         FatalError("Only gambit neutral file format is supported!");

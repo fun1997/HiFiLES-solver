@@ -63,7 +63,7 @@ public:
   //vertices
   hf_array<double> xv;       //Array of physical vertex locations (x,y,z).
   hf_array<int> iv2ivg;      //Index of vertex on processor to index of vertex globally.
-  hf_array<vector<int>> v2c; //vertex to cell vector array
+  hf_array<vector<int> > v2c; //vertex to cell vector array
   hf_array<int> v2n_c;       //vertex to number of cell
   //faces
   hf_array<int> f2c;     //face to cell

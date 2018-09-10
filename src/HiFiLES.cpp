@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
   clock_t init_time, final_time;      /*!< To control the time */
   struct solution FlowSol;            /*!< Main structure with the flow solution and geometry */        
   ofstream write_hist;                /*!< Output files (forces, statistics, and history) */
-  mesh mesh_data;                     /*!< Store mesh information*/
+  mesh* mesh_data=new mesh();         /*!< Store mesh information*/
 
   /*! Check the command line input. */
 
@@ -100,8 +100,8 @@ int main(int argc, char *argv[]) {
 
   /*! Read the mesh file from a file. */
 
-  GeoPreprocess(&FlowSol, mesh_data);
-
+  GeoPreprocess(&FlowSol, *mesh_data);
+  delete mesh_data;
   /*! initialize object to output result/restart files */   
    
   output run_output(&FlowSol); 
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
   /*! Read the probe file if needed and store the information in run_probe. */
 
   if(run_input.probe)
-          run_probe.setup(run_input.probe_file_name,&FlowSol,rank);//TODO: combine probe in the same input file
+          run_probe.setup(argv[1],&FlowSol,rank);//TODO: combine probe in the same input file
 
   /////////////////////////////////////////////////
   /// Pre-processing

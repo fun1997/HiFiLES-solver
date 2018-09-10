@@ -33,7 +33,10 @@ ___bin_HiFiLES_LDFLAGS=
 # NOTE: '___bin_' is due to AM substituting the non-variable-name-friendly 
 # characters in the given expression above with an underscore
 ___bin_HiFiLES_SOURCES = ../src/global.cpp \
+                  ../src/param_reader.cpp \
                   ../src/input.cpp \
+                  ../src/bc.cpp \
+                  ../src/mesh_reader.cpp \
                   ../src/probe_input.cpp \
                   ../src/flux.cpp \
                   ../src/source.cpp \
@@ -57,9 +60,6 @@ ___bin_HiFiLES_SOURCES = ../src/global.cpp \
                   ../src/geometry.cpp \
                   ../src/solver.cpp \
                   ../src/mesh.cpp \
-                  ../src/matrix_structure.cpp \
-                  ../src/vector_structure.cpp \
-                  ../src/linear_solvers_structure.cpp \
                   ../src/HiFiLES.cpp
 
 if BUILD_GPU

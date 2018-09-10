@@ -106,10 +106,6 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("p_res", p_res, 3);
     opts.getScalarValue("write_type", write_type, 0);
     opts.getScalarValue("probe", probe, 0);
-    if (probe == 1)
-    {
-        opts.getScalarValue("probe_file_name", probe_file_name);
-    }
     opts.getVectorValueOptional("integral_quantities", integral_quantities);
     opts.getVectorValueOptional("diagnostic_fields", diagnostic_fields);
     opts.getVectorValueOptional("average_fields", average_fields);
@@ -407,7 +403,7 @@ void input::read_boundary_param(void)
         {
             if (viscous)
             {
-                bc_list(i).T_total / T_ref;
+                bc_list(i).T_total /= T_ref;
                 bc_list(i).p_total /= p_ref;
 
                 if (bc_list(i).pressure_ramp)
@@ -621,7 +617,7 @@ void input::setup_params(int rank)
                 cout << "p_ref: " << p_ref << " Pa" << endl;
                 cout << "T_ref: " << T_ref << " k" << endl;
                 cout << "L_ref: " << L_ref << " m" << endl;
-                cout << "time: " << time_ref << " sec" << endl;
+                cout << "time_ref: " << time_ref << " sec" << endl;
                 cout << "mu_ref: " << mu_ref << " kg/(m*s)" << endl;
                 cout << "Initial Values" << endl;
                 cout << "rho_c_ic=" << rho_c_ic << endl;
