@@ -1457,7 +1457,7 @@ void output::write_probe(void)
                     else
                         write_probe<<endl;
                 /*! write gambit surface information*/
-                if (run_probe.probe_layout==2 &&run_probe.output_normal==true)
+                if (run_input.probe==2 &&run_probe.output_normal==true)
                 {
                     write_probe<<"Surface normal"<<endl;
                     write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_normal(0,i)<<setw(15)<<setprecision(5)<<run_probe.surf_normal(1,i);
@@ -2051,7 +2051,10 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
   else {
     open_hist = (in_file_num == run_input.restart_iter+1);
     write_heads = (((in_file_num % (run_input.monitor_res_freq*20)) == 0) || (in_file_num == run_input.restart_iter+1));
-    mode = ios::app;
+    if (access("history.plt", W_OK) == -1)
+      mode = ios::out;
+    else
+      mode = ios::app;
   }
 
   if (FlowSol->rank == 0) {
