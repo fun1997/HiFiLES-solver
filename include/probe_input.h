@@ -27,7 +27,7 @@
 #include <vector>
 #include <map>
 #include "hf_array.h"
-#include "input.h"
+#include "param_reader.h"
 #include "solution.h"
 #include "funcs.h"
 
@@ -70,5 +70,5 @@ protected:
     void set_loc_probepts(struct solution* FlowSol);
 private:
     int n_dims;
-    string neu_file;
+    string probe_mesh_file;
 };

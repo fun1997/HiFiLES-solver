@@ -93,6 +93,9 @@ public:
 
   T& operator() (int in_pos_0, int in_pos_1, int in_pos_2, int in_pos_3);
 
+  //array access
+  T& operator[](int idx);
+
   // return pointer
 
   T* get_ptr_cpu(void);
@@ -243,7 +246,7 @@ hf_array<T>& hf_array<T>::operator=(const hf_array<T>& in_array)
       dim_3=in_array.dim_3;
 
       cpu_data = new T[dim_0*dim_1*dim_2*dim_3];
-      //NOTE: THIS COPIES POINTERS; NOT VALUES
+
       for(i=0; i<dim_0*dim_1*dim_2*dim_3; i++)
         {
           cpu_data[i]=in_array.cpu_data[i];
@@ -306,6 +309,12 @@ template <typename T>
 T& hf_array<T>::operator()(int in_pos_0, int in_pos_1, int in_pos_2, int in_pos_3)
 {
   return cpu_data[in_pos_0+(dim_0*in_pos_1)+(dim_0*dim_1*in_pos_2)+(dim_0*dim_1*dim_2*in_pos_3)]; // column major with matrix indexing
+}
+
+template <typename T>
+T& hf_array<T>::operator[](int idx)
+{
+  return cpu_data[idx];
 }
 
 // return pointer

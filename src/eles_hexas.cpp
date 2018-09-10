@@ -139,24 +139,6 @@ void eles_hexas::setup_ele_type_specific()
 
 // #### methods ####
 
-// set shape
-
-/*void eles_hexas::set_shape(hf_array<int> &in_n_spts_per_ele)
-{
-  //TODO: this is inefficient, copies by value
-  n_spts_per_ele = in_n_spts_per_ele;
-
-  // Computing maximum number of spts per ele for all elements
-  int max_n_spts_per_ele = 0;
-  for (int i=0;i<n_eles;++i) {
-    if (n_spts_per_ele(i) > max_n_spts_per_ele)
-      max_n_spts_per_ele = n_spts_per_ele(i);
-  }
-
-    shape.setup(n_dims,max_n_spts_per_ele,n_eles);
-}
-*/
-
 void eles_hexas::set_connectivity_plot()
 {
   int vertex_0,vertex_1,vertex_2,vertex_3,vertex_4,vertex_5,vertex_6,vertex_7;

@@ -38,19 +38,3 @@ void calc_visf_2d(hf_array<double>& in_u, hf_array<double>& in_grad_u, hf_array<
 
 /*! calculate viscous flux in 3D */
 void calc_visf_3d(hf_array<double>& in_u, hf_array<double>& in_grad_u, hf_array<double>& out_f);
-
-/*!
- * \brief calculate & add addtional ALE flux term in 2D
- * \param[in] in_u - Solution vector
- * \param[in] in_v - Grid velocity
- * \param[in,out] out_f - Modified flux vector
- */
-void calc_alef_2d(hf_array<double>& in_u, hf_array<double>& in_v, hf_array<double>& out_f);
-
-/*!
- * \brief calculate & add addtional ALE flux term in 3D
- * \param[in] in_u - Solution vector
- * \param[in] in_v - Grid velocity
- * \param[in,out] out_f - Modified flux vector
- */
-void calc_alef_3d(hf_array<double>& in_u, hf_array<double>& in_v, hf_array<double>& out_f);

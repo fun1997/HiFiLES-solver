@@ -1,282 +1,95 @@
-/*!
- * \file mesh.h
- * \brief  - Class to control mesh-related activities (motion, adaptation, etc.)
- * \author - Current development: Aerospace Computing Laboratory (ACL) directed
- *                                by Prof. Jameson. (Aero/Astro Dept. Stanford University).
- * \version 1.0.0
- *
- * HiFiLES (High Fidelity Large Eddy Simulation).
- * Copyright (C) 2013 Aerospace Computing Laboratory.
- */
-
 #pragma once
-
 #include <iostream>
-#include <sstream>
 #include <fstream>
-#include <string>
-#include <cmath>
-#include <map>
-#include <float.h>
-#include <map>
-#include <set>
-
+#include <vector>
 #include "global.h"
-#include "input.h"
-#include "error.h"
 #include "hf_array.h"
-#include "eles.h"
-#include "solution.h"
-#include "funcs.h"
-#include "matrix_structure.hpp"
-#include "vector_structure.hpp"
-#include "linear_solvers_structure.hpp"
+#include "error.h"
 
-#ifdef _TECIO
-#include "TECIO.h"
-#endif
-
-#ifdef _MPI
-#include "mpi.h"
-#include "metis.h"
-#include "parmetis.h"
-#endif
-
-#ifdef _GPU
-#include "../include/util.h"
-#endif
+using namespace std;
 
 class mesh
 {
 public:
-  // #### constructors ####
+  friend class mesh_reader;
 
-  /** default constructor */
-  mesh(void);
+  // default constructor/destructor
+  mesh();
 
-  /** default destructor */
-  ~mesh(void);
+  ~mesh();
 
-  // #### methods ####
+  // #### APIs ####
 
-  /** Mesh motion wrapper */
-  void move(int _iter, int in_rk_step, solution *FlowSol);
+  //get functions
+  int get_num_cells();
+  int get_num_cells(int in_type);
 
-  /** peform prescribed mesh motion using linear elasticity method */
-  void deform(solution* FlowSol);
+  //get max number of shape point of the specific type of element
+  int get_max_n_spts(int in_type);
 
-  /** peform prescribed mesh motion using rigid translation/rotation */
-  void rigid_move(solution *FlowSol);
+  //tool functions
 
-  /** Perturb the mesh points (test case for freestream preservation) */
-  void perturb(solution *FlowSol);
+#ifdef _MPI
+  //repartition mesh based on the number of processors
+  void repartition_mesh(int nproc, int rank);
+#endif // _MPI
 
-  /** update grid velocity & apply to eles */
-  void set_grid_velocity(solution *FlowSol, double dt);
+  //method to fill iv2ivg and modify c2v using local vertex indices
+  void create_iv2ivg(void);
 
-  /** update the mesh: re-set spts, transforms, etc. */
-  void update(solution *FlowSol);
+  //set up vertex connectivity
+  void set_vertex_connectivity(void);
 
-  /** setup information for boundary motion */
-  //void setup_boundaries(hf_array<int> bctype);
+  //set up face connectivity
+  void set_face_connectivity(void);
 
-  /** write out mesh to file */
-  void write_mesh(int mesh_type, double sim_time);
-
-  /** write out mesh in Gambit .neu format */
-  void write_mesh_gambit(double sim_time);
-
-  /** write out mesh in Gmsh .msh format */
-  void write_mesh_gmsh(double sim_time);
-
-  // #### members ####
-
-  /** Basic parameters of mesh */
-    //copied from FlowSol
-  int n_eles, n_verts, n_dims, n_verts_global, n_cells_global;
-  int iter;
-
-  /** arrays which define the basic mesh geometry */
-  hf_array<double> xv_0;//, the xv in geometry, contains the coordinates of local vertics;
-  hf_array< hf_array<double> > xv;
-  hf_array<int> c2v, c2n_v, ctype, bctype_c, ic2icg, iv2ivg, ic2loc_c,//ic2loc_c is local cell index to typewise local cell index
-      icvsta, icvert, f2c, f2loc_f, c2f, c2e, f2v, f2n_v, e2v, v2n_e;
-  hf_array<hf_array<int> > v2e;
-
-  /** #### Boundary information #### */
-
-  int n_bnds, n_faces;
-  hf_array<int> nBndPts;
-  hf_array<int> v2bc;
-
-  /** vertex id = boundpts(bc_id)(ivert) */
-  hf_array<hf_array<int> > boundPts;
-
-  /** Store motion flag for each boundary
-     (currently 0=fixed, 1=moving, -1=volume) */
-  hf_array<int> bound_flags;
-
-  /** HiFiLES 'bcflag' for each boundary */
-  hf_array<int> bc_list;
-
-  /** replacing get_bc_name() from geometry.cpp */
-  map<string,int> bc_name;
-
-  /** inverse of bc_name */
-  map<int,string> bc_flag;
-
-  // nBndPts.setup(n_bnds); boundPts.setup(nBnds,nPtsPerBnd);
-
-  hf_array<double> vel_old,vel_new, xv_new;
-
-  hf_array< hf_array<double> > grid_vel;
-
-  void setup(solution *in_FlowSol, hf_array<double> &in_xv, hf_array<int> &in_c2v, hf_array<int> &in_c2n_v, hf_array<int> &in_iv2ivg, hf_array<int> &in_ctype,hf_array<int> &ic2icg);
+  /*------------------data---------------------*/
+  // statistics
+  int num_cells;        //defined in mesh reading, number of local cells
+  int num_verts;        //defined in mesh reading, number of local vertics
+  //int num_edges;        //defined in CompConnectivity
+  int num_inters;       //defined in CompConnectivity
+  int num_cells_global; //total number of cells
+  int num_verts_global; //total number of vertics
+  int n_bdy;            //number of boundary groups
+  int n_dims;           //number of dimensions of the mesh
+  int n_unmatched_inters;
+  //cell
+  hf_array<int> c2v;    //ID of vertices making up each cell.
+  hf_array<int> c2n_v;  //Number of vertices in each cell.
+  hf_array<int> ctype;  //Cell type.
+  hf_array<int> ic2icg; //index of cell to index of cell globally.
+  hf_array<int> c2f;    //cell to face
+  //vertices
+  hf_array<double> xv;       //Array of physical vertex locations (x,y,z).
+  hf_array<int> iv2ivg;      //Index of vertex on processor to index of vertex globally.
+  hf_array<vector<int>> v2c; //vertex to cell vector array
+  hf_array<int> v2n_c;       //vertex to number of cell
+  //faces
+  hf_array<int> f2c;     //face to cell
+  hf_array<int> f2v;     //face to vertex
+  hf_array<int> f2nv;    //face to number of vertex
+  hf_array<int> f2loc_f; //face to local face id
+  hf_array<int> num_f_per_c;//number of face per cell
+  hf_array<int> rot_tag;//rotation tag for coupling face
+  hf_array<int> unmatched_inters;
+  //boundary conditions
+  hf_array<int> bc_id; //cell->face with value of index in run_input.bc_list 
 
 private:
-  bool start;
-  hf_array<double> xv_nm1, xv_nm2, xv_nm3;//, xv_new, vel_old, vel_new;
+//get the corner vertex consecutive order
+int get_corner_vert_in_order(const int &in_ic, const int &in_vert);
 
-  /** Global stiffness matrix for linear elasticity solution */
-  CSysMatrix StiffnessMatrix;
-  CSysVector LinSysRes;
-  CSysVector LinSysSol;
+//get corner vertex list on the face
+int get_corner_vlist_face(const int &in_ic, const int &in_face, hf_array<int> &out_vlist);
 
-  /// Copy of the pointer to the Flow Solution structure
-  struct solution *FlowSol;
+//compare 2 faces, return 1 if coincide,0 if not
+int compare_faces(hf_array<int>& vlist1, hf_array<int>& vlist2, int &rtag);
 
-  /** global stiffness psuedo-matrix for linear-elasticity mesh motion */
-  hf_array<hf_array<double> > stiff_mat;
-
-  unsigned long LinSolIters;
-  int failedIts;
-  double min_vol, min_length, solver_tolerance;
-  double time, rk_time;
-  int rk_step;
+//compare 2 boundary faces for gmsh
+int compare_faces_boundary(hf_array<int> &vlist1, hf_array<int> &vlist2);
 
 
-  /** create individual-element stiffness matrix - triangles */
-  bool set_2D_StiffMat_ele_tri(hf_array<double> &stiffMat_ele,int ele_id);
+  
 
-  /** create individual-element stiffness matrix - quadrilaterals */
-  bool set_2D_StiffMat_ele_quad(hf_array<double> &stiffMat_ele,int ele_id);
-
-  /** create individual-element stiffness matrix - tetrahedrons */
-  //bool set_2D_StiffMat_ele_tet(hf_array<double> &stiffMat_ele,int ele_id, solution *FlowSol);
-
-  /** create individual-element stiffness matrix - hexahedrons */
-  //bool set_2D_StiffMat_ele_hex(hf_array<double> &stiffMat_ele,int ele_id, solution *FlowSol);
-
-  /**
-     * transfrom single-element stiffness matrix to nodal contributions in order to
-     * add to global stiffness matrix
-     */
-  void add_StiffMat_EleTri(hf_array<double> StiffMatrix_Elem, int id_pt_0,
-                           int id_pt_1, int id_pt_2);
-
-
-  void add_StiffMat_EleQuad(hf_array<double> StiffMatrix_Elem, int id_pt_0,
-                            int id_pt_1, int id_pt_2, int id_pt_3);
-
-  /** Set given/known displacements of vertices on moving boundaries in linear system */
-  void set_boundary_displacements(solution *FlowSol);
-
-  /** meant to check for any inverted cells (I think) and return minimum volume */
-  double check_grid(solution *FlowSol);
-
-  /** transfer solution from LinSysSol to xv_new */
-  void update_grid_coords(void);
-
-  /** find minimum length in mesh */
-  void set_min_length(void);
-
-  /* --- Linear-Elasticy Mesh Deformation Routines Taken from SU^2, 3/26/2014 ---
-   * This version here has been stripped down to the bare essentials needed for HiFiLES
-   * For more details (and additional awesome features), see su2.stanford.edu */
-
-  /* These functions will (eventually) be replaced with pre-existing HiFiLES functions, but
-   * for now, a HUGE THANKS to the SU^2 dev team for making this practically plug & play! */
-
-  /*!
-   * \brief Add the stiffness matrix for a 2-D triangular element to the global stiffness matrix for the entire mesh (node-based).
-   * \param[in] StiffMatrix_Elem - Element stiffness matrix to be filled.
-   * \param[in] PointCornders - Element vertex ID's
-   */
-  void add_FEA_stiffMat(hf_array<double> &stiffMat_ele, hf_array<int> &PointCorners);
-
-  /*!
-   * \brief Build the stiffness matrix for a 3-D hexahedron element. The result will be placed in StiffMatrix_Elem.
-   * \param[in] geometry - Geometrical definition of the problem.
-   * \param[in] StiffMatrix_Elem - Element stiffness matrix to be filled.
-   * \param[in] CoordCorners[8][3] - Index value for Node 1 of the current hexahedron.
-   */
-  void set_stiffmat_ele_3d(hf_array<double> &stiffMat_ele, int ic, double scale);
-
-  /*!
-   * \brief Build the stiffness matrix for a 3-D hexahedron element. The result will be placed in StiffMatrix_Elem.
-   * \param[in] geometry - Geometrical definition of the problem.
-   * \param[in] StiffMatrix_Elem - Element stiffness matrix to be filled.
-   * \param[in] CoordCorners[8][3] - Index value for Node 1 of the current hexahedron.
-   */
-  void set_stiffmat_ele_2d(hf_array<double> &stiffMat_ele, int ic, double scale);
-
-  /*!
-   * \brief Shape functions and derivative of the shape functions
-   * \param[in] Xi - Local coordinates.
-   * \param[in] Eta - Local coordinates.
-   * \param[in] Mu - Local coordinates.
-   * \param[in] CoordCorners[8][3] - Coordiantes of the corners.
-   * \param[in] shp[8][4] - Shape function information
-   */
-  double ShapeFunc_Hexa(double Xi, double Eta, double Mu, double CoordCorners[8][3], double DShapeFunction[8][4]);
-
-  /*!
-   * \brief Shape functions and derivative of the shape functions
-   * \param[in] Xi - Local coordinates.
-   * \param[in] Eta - Local coordinates.
-   * \param[in] Mu - Local coordinates.
-   * \param[in] CoordCorners[8][3] - Coordiantes of the corners.
-   * \param[in] shp[8][4] - Shape function information
-   */
-  double ShapeFunc_Tetra(double Xi, double Eta, double Mu, double CoordCorners[8][3], double DShapeFunction[8][4]);
-
-  /*!
-   * \brief Shape functions and derivative of the shape functions
-   * \param[in] Xi - Local coordinates.
-   * \param[in] Eta - Local coordinates.
-   * \param[in] Mu - Local coordinates.
-   * \param[in] CoordCorners[8][3] - Coordiantes of the corners.
-   * \param[in] shp[8][4] - Shape function information
-   */
-  double ShapeFunc_Pyram(double Xi, double Eta, double Mu, double CoordCorners[8][3], double DShapeFunction[8][4]);
-
-  /*!
-   * \brief Shape functions and derivative of the shape functions
-   * \param[in] Xi - Local coordinates.
-   * \param[in] Eta - Local coordinates.
-   * \param[in] Mu - Local coordinates.
-   * \param[in] CoordCorners[8][3] - Coordiantes of the corners.
-   * \param[in] shp[8][4] - Shape function information
-   */
-  double ShapeFunc_Wedge(double Xi, double Eta, double Mu, double CoordCorners[8][3], double DShapeFunction[8][4]);
-
-  /*!
-   * \brief Shape functions and derivative of the shape functions
-   * \param[in] Xi - Local coordinates.
-   * \param[in] Eta - Local coordinates.
-   * \param[in] Mu - Local coordinates.
-   * \param[in] CoordCorners[8][3] - Coordiantes of the corners.
-   * \param[in] shp[8][4] - Shape function information
-   */
-  double ShapeFunc_Triangle(double Xi, double Eta, double CoordCorners[8][3], double DShapeFunction[8][4]);
-
-  /*!
-   * \brief Shape functions and derivative of the shape functions
-   * \param[in] Xi - Local coordinates.
-   * \param[in] Eta - Local coordinates.
-   * \param[in] Mu - Local coordinates.
-   * \param[in] CoordCorners[8][3] - Coordiantes of the corners.
-   * \param[in] shp[8][4] - Shape function information
-   */
-  double ShapeFunc_Rectangle(double Xi, double Eta, double CoordCorners[8][3], double DShapeFunction[8][4]);
 };

@@ -54,7 +54,6 @@ inters::inters()
   order=run_input.order;
   viscous=run_input.viscous;
   LES = run_input.LES;
-  motion = run_input.motion;
 }
 
 inters::~inters() { }
@@ -119,19 +118,6 @@ void inters::setup_inters(int in_n_inters, int in_inters_type)
       norm_fpts.setup(n_fpts_per_inter,n_inters,n_dims);
       pos_fpts.setup(n_fpts_per_inter,n_inters,n_dims);
 
-      if (motion)
-      {
-        if (run_input.GCL) {
-          disu_GCL_fpts_l.setup(n_fpts_per_inter,n_inters);
-          norm_tconf_GCL_fpts_l.setup(n_fpts_per_inter,n_inters);
-        }
-        grid_vel_fpts.setup(n_fpts_per_inter,n_inters,n_dims);
-        ndA_dyn_fpts_l.setup(n_fpts_per_inter,n_inters);
-        norm_dyn_fpts.setup(n_fpts_per_inter,n_inters,n_dims);
-        J_dyn_fpts_l.setup(n_fpts_per_inter,n_inters);
-        pos_dyn_fpts.setup(n_fpts_per_inter,n_inters,n_dims);
-      }
-
       delta_disu_fpts_l.setup(n_fpts_per_inter,n_inters,n_fields);
 
       if(viscous)
@@ -154,8 +140,6 @@ void inters::setup_inters(int in_n_inters, int in_inters_type)
 
       temp_u_l.setup(n_fields);
       temp_u_r.setup(n_fields);
-
-      temp_v.setup(n_dims);
 
       temp_grad_u_l.setup(n_fields,n_dims);
       temp_grad_u_r.setup(n_fields,n_dims);
@@ -308,9 +292,9 @@ void inters::right_flux(hf_array<double> &f_r, hf_array<double> &norm, hf_array<
 }
 
 // Rusanov inviscid numerical flux
-void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &v_g, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
+void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
 {
-  double vx_l,vy_l,vx_r,vy_r,vz_l,vz_r,vn_l,vn_r,p_l,p_r,vn_g,vn_av_mag,c_av,eig;
+  double vx_l,vy_l,vx_r,vy_r,vz_l,vz_r,vn_l,vn_r,p_l,p_r,vn_av_mag,c_av,eig;
   hf_array<double> fn_l(n_fields),fn_r(n_fields);
 
   // calculate normal flux from discontinuous solution at flux points
@@ -335,7 +319,6 @@ void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array
   if(n_dims==2) {
       vn_l=vx_l*norm(0)+vy_l*norm(1);
       vn_r=vx_r*norm(0)+vy_r*norm(1);
-      vn_g = v_g(0)*norm(0) + v_g(1)*norm(1);
 
       p_l=(gamma-1.0)*(u_l(3)-(0.5*u_l(0)*((vx_l*vx_l)+(vy_l*vy_l))));
       p_r=(gamma-1.0)*(u_r(3)-(0.5*u_r(0)*((vx_r*vx_r)+(vy_r*vy_r))));
@@ -346,7 +329,6 @@ void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array
 
       vn_l=vx_l*norm(0)+vy_l*norm(1)+vz_l*norm(2);
       vn_r=vx_r*norm(0)+vy_r*norm(1)+vz_r*norm(2);
-      vn_g = v_g(0)*norm(0) + v_g(1)*norm(1) + v_g(2)*norm(2);
 
       p_l=(gamma-1.0)*(u_l(4)-(0.5*u_l(0)*((vx_l*vx_l)+(vy_l*vy_l)+(vz_l*vz_l))));
       p_r=(gamma-1.0)*(u_r(4)-(0.5*u_r(0)*((vx_r*vx_r)+(vy_r*vy_r)+(vz_r*vz_r))));
@@ -356,7 +338,7 @@ void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array
 
   vn_av_mag=sqrt(0.25*(vn_l+vn_r)*(vn_l+vn_r));
   c_av=sqrt((gamma*(p_l+p_r))/(u_l(0)+u_r(0)));
-  eig = fabs(vn_av_mag - vn_g + c_av);
+  eig = fabs(vn_av_mag  + c_av);
 
   // calculate the normal continuous flux at the flux points
 
@@ -387,11 +369,11 @@ void inters::convective_flux_boundary( hf_array<double> &f_l, hf_array<double> &
 }
 
 // Roe inviscid numerical flux
-void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &v_g, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
+void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
 {
   double p_l,p_r;
   double h_l, h_r;
-  double sq_rho,rrho,hm,usq,am,am_sq,unm,vgn;
+  double sq_rho,rrho,hm,usq,am,am_sq,unm;
   double lambda0,lambdaP,lambdaM;
   double rhoun_l, rhoun_r,eps;
   double a1,a2,a3,a4,a5,a6,aL1,bL1;
@@ -429,10 +411,8 @@ void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<dou
   am_sq   = (gamma-1.)*(hm-usq);
   am  = sqrt(am_sq);
   unm = 0.;
-  vgn = 0.;
   for (int i=0;i<n_dims;i++) {
     unm += um(i)*norm(i);
-    vgn += v_g(i)*norm(i);
   }
 
   // Compute Euler flux (first part)
@@ -460,9 +440,9 @@ void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<dou
       du(i) = u_r(i)-u_l(i);
     }
 
-  lambda0 = abs(unm-vgn);
-  lambdaP = abs(unm-vgn+am);
-  lambdaM = abs(unm-vgn-am);
+  lambda0 = abs(unm);
+  lambdaP = abs(unm+am);
+  lambdaM = abs(unm-am);
 
   // Entropy fix
   eps = 0.5*(abs(rhoun_l/u_l(0)-rhoun_r/u_r(0))+ abs(sqrt(gamma*p_l/u_l(0))-sqrt(gamma*p_r/u_r(0))));
@@ -514,7 +494,7 @@ void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<dou
 
   for (int i=0;i<n_fields;i++)
   {
-    fn(i) =  0.5*fn(i) - 0.5*vgn*(u_r(i)+u_l(i));
+    fn(i) =  0.5*fn(i);
   }
 
 }

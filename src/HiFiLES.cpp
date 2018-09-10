@@ -29,13 +29,13 @@
 #include "../include/global.h"
 #include "../include/hf_array.h"
 #include "../include/funcs.h"
-#include "../include/input.h"
 #include "../include/flux.h"
 #include "../include/geometry.h"
 #include "../include/solver.h"
 #include "../include/output.h"
 #include "../include/solution.h"
-#include "../include/probe_input.h"
+#include "../include/mesh.h"
+
 #ifdef _MPI
 #include "mpi.h"
 #endif
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
   clock_t init_time, final_time;      /*!< To control the time */
   struct solution FlowSol;            /*!< Main structure with the flow solution and geometry */        
   ofstream write_hist;                /*!< Output files (forces, statistics, and history) */
-  mesh Mesh;                          /*!< Store mesh details & perform mesh motion */
+  mesh mesh_data;                     /*!< Store mesh information*/
 
   /*! Check the command line input. */
 
@@ -77,14 +77,14 @@ int main(int argc, char *argv[]) {
 #endif
 
   if (rank == 0) {
-    cout << " __    __   __   _______  __          __       _______     _______." << endl;
-    cout << "|  |  |  | |  | |   ____||  |        |  |     |   ____|   /       |" << endl;
-    cout << "|  |__|  | |  | |  |__   |  |  _____ |  |     |  |__     |   (----`" << endl;
-    cout << "|   __   | |  | |   __|  |  | |____| |  |     |   __|     \\   \\" << endl;
-    cout << "|  |  |  | |  | |  |     |  |        |  `----.|  |____.----)   |" << endl;
-    cout << "|__|  |__| |__| |__|     |__|        |_______||_______|_______/" << endl;
-    cout << "                                              " << endl;
-    cout << "Aerospace Computing Laboratory (Stanford University) " << endl;
+    cout<<endl;
+    cout << "██╗  ██╗██╗███████╗██╗      ██╗     ███████╗███████╗" << endl;
+    cout << "██║  ██║██║██╔════╝██║      ██║     ██╔════╝██╔════╝" << endl;
+    cout << "███████║██║█████╗  ██║█████╗██║     █████╗  ███████╗" << endl;
+    cout << "██╔══██║██║██╔══╝  ██║╚════╝██║     ██╔══╝  ╚════██║" << endl;
+    cout << "██║  ██║██║██║     ██║      ███████╗███████╗███████║" << endl;
+    cout << "╚═╝  ╚═╝╚═╝╚═╝     ╚═╝      ╚══════╝╚══════╝╚══════╝" << endl;
+    cout << "UF Edition by Theoretical Fluid Dynamics and Turbulence Group" << endl;
   }
 
   /////////////////////////////////////////////////
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
 
   /*! Read the mesh file from a file. */
 
-  GeoPreprocess(&FlowSol, Mesh);
+  GeoPreprocess(&FlowSol, mesh_data);
 
   /*! initialize object to output result/restart files */   
    
@@ -115,8 +115,8 @@ int main(int argc, char *argv[]) {
 
   /*! Read the probe file if needed and store the information in run_probe. */
 
-  if(run_input.probe)//for no motion only
-          run_probe.setup(run_input.probe_file_name,&FlowSol,rank);
+  if(run_input.probe)
+          run_probe.setup(run_input.probe_file_name,&FlowSol,rank);//TODO: combine probe in the same input file
 
   /////////////////////////////////////////////////
   /// Pre-processing
@@ -125,8 +125,8 @@ int main(int argc, char *argv[]) {
   /*! Variable initialization. */
 
   error_state = 0;
-  FlowSol.ene_hist = 1000.;
-  FlowSol.grad_ene_hist = 1000.;
+  //FlowSol.ene_hist = 1000.;
+  //FlowSol.grad_ene_hist = 1000.;
 
   if (FlowSol.adv_type == 0)
     RKSteps = 1; //Euler
@@ -185,16 +185,6 @@ int main(int argc, char *argv[]) {
 
     for (i = 0; i < RKSteps; i++)
     {
-      /* If using moving mesh, need to advance the Geometric Conservation Law
-       * (GCL) first to get updated Jacobians. Necessary to preserve freestream
-       * on arbitrarily deforming mesh. See Kui Ou's Ph.D. thesis for details. */
-      if (run_input.motion > 0)
-      {
-
-        /* Update the mesh */
-       Mesh.move(FlowSol.ini_iter + i_steps, i, &FlowSol);
-      }
-
       /*! Spatial integration. */
 
       CalcResidual(FlowSol.ini_iter + i_steps, i, &FlowSol);

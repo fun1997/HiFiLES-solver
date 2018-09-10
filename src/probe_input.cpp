@@ -49,13 +49,14 @@ void probe_input::setup(string filenameS,struct solution* FlowSol, int rank)
 void probe_input::read_probe_input(string filename, int rank)
 
 {
-    fileReader probf(filename);
+    param_reader probf(filename);
+    probf.openFile();
     if (rank==0)
         cout << endl << "---------------------- Setting up probes ---------------------" << endl;
 
 
     /*!----------read probe input parameters ------------*/
-    probf.getVectorValueOptional("probe_fields",probe_fields);//name of probe fields
+    probf.getVectorValue("probe_fields",probe_fields);//name of probe fields
     probf.getScalarValue("probe_layout",probe_layout,0);
     n_probe_fields=probe_fields.get_dim(0);
     for (int i=0; i<n_probe_fields; i++)
@@ -66,7 +67,7 @@ void probe_input::read_probe_input(string filename, int rank)
     probf.getScalarValue("probe_freq",probe_freq);
 
     /*!----------calculate probes coordinates ------------*/
-    if(probe_layout==0)//point sources
+    if(probe_layout==0)//point probes
     {
         probf.getVectorValueOptional("probe_x",probe_x);
         probf.getVectorValueOptional("probe_y",probe_y);
@@ -90,7 +91,7 @@ void probe_input::read_probe_input(string filename, int rank)
             }
         }
     }
-    else if(probe_layout==1)//line source input
+    else if(probe_layout==1)//probes along line input
     {
         double l_length;
         probf.getVectorValueOptional("p_0",p_0);
@@ -146,10 +147,10 @@ void probe_input::read_probe_input(string filename, int rank)
         }
 
     }
-    else if(probe_layout==2)
+    else if(probe_layout==2)//probes on surface/in volume
     {
-        probf.getScalarValue("neu_file",neu_file);
-        set_probe_gambit(neu_file);
+        probf.getScalarValue("probe_mesh_file",probe_mesh_file);
+        set_probe_gambit(probe_mesh_file);
     }
     else
         FatalError("Probe layout not implemented")
@@ -163,8 +164,9 @@ void probe_input::read_probe_input(string filename, int rank)
                 cout<<"Growth rate: "<<growth_rate<<endl;
         }
         else
-        cout<<"Number of probe elements: "<<n_probe<<endl;
+        cout<<"Number of sampling surface elements: "<<n_probe<<endl;
     }
+    probf.closeFile();
 }
 
 void probe_input::set_probe_connectivity(struct solution* FlowSol,int rank)
@@ -238,13 +240,13 @@ void probe_input::set_probe_connectivity(struct solution* FlowSol,int rank)
         cout<<"done"<<endl;
 }
 
-void probe_input::set_probe_gambit(string filename)
+void probe_input::set_probe_gambit(string filename)//potentially be able to read 3D sufaces, 2D planes and 3D volumes
 {
     if (filename.compare(filename.size()-3,3,"neu"))
         FatalError("Only gambit neutral file format is supported!");
     int n_verts_global;
-    int dummy,dummy2;
-    int gambit_ndims;
+    int dummy;
+    int gambit_dims[2];
     char buf[BUFSIZ]= {""};
     hf_array<int> probe_c2n_v;//element to number of vertex
     hf_array<int> probe_c2v;//elements to vertex index
@@ -265,10 +267,10 @@ void probe_input::set_probe_gambit(string filename)
           >> n_probe     // num elements
           >> dummy              // num material groups
           >> dummy              // num boundary groups
-          >> dummy2  // num space dimensions of mesh element
-          >> gambit_ndims;//num dimension of components
+          >> gambit_dims[0]  // num space dimensions of mesh element: surf/volume
+          >> gambit_dims[1];//num dimension of components: planar of 3D
 
-if(n_dims<dummy2||n_dims<gambit_ndims)
+if(n_dims<gambit_dims[0]||n_dims<gambit_dims[1])
     FatalError("Dimension in gambit file must be less/equal to that of simulation");
 
     f_neu.getline(buf,BUFSIZ);  // clear rest of line
@@ -288,9 +290,9 @@ if(n_dims<dummy2||n_dims<gambit_ndims)
     for (int i=0; i<n_verts_global; i++)
     {
         f_neu >> dummy;//read id
-        for (int j=0; j<gambit_ndims; j++)
+        for (int j=0; j<gambit_dims[1]; j++)
             f_neu>>probe_xv(i,j);
-        if (gambit_ndims<n_dims)//3D simulation but 2D mesh component
+        if (gambit_dims[1]<n_dims)//3D simulation but 2D mesh component
             probe_xv(i,2)=0.0;//HACK: if specified a plane then have to be at z=0
         f_neu.getline(buf,BUFSIZ);
     }
@@ -389,7 +391,7 @@ if(n_dims<dummy2||n_dims<gambit_ndims)
     }
 
     /*! calculate face normals and area*/
-    if (dummy2==2&&n_dims==3)//if 2D mesh and 3D simulation
+    if (gambit_dims[0]==2&&n_dims==3)//if surface mesh and 3D simulation
     {
         //calculate face normal
         output_normal=true;

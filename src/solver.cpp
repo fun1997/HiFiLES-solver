@@ -53,11 +53,6 @@
 
 using namespace std;
 
-#define MAX_V_PER_F 4
-#define MAX_F_PER_C 6
-#define MAX_E_PER_C 12
-#define MAX_V_PER_C 27
-
 // used to switch between single- and multi-zone tecplot binary output
 #define MULTI_ZONE
 //#define SINGLE_ZONE
@@ -119,7 +114,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     FlowSol->mesh_int_inters(i).calculate_common_invFlux();
 
   for(i=0; i<FlowSol->n_bdy_inter_types; i++)
-    FlowSol->mesh_bdy_inters(i).evaluate_boundaryConditions_invFlux(FlowSol->time);//HACK:use RK_time instead
+    FlowSol->mesh_bdy_inters(i).evaluate_boundaryConditions_invFlux(FlowSol->time);//TODO:use RK_time instead
 
 #ifdef _MPI
   /*! Send the previously computed values across the MPI interfaces. */
@@ -186,7 +181,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
         FlowSol->mesh_int_inters(i).calculate_common_viscFlux();
 
       for(i=0; i<FlowSol->n_bdy_inter_types; i++)
-        FlowSol->mesh_bdy_inters(i).evaluate_boundaryConditions_viscFlux(FlowSol->time);//HACK: use RK_time instead
+        FlowSol->mesh_bdy_inters(i).evaluate_boundaryConditions_viscFlux(FlowSol->time);//TODO: use RK_time instead
 
 #if _MPI
       /*! Evaluate the MPI interfaces. */
@@ -258,12 +253,6 @@ double* get_detjac_fpts_ptr(int in_ele_type, int in_ele, int in_ele_local_inter,
   return FlowSol->mesh_eles(in_ele_type)->get_detjac_fpts_ptr(in_inter_local_fpt,in_ele_local_inter,in_ele);
 }
 
-// get pointer to determinant of jacobian at a flux point (dynamic->static)
-
-double* get_detjac_dyn_fpts_ptr(int in_ele_type, int in_ele, int in_ele_local_inter, int in_inter_local_fpt, struct solution* FlowSol)
-{
-  return FlowSol->mesh_eles(in_ele_type)->get_detjac_dyn_fpts_ptr(in_inter_local_fpt,in_ele_local_inter,in_ele);
-}
 
 // get pointer to magntiude of normal dot inverse of (determinant of jacobian multiplied by jacobian) at a flux point
 
@@ -272,24 +261,11 @@ double* get_tdA_fpts_ptr(int in_ele_type, int in_ele, int in_ele_local_inter, in
   return FlowSol->mesh_eles(in_ele_type)->get_tdA_fpts_ptr(in_inter_local_fpt,in_ele_local_inter,in_ele);
 }
 
-// get pointer to the equivalent of 'dA' (face area) at a flux point in dynamic physical space
-double* get_ndA_dyn_fpts_ptr(int in_ele_type, int in_ele, int in_ele_local_inter, int in_inter_local_fpt, struct solution* FlowSol)
-{
-  return FlowSol->mesh_eles(in_ele_type)->get_ndA_dyn_fpts_ptr(in_inter_local_fpt,in_ele_local_inter,in_ele);
-}
-
 // get pointer to the normal at a flux point
 
 double* get_norm_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, int in_fpt, int in_dim, struct solution* FlowSol)
 {
   return FlowSol->mesh_eles(in_ele_type)->get_norm_fpts_ptr(in_fpt,in_local_inter,in_dim,in_ele);
-}
-
-// get pointer to the normal at a flux point in the dynamic space
-
-double* get_norm_dyn_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, int in_fpt, int in_dim, struct solution* FlowSol)
-{
-  return FlowSol->mesh_eles(in_ele_type)->get_norm_dyn_fpts_ptr(in_fpt,in_local_inter,in_dim,in_ele);
 }
 
 // get CPU pointer to the coordinates at a flux point.
@@ -306,20 +282,6 @@ double* get_loc_fpts_ptr_gpu(int in_ele_type, int in_ele, int in_local_inter, in
 {
   return FlowSol->mesh_eles(in_ele_type)->get_loc_fpts_ptr_gpu(in_fpt,in_local_inter,in_dim,in_ele);
 }
-
-// get CPU pointer to the physical dynamic coordinates at a flux point.
-
-double* get_pos_dyn_fpts_ptr_cpu(int in_ele_type, int in_ele, int in_local_inter, int in_fpt, int in_dim, struct solution* FlowSol)
-{
-  return FlowSol->mesh_eles(in_ele_type)->get_pos_dyn_fpts_ptr_cpu(in_fpt,in_local_inter,in_dim,in_ele);
-}
-
-// get pointer to normal continuous transformed viscous flux at a flux point
-
-//double* get_norm_tconvisf_fpts_ptr(int in_ele_type, int in_ele, int in_field, int in_local_inter, int in_fpt)
-//{
-//	return mesh_eles(in_ele_type)->get_norm_tconvisf_fpts_ptr(in_fpt,in_local_inter,in_field,in_ele);
-//}
 
 // get pointer to delta of the transformed discontinuous solution at a flux point
 
@@ -338,12 +300,6 @@ double* get_grad_disu_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, 
 double* get_normal_disu_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, int in_field, int in_fpt, struct solution* FlowSol, hf_array<double> temp_loc, double temp_pos[3])
 {
   return FlowSol->mesh_eles(in_ele_type)->get_normal_disu_fpts_ptr(in_fpt,in_local_inter,in_field,in_ele, temp_loc, temp_pos);
-}
-
-// get pointer to the grid velocity at a flux point
-double* get_grid_vel_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, int in_fpt, int in_dim, struct solution* FlowSol)
-{
-  return FlowSol->mesh_eles(in_ele_type)->get_grid_vel_fpts_ptr(in_ele,in_local_inter,in_fpt,in_dim);
 }
 
 void patch_solution(struct solution* FlowSol)
@@ -424,7 +380,7 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
         }
     }
 
-  // Now open all the restart files one by one and store data belonging to you
+  // Now open all the restart files one by one and store data belonging to this processor
 
   for (int j=0;j<in_n_files;j++)
     {

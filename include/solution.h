@@ -53,15 +53,7 @@ struct solution {
   int n_dims;//defined in mesh reading
   int n_steps;//defined in SetInput
   int adv_type;//defined in SetInput
-
-  //mesh parameters
-  hf_array<int> num_f_per_c;
-  int num_eles;//defined in mesh reading, number of local cells
-  int num_verts;//defined in mesh reading, number of local vertics
-  int num_edges;//defined in CompConnectivity
-  int num_inters;//defined in CompConnectivity
-  int num_cells_global;//defined in mesh reading
-
+  
   //restart/initialization parameter
   int restart_dump_freq;//defined in SetInput
   int ini_iter;//defined in InitSolution

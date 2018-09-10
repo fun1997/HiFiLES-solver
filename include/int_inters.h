@@ -78,12 +78,4 @@ protected:
   hf_array<double*> tdA_fpts_r;
   hf_array<double*> grad_disu_fpts_r;
 
-  // Dynamic grid variables:
-  hf_array<double*> ndA_dyn_fpts_r;
-  hf_array<double*> J_dyn_fpts_r;
-  hf_array<double*> disu_GCL_fpts_r;
-  hf_array<double*> norm_tconf_GCL_fpts_r;
-
-  double temp_u_GCL_r;
-  double temp_f_GCL_r;
 };

@@ -34,6 +34,13 @@ extern probe_input run_probe;
 /*! double 'pi' has global scope */
 extern const double pi;
 
+//definitions
+#define MAX_V_PER_F 4
+#define MAX_F_PER_C 6
+#define MAX_E_PER_C 12
+#define MAX_V_PER_C 27
+
+
 /** enumeration for cell type */
 enum CTYPE {
     TRI     = 0,
@@ -46,36 +53,20 @@ enum CTYPE {
 
 /** enumeration for boundary conditions */
 enum BCFLAG {
-  SUB_IN_SIMP   = 1,
-  SUB_OUT_SIMP  = 2,
-  SUB_IN_CHAR   = 3,
-  SUB_OUT_CHAR  = 4,
-  SUP_IN        = 5,
-  SUP_OUT       = 6,
-  SLIP_WALL     = 7,
-  CYCLIC        = 9,
-  ISOTHERM_FIX  = 11,
-  ADIABAT_FIX   = 12,
-  ISOTHERM_MOVE = 13,
-  ADIABAT_MOVE  = 14,
-  CHAR          = 15,
-  SLIP_WALL_DUAL= 16,
-  SUB_IN_SIMP2  = 17,
-  SUP_IN2       = 18,
-  SUP_IN3       = 19,
-  AD_WALL       = 50
+  SUB_IN_SIMP   = 0,
+  SUB_OUT_SIMP  = 1,
+  SUB_IN_CHAR   = 2,
+  SUB_OUT_CHAR  = 3,
+  SUP_IN        = 4,
+  SUP_OUT       = 5,
+  SLIP_WALL     = 6,
+  CYCLIC        = 7,
+  ISOTHERM_FIX  = 8,
+  ADIABAT_FIX   = 9,
+  CHAR          = 10,
+  SLIP_WALL_DUAL= 11,
+  AD_WALL       = 12
 };
-
-enum MOTION_TYPE {
-  STATIC_MESH       = 0,
-  LINEAR_ELASTICITY = 1,
-  RIGID_MOTION      = 2,
-  PERTURB_TEST      = 3,
-  BLENDING          = 4
-};
-
-/** enumeration for mesh motion type */
-enum {MOTION_DISABLED, MOTION_ENABLED};
 
 /*! environment variable specifying location of HiFiLES repository */
 extern const char* HIFILES_DIR;

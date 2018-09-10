@@ -77,9 +77,6 @@ public:
   /*! write data to restart file */
   void write_restart_data(ofstream& restart_file);
 
-  /*! write extra restart file containing x,y,z of solution points instead of solution data */
-  void write_restart_mesh(ofstream& restart_file);
-
   /*! calculate the discontinuous solution at the flux points */
   void extrapolate_solution(void);
 
@@ -112,15 +109,6 @@ public:
 
   /*! calculate transformed discontinuous viscous flux at solution points */
   void evaluate_viscFlux(void);
-
-  /*! calculate divergence of transformed discontinuous viscous flux at solution points */
-  //void calc_div_tdisvisf_upts(int in_div_tconinvf_upts_to);
-
-  /*! calculate normal transformed discontinuous viscous flux at flux points */
-  //void calc_norm_tdisvisf_fpts(void);
-
-  /*! calculate divergence of transformed continuous viscous flux at solution points */
-  //void calc_div_tconvisf_upts(int in_div_tconinvf_upts_to);
 
   /*! calculate source term for SA turbulence model at solution points */
   void calc_src_upts_SA(void);
@@ -167,8 +155,8 @@ public:
   /*! set shape node */
   void set_shape_node(int in_spt, int in_ele, hf_array<double>& in_pos);
 
-  /*! set bc type */
-  void set_bctype(int in_ele, int in_inter, int in_bctype);
+  /*! set bc id */
+  void set_bcid(int in_ele, int in_inter, int in_bcid);
 
   /*! set bc type */
   void set_bdy_ele2ele(void);
@@ -188,29 +176,17 @@ public:
   /*! get a pointer to the determinant of the jacobian at a flux point (static->computational) */
   double* get_detjac_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele);
 
-  /*! get a pointer to the determinant of the jacobian at a flux point (dynamic->static) */
-  double* get_detjac_dyn_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele);
-
   /*! get pointer to the equivalent of 'dA' (face area) at a flux point in static physical space */
   double* get_tdA_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele);
 
-  /*! get pointer to the equivalent of 'dA' (face area) at a flux point in dynamic physical space */
-  double* get_ndA_dyn_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele);
-
   /*! get a pointer to the normal at a flux point */
   double* get_norm_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele);
-
-  /*! get a pointer to the normal at a flux point in dynamic space */
-  double* get_norm_dyn_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele);
 
   /*! get a CPU pointer to the coordinates at a flux point */
   double* get_loc_fpts_ptr_cpu(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele);
 
   /*! get a GPU pointer to the coordinates at a flux point */
   double* get_loc_fpts_ptr_gpu(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele);
-
-  /*! get a CPU pointer to the dynamic physical coordinates at a flux point */
-  double* get_pos_dyn_fpts_ptr_cpu(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele);
 
   /*! get a pointer to delta of the transformed discontinuous solution at a flux point */
   double* get_delta_disu_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_field, int in_ele);
@@ -220,9 +196,6 @@ public:
 
   /*! get a pointer to gradient of discontinuous solution at a flux point */
   double* get_normal_disu_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_field, int in_ele, hf_array<double> temp_loc, double temp_pos[3]);
-
-  /*! get a pointer to the normal transformed continuous viscous flux at a flux point */
-  //double* get_norm_tconvisf_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_field, int in_ele);
 
   /*! get a pointer to the subgrid-scale flux at a flux point */
   double* get_sgsf_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_field, int in_dim, int in_ele);
@@ -362,9 +335,9 @@ public:
 
   void compute_wall_forces(hf_array<double>& inv_force, hf_array<double>& vis_force, double& temp_cl, double& temp_cd, ofstream& coeff_file, bool write_forces);
 
-  hf_array<double> compute_error(int in_norm_type, double& time);
+  //hf_array<double> compute_error(int in_norm_type, double& time);
 
-  hf_array<double> get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type);
+  //hf_array<double> get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type);
 
 //------------------------
 // virtual methods
@@ -409,96 +382,6 @@ public:
 
   virtual void set_connectivity_plot()=0;
 
-//---------------
-//mesh motion
-//---------------
-  /*! calculate position of a point in physical (dynamic) space from (r,s,t) coordinates*/
-  void calc_pos_dyn(hf_array<double> in_loc, int in_ele, hf_array<double> &out_pos);
-
-  /*!
-   * Calculate dynamic position of solution point
-   * \param[in] in_upt - ID of solution point within element to evaluate at
-   * \param[in] in_ele - local element ID
-   * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
-   */
-  void calc_pos_dyn_fpt(int in_fpt, int in_ele, hf_array<double> &out_pos);
-
-  /*!
-   * Calculate dynamic position of flux point
-   * \param[in] in_upt - ID of solution point within element to evaluate at
-   * \param[in] in_ele - local element ID
-   * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
-   */
-  void calc_pos_dyn_upt(int in_upt, int in_ele, hf_array<double> &out_pos);
-
-  /*!
-   * Calculate dynamic position of plot point
-   * \param[in] in_ppt - ID of plot point within element to evaluate at
-   * \param[in] in_ele - local element ID
-   * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
-   */
-  void calc_pos_dyn_ppt(int in_ppt, int in_ele, hf_array<double> &out_pos);
-
-  /*!
-   * Calculate dynamic position of volume cubature point
-   * \param[in] in_cubpt - ID of cubature point within element to evaluate at
-   * \param[in] in_ele - local element ID
-   * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
-   */
-  void calc_pos_dyn_vol_cubpt(int in_cubpt, int in_ele, hf_array<double> &out_pos);
-
-  /*!
-   * Calculate dynamic position of interface cubature point
-   * \param[in] in_cubpt - ID of cubature point on element face to evaluate at
-   * \param[in] in_face - local face ID within element
-   * \param[in] in_ele - local element ID
-   * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
-   */
-  void calc_pos_dyn_inters_cubpt(int in_cubpt, int in_face, int in_ele, hf_array<double> &out_pos);
-
-  /*!
-   * Calculate derivative of dynamic position wrt reference (initial,static) position
-   * \param[in] in_loc - position of point in computational space
-   * \param[in] in_ele - local element ID
-   * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
-   */
-  void calc_d_pos_dyn(hf_array<double> in_loc, int in_ele, hf_array<double> &out_d_pos);
-
-  /*!
-   * Calculate derivative of dynamic position wrt reference (initial,static) position at fpt
-   * \param[in] in_fpt - ID of flux point within element to evaluate at
-   * \param[in] in_ele - local element ID
-   * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
-   */
-  void calc_d_pos_dyn_fpt(int in_fpt, int in_ele, hf_array<double> &out_d_pos);
-
-  /*!
-   * Calculate derivative of dynamic position wrt reference (initial,static) position at upt
-   * \param[in] in_upt - ID of solution point within element to evaluate at
-   * \param[in] in_ele - local element ID
-   * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
-   */
-  void calc_d_pos_dyn_upt(int in_upt, int in_ele, hf_array<double> &out_d_pos);
-
-  /*!
-   * Calculate derivative of dynamic position wrt reference (initial,static) position at
-     volume cubature point
-   * \param[in] in_cubpt - ID of cubature point within element to evaluate at
-   * \param[in] in_ele - local element ID
-   * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
-   */
-  void calc_d_pos_dyn_vol_cubpt(int in_cubpt, int in_ele, hf_array<double> &out_d_pos);
-
-  /*!
-   * Calculate derivative of dynamic position wrt reference (initial,static) position at
-     volume cubature point
-   * \param[in] in_cubpt - ID of cubature point on face to evaluate at
-   * \param[in] in_face - local face ID within element
-   * \param[in] in_ele - local element ID
-   * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
-   */
-  void calc_d_pos_dyn_inters_cubpt(int in_cubpt, int in_face, int in_ele, hf_array<double> &out_d_pos);
-
   /*! pre-computing shape basis contributions at flux points for more efficient access */
   void store_nodal_s_basis_fpts(void);
 
@@ -526,60 +409,10 @@ public:
   /*! pre-computing shape basis derivative contributions at solution points for more efficient access */
   void store_d_nodal_s_basis_inters_cubpts(void);
 
-  /*! initialize arrays for storing grid velocities */
-  void initialize_grid_vel(int in_max_n_spts_per_ele);
-
-  /*! set grid velocity on element shape points */
-  void set_grid_vel_spt(int in_ele, int in_spt, hf_array<double> in_vel);
-
-  /*! interpolate grid velocity from shape points to flux points */
-  void set_grid_vel_fpts(int in_rk_step);
-
-  /*! interpolate grid velocity from shape points to solution points */
-  void set_grid_vel_upts(int in_rk_step);
-
-  /*! interpolate grid velocity from shape points to plot points */
-  void set_grid_vel_ppts(void);
-
-  /*! Get hf_array of grid velocity at all plot points */
-  hf_array<double> get_grid_vel_ppts(void);
-
-  /*! Get pointer to grid velocity at a flux point */
-  double *get_grid_vel_fpts_ptr(int in_ele, int in_ele_local_inter, int in_inter_local_fpt, int in_dim);
-
-  /*! Set the transformation variables for dynamic-physical -> static-physical frames */
-  void set_transforms_dynamic(void);
-
-  /*! Set new position of shape node in dynamic domain */
-  void set_dynamic_shape_node(int in_spt, int in_ele, hf_array<double> &in_pos);
-
-  /* --- Geometric Conservation Law (GCL) Funcitons --- */
-  /*! Update the dynamic transformation variables with the GCL-corrected Jacobian determinant */
-  void correct_dynamic_transforms(void);
-
-  /*! GCL Residual-Calculation Steps */
-  void evaluate_GCL_flux(void);
-  void extrapolate_GCL_solution(void);
-  void extrapolate_GCL_flux(void);
-  void calculate_divergence_GCL(void);
-  void calculate_corrected_divergence_GCL(void);
-
-  double *get_disu_GCL_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele);
-  /* --------------------------------------------------- */
-
 //--------------------
 //GPU functions
 //--------------------
 #ifdef _GPU
-  void cp_transforms_gpu_cpu(void);
-  void cp_transforms_cpu_gpu(void);
-
-  void perturb_shape(double rk_time);
-  void rigid_move(double rk_time);
-
-  void calc_grid_velocity(void);
-  void rigid_grid_velocity(double rk_time);
-  void perturb_grid_velocity(double rk_time);
 
 	/*! move all to from cpu to gpu */
 	void mv_all_cpu_gpu(void);
@@ -643,12 +476,6 @@ protected:
   virtual void shock_det_persson()=0;
 
   // #### members ####
-
-  /// flag to avoid re-setting-up transform arrays
-  bool first_time;
-
-  /*! mesh motion flag */
-  int motion;
 
   /*! viscous flag */
   int viscous;
@@ -725,7 +552,7 @@ protected:
   hf_array<int> bdy_ele2ele;
 
   /*! Boundary condition type of faces */
-  hf_array<int> bctype;
+  hf_array<int> bcid;
 
   /*! number of shape points per element */
   hf_array<int> n_spts_per_ele;
@@ -790,21 +617,6 @@ protected:
   /*! position of shape points (mesh vertices) in static-physical domain */
 	hf_array<double> shape;
 
-  /*! position of shape points (mesh vertices) in dynamic-physical domain */
-  hf_array<double> shape_dyn;
-
-  /*!
-  Description: Mesh velocity at shape points \n
-  indexing: (in_ele)(in_spt, in_dim) \n
-  */
-  hf_array<double> vel_spts;
-
-  /*!
-  Description: Mesh velocity at flux points (interpolated using shape basis funcs) \n
-  indexing: (in_dim, in_fpt, in_ele) \n
-  */
-  hf_array<double> grid_vel_upts, grid_vel_fpts, vel_ppts;
-
   /*! nodal shape basis contributions at flux points */
   hf_array<double> nodal_s_basis_fpts;
 
@@ -834,18 +646,6 @@ protected:
 
 	/*! temporary solution storage at a single solution point */
 	hf_array<double> temp_u;
-
-  /*! temporary grid velocity storage at a single solution point */
-  hf_array<double> temp_v;
-
-  /*! temporary grid velocity storage at a single solution point (transformed to static frame) */
-  hf_array<double> temp_v_ref;
-
-  /*! temporary flux storage for GCL at a single solution point (transformed to static frame) */
-  hf_array<double> temp_f_GCL;
-
-  /*! temporary flux storage for GCL at a single solution point (transformed to static frame) */
-  hf_array<double> temp_f_ref_GCL;
 
 	/*! temporary solution gradient storage */
 	hf_array<double> temp_grad_u;
@@ -917,37 +717,6 @@ protected:
 
   /*! normal at interface cubature points*/
   hf_array< hf_array<double> > norm_inters_cubpts;
-
-  /*! determinant of dynamic jacobian at solution points ( |G| ) */
-  hf_array<double> J_dyn_upts;
-
-  /*! determinant of dynamic jacobian at flux points ( |G| ) */
-  hf_array<double> J_dyn_fpts;
-
-  /*! Dynamic transformation matrix at solution points ( |G|*G^-1 ) */
-  hf_array<double>  JGinv_dyn_upts;
-
-  /*! Dynamic->Static transformation matrix at flux points ( |G|*G^-1 ) */
-  hf_array<double>  JGinv_dyn_fpts;
-
-  /*! Static->Dynamic transformation matrix at flux points ( G/|G| ) */
-  hf_array<double>  JinvG_dyn_fpts;
-
-  /*! transformed gradient of determinant of dynamic jacobian at solution points */
-  hf_array<double> tgrad_J_dyn_upts;
-
-  /*! transformed gradient of determinant of dynamic jacobian at flux points */
-  hf_array<double> tgrad_J_dyn_fpts;
-
-  /*! normal at flux points in dynamic mesh */
-  hf_array<double> norm_dyn_fpts;
-
-  /*! physical coordinates at flux points in dynamic mesh */
-  hf_array<double> dyn_pos_fpts, dyn_pos_upts;
-
-  /*! magnitude of transformed face-area normal vector from static-physical -> dynamic-physical frame
-   *  [magntiude of (normal dot inverse dynamic transformation matrix)] [ |J*(G^-1)*(n*dA)| ] */
-  hf_array<double> ndA_dyn_fpts;
 
   /*!
         description: transformed discontinuous solution at the solution points
@@ -1028,15 +797,6 @@ protected:
 	/*! gradient of discontinuous solution at flux points */
 	hf_array<double> grad_disu_fpts;
 
-	/*! transformed discontinuous viscous flux at the solution points */
-	//hf_array<double> tdisvisf_upts;
-
-	/*! normal transformed discontinuous viscous flux at the flux points */
-	//hf_array<double> norm_tdisvisf_fpts;
-
-	/*! normal transformed continuous viscous flux at the flux points */
-	//hf_array<double> norm_tconvisf_fpts;
-
 	/*! transformed gradient of determinant of jacobian at solution points */
 	hf_array<double> tgrad_detjac_upts;
 
@@ -1044,50 +804,6 @@ protected:
   hf_array<double> src_upts;
 
   hf_array<double> d_nodal_s_basis;
-
-  // TODO: change naming (comments) to reflect reuse
-
-  /*!
-   * description: discontinuous solution for GCL at the solution points \n
-   * indexing: (in_upt, in_ele) \n
-   */
-  hf_array< hf_array<double> > Jbar_upts;
-
-  /*!
-   * description: discontinuous solution for GCL at the flux points \n
-   * indexing: (in_fpt, in_ele) \n
-   */
-  hf_array< hf_array<double> > Jbar_fpts;
-
-  /*!
-   * description: transformed discontinuous flux for GCL at the solution points \n
-   * indexing: (in_upt, in_dim, in_ele) \n
-   */
-  hf_array<double> tdisf_GCL_upts;
-
-  /*!
-   * description: transformed discontinuous flux for GCL at the flux points \n
-   * indexing: (in_fpt, in_dim, in_ele) \n
-   */
-  hf_array<double> tdisf_GCL_fpts;
-
-  /*!
-   * normal transformed discontinuous GCL flux at the flux points \n
-   * indexing: (in_fpt, in_ele) \n
-   */
-  hf_array<double> norm_tdisf_GCL_fpts;
-
-  /*!
-   * normal transformed continuous GCL flux at the flux points \n
-   * indexing: (in_fpt, in_ele) \n
-   */
-  hf_array<double> norm_tconf_GCL_fpts;
-
-  /*!
-   * divergence of transformed continuous GCL flux at the solution points
-   * indexing: (in_upt, in_ele) \n
-   */
-  hf_array< hf_array<double> > div_tconf_GCL_upts;
 
 #ifdef _GPU
   cusparseHandle_t handle;

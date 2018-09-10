@@ -51,17 +51,14 @@ public:
   /*! setup inters */
   void setup(int in_n_inters, int in_inter_type);
 
-  /*! setup hf_array that contains boundary parameters */
-  void set_bdy_params();
-
   /*! Set bdy interface */
-  void set_boundary(int in_inter, int bdy_type, int in_ele_type_l, int in_ele_l, int in_local_inter_l, struct solution* FlowSol);
+  void set_boundary(int in_inter, int bc_id, int in_ele_type_l, int in_ele_l, int in_local_inter_l, struct solution* FlowSol);
 
   /*! Compute right hand side state at boundaries */
-  void set_inv_boundary_conditions(int bdy_type, double* u_l, double* u_r, double* v_g, double *norm, double *loc, double *bdy_params, int n_dims, int n_fields, double gamma, double R_ref, double time_bound, int equation);
+  void set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r, double *norm, double *loc,double gamma, double R_ref, double time_bound, int equation);
 
   /*! Compute right hand side gradient at boundaries */
-  void set_vis_boundary_conditions(int bdy_type, double* u_l, double* u_r, double* grad_u, double *norm, double *loc, double *bdy_params, int n_dims, int n_fields, double gamma, double R_ref, double time_bound, int equation);
+  void set_vis_boundary_conditions(int bc_id, double* u_l, double* u_r, double* grad_u, double *norm, double *loc, double gamma, double R_ref, double time_bound, int equation);
 
   /*! move all from cpu to gpu */
   void mv_all_cpu_gpu(void);
@@ -79,9 +76,7 @@ protected:
 
   // #### members ####
 
-  int max_bdy_params;
-  hf_array<int> boundary_type;
-  hf_array<double> bdy_params;
+  hf_array<int> boundary_id;
 
 
 };

@@ -68,9 +68,9 @@ eles::~eles() {}
 void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
 {
 
-    first_time = true;
     n_eles=in_n_eles;
-    restart_counter=n_eles;
+    if(run_input.restart_flag)
+        restart_counter=n_eles;
     max_n_spts_per_ele = in_max_n_spts_per_ele;
 
     if (n_eles!=0)
@@ -79,7 +79,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         order=run_input.order;
         p_res=run_input.p_res;
         viscous =run_input.viscous;
-        motion = run_input.motion;
         LES = run_input.LES;
         sgs_model = run_input.SGS_model;
         wall_model = run_input.wall_model;
@@ -189,8 +188,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             }
             // Allocate SGS flux hf_array if using LES
             temp_sgsf.setup(n_fields,n_dims);
-            if(motion)
-                temp_sgsf_ref.setup(n_fields,n_dims);
         }
         // Dummy arrays to pass to GPU kernel wrapper
         else
@@ -234,34 +231,10 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         src_upts.setup(n_upts_per_ele, n_eles, n_fields);
         zero_array(src_upts);
 
-        // Allocate hf_array for grid velocity
-        temp_v.setup(n_dims);
-        temp_v.initialize_to_zero();
-        temp_v_ref.setup(n_dims);
-        temp_v_ref.initialize_to_zero();
 
         set_shape(in_max_n_spts_per_ele);
         ele2global_ele.setup(n_eles);
-        bctype.setup(n_eles,n_inters_per_ele);
-
-        if (run_input.motion)
-        {
-            nodal_s_basis_fpts.setup(in_max_n_spts_per_ele,n_fpts_per_ele,n_eles);
-            nodal_s_basis_upts.setup(in_max_n_spts_per_ele,n_upts_per_ele,n_eles);
-            nodal_s_basis_ppts.setup(in_max_n_spts_per_ele,n_ppts_per_ele,n_eles);
-            d_nodal_s_basis_upts.setup(n_dims,in_max_n_spts_per_ele,n_upts_per_ele,n_eles);
-            d_nodal_s_basis_fpts.setup(n_dims,in_max_n_spts_per_ele,n_fpts_per_ele,n_eles);
-
-            nodal_s_basis_vol_cubpts.setup(in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);
-            d_nodal_s_basis_vol_cubpts.setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_ele,n_eles);
-            nodal_s_basis_inters_cubpts.setup(n_inters_per_ele);
-            d_nodal_s_basis_inters_cubpts.setup(n_inters_per_ele);
-            for (int iface=0; iface<n_inters_per_ele; iface++)
-            {
-                nodal_s_basis_inters_cubpts(iface).setup(in_max_n_spts_per_ele,n_cubpts_per_inter(iface),n_eles);
-                d_nodal_s_basis_inters_cubpts(iface).setup(n_dims,in_max_n_spts_per_ele,n_cubpts_per_inter(iface),n_eles);
-            }
-        }
+        bcid.setup(n_eles,n_inters_per_ele);
 
         n_fields_mul_n_eles=n_fields*n_eles;
         n_dims_mul_n_upts_per_ele=n_dims*n_upts_per_ele;
@@ -287,34 +260,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         norm_tdisf_fpts.setup(n_fpts_per_ele,n_eles,n_fields);
         norm_tdisf_fpts.initialize_to_zero();
         norm_tconf_fpts.setup(n_fpts_per_ele,n_eles,n_fields);
-
-        if (motion && run_input.GCL)
-        {
-            tdisf_GCL_upts.setup(n_upts_per_ele,n_eles,n_dims);
-            tdisf_GCL_fpts.setup(n_upts_per_ele,n_eles,n_dims);
-            norm_tdisf_GCL_fpts.setup(n_fpts_per_ele,n_eles);
-            norm_tconf_GCL_fpts.setup(n_fpts_per_ele,n_eles);
-            tdisf_GCL_upts.initialize_to_zero();
-            tdisf_GCL_fpts.initialize_to_zero();
-            norm_tdisf_GCL_fpts.initialize_to_zero();
-            norm_tconf_GCL_fpts.initialize_to_zero();
-
-            Jbar_upts.setup(n_adv_levels);
-            Jbar_fpts.setup(n_adv_levels);
-            div_tconf_GCL_upts.setup(n_adv_levels);
-            //div_tconf_GCL_fpts.setup(n_adv_levels);
-            for(int i=0; i<n_adv_levels; i++)
-            {
-                Jbar_upts(i).setup(n_upts_per_ele,n_eles);
-                Jbar_fpts(i).setup(n_fpts_per_ele,n_eles);
-                div_tconf_GCL_upts(i).setup(n_upts_per_ele,n_eles);
-                //div_tconf_GCL_fpts(i).setup(n_fpts_per_ele,n_eles);
-                div_tconf_GCL_upts(i).initialize_to_zero();
-                //div_tconf_GCL_fpts(i).initialize_to_zero();
-                Jbar_upts(i).initialize_to_zero();
-                Jbar_fpts(i).initialize_to_zero();
-            }
-        }
 
         if(viscous)
         {
@@ -482,32 +427,35 @@ void eles::set_ics(double& time)
             }
             else if(run_input.ic_form==9)//stationary shock
             {
-                //check bc
-                if (!run_input.Far_Field)
-                    FatalError("Characteristic boundary condition is needed");
-                if(!run_input.Sup_In)
-                    FatalError("Sup_In is needed");
-                if(!run_input.viscous)
-                    FatalError("only viscous is supported!");
+                int found=0;
+                for (int k = 0; k < run_input.bc_list.get_dim(0); k++)
+                {
+                    if (run_input.bc_list(k).get_bc_flag() == SUP_IN || run_input.bc_list(k).get_bc_flag() == CHAR)
+                    {
+                        if (pos(0) <= run_input.x_shock_ic) //supersonic zone
+                        {
+                            rho = run_input.bc_list(k).rho;
+                            vx = run_input.bc_list(k).velocity(0);
+                            vy = run_input.bc_list(k).velocity(1);
+                            vz = run_input.bc_list(k).velocity(2);
+                            p = run_input.bc_list(k).p_static;
+                        }
+                        else //subsonic zone initialize
+                        {
+                            rho = run_input.rho_c_ic;
+                            vx = run_input.u_c_ic;
+                            vy = run_input.v_c_ic;
+                            vz = run_input.w_c_ic;
+                            p = run_input.p_c_ic;
+                        }
+                        found =1;
+                        break;
+                    }
+                }
+                if(found==0)
+                    FatalError("Must have a Sup_In or Char boundary condition");
 
                 /*! initialize uniform flow with normal shock stationary condition*/
-
-                if(pos(0)<=run_input.x_shock_ic)//supersonic zone
-                {
-                            rho=run_input.rho_bound_sup_in;
-                            vx=run_input.v_bound_sup_in(0);
-                            vy=run_input.v_bound_sup_in(1);
-                            vz=run_input.v_bound_sup_in(2);
-                            p=run_input.p_bound_sup_in;
-                }
-                else//subsonic zone initialize
-                {
-                        rho=run_input.rho_c_ic;
-                        vx=run_input.u_c_ic;
-                        vy=run_input.v_c_ic;
-                        vz=run_input.w_c_ic;
-                        p=run_input.p_c_ic;
-                }
 
                 ics(0)=rho;
                 ics(1)=rho*vx;
@@ -883,35 +831,6 @@ void eles::write_restart_data(ofstream& restart_file)
     restart_file << endl;
 }
 
-void eles::write_restart_mesh(ofstream& restart_file)
-{
-    restart_file << "n_eles" << endl;
-    restart_file << n_eles << endl;
-    restart_file << "ele2global_ele hf_array" << endl;
-    for (int i=0; i<n_eles; i++)
-        restart_file << ele2global_ele(i) << " ";
-    restart_file << endl;
-
-    restart_file << "data" << endl;
-
-    for (int i=0; i<n_eles; i++)
-    {
-        restart_file << ele2global_ele(i) << endl;
-        for (int j=0; j<n_upts_per_ele; j++)
-        {
-            for (int k=0; k<n_dims; k++)
-            {
-                if (motion!=STATIC_MESH)
-                    restart_file << dyn_pos_upts(j,i,k) << " ";
-                else
-                    restart_file << pos_upts(j,i,k) << " ";
-            }
-            restart_file << endl;
-        }
-    }
-    restart_file << endl;
-}
-
 #ifdef _GPU
 // move all to from cpu to gpu
 void eles::mv_all_cpu_gpu(void)
@@ -953,16 +872,6 @@ void eles::mv_all_cpu_gpu(void)
         Lu.mv_cpu_gpu();
         Le.mv_cpu_gpu();
         twall.mv_cpu_gpu();
-
-        // Grid Velocity-related arrays for moving meshes
-        vel_spts.cp_cpu_gpu();
-        grid_vel_upts.mv_cpu_gpu();
-        grid_vel_fpts.mv_cpu_gpu();
-
-        if (motion)
-        {
-            run_input.bound_vel_simple(0).mv_cpu_gpu();
-        }
 
         if(run_input.shock_cap)
         {
@@ -1443,66 +1352,17 @@ void eles::evaluate_invFlux(void)
                     temp_u(k)=disu_upts(0)(j,i,k);
                 }
 
-                if (motion)
-                {
-                    // Transform solution from static frame to dynamic frame
-                    for (k=0; k<n_fields; k++)
-                    {
-                        temp_u(k) /= J_dyn_upts(j,i);
-                    }
-                    // Get mesh velocity in dynamic frame
-                    for (k=0; k<n_dims; k++)
-                    {
-                        temp_v(k) = grid_vel_upts(j,i,k);
-                    }
-                    // Temporary flux vector for dynamic->static transformation
-                    temp_f_ref.setup(n_fields,n_dims);
-                }
-                else
-                {
-                    temp_v.initialize_to_zero();
-                }
-
                 if(n_dims==2)
                 {
                     calc_invf_2d(temp_u,temp_f);
-                    if (motion)
-                        calc_alef_2d(temp_u, temp_v, temp_f);
                 }
                 else if(n_dims==3)
                 {
                     calc_invf_3d(temp_u,temp_f);
-                    if (motion)
-                        calc_alef_3d(temp_u, temp_v, temp_f);
                 }
                 else
                 {
                     FatalError("Invalid number of dimensions!");
-                }
-
-                // Transform from dynamic-physical space to static-physical space
-                if (motion)
-                {
-                    for(k=0; k<n_fields; k++)
-                    {
-                        for(l=0; l<n_dims; l++)
-                        {
-                            temp_f_ref(k,l)=0.;
-                            for(m=0; m<n_dims; m++)
-                            {
-                                temp_f_ref(k,l) += JGinv_dyn_upts(l,m,j,i)*temp_f(k,m);
-                            }
-                        }
-                    }
-
-                    // Copy Static-Physical Domain flux back to temp_f
-                    for (k=0; k<n_fields; k++)
-                    {
-                        for (l=0; l<n_dims; l++)
-                        {
-                            temp_f(k,l) = temp_f_ref(k,l);
-                        }
-                    }
                 }
 
                 // Transform from static physical space to computational space
@@ -2008,53 +1868,8 @@ void eles::correct_gradient(void)
                         grad_disu_upts(j,i,k,2) = ur*rz + us*sz + ut*tz;
                     }
                 }
-
-                if (motion)
-                {
-                    // Transform to dynamic-physical domain
-                    detjac = J_dyn_upts(j,i);
-                    inv_detjac = 1.0/detjac;
-
-                    Xx = JGinv_dyn_upts(0,0,j,i)*inv_detjac;
-                    Xy = JGinv_dyn_upts(0,1,j,i)*inv_detjac;
-                    Yx = JGinv_dyn_upts(1,1,j,i)*inv_detjac;
-                    Yy = JGinv_dyn_upts(1,1,j,i)*inv_detjac;
-
-                    //physical gradient
-                    if(n_dims==2)
-                    {
-                        for(int k=0; k<n_fields; k++)
-                        {
-                            uX = grad_disu_upts(j,i,k,0);
-                            uY = grad_disu_upts(j,i,k,1);
-
-                            grad_disu_upts(j,i,k,0) = uX*Xx + uY*Yx;
-                            grad_disu_upts(j,i,k,1) = uX*Xy + uY*Yy;
-                        }
-                    }
-                    if (n_dims==3)
-                    {
-                        Xz = JGinv_dyn_upts(j,i,0,2)*inv_detjac;
-                        Yz = JGinv_dyn_upts(j,i,1,2)*inv_detjac;
-
-                        Zx = JGinv_dyn_upts(j,i,2,0)*inv_detjac;
-                        Zy = JGinv_dyn_upts(j,i,2,1)*inv_detjac;
-                        Zz = JGinv_dyn_upts(j,i,2,2)*inv_detjac;
-
-                        for (int k=0; k<n_fields; k++)
-                        {
-                            uX = grad_disu_upts(j,i,k,0);
-                            uY = grad_disu_upts(j,i,k,1);
-                            uZ = grad_disu_upts(j,i,k,2);
-
-                            grad_disu_upts(j,i,k,0) = uX*Xx + uY*Yx + uZ*Zx;
-                            grad_disu_upts(j,i,k,1) = uX*Xy + uY*Yy + uZ*Zy;
-                            grad_disu_upts(j,i,k,2) = uX*Xz + uY*Yz + uZ*Zz;
-                        }
-                    }
                 }
             }
-        }
 
 #endif
 
@@ -2495,13 +2310,6 @@ void eles::evaluate_viscFlux(void)
                 }
 
                 // Transform to dynamic-physical domain
-                if (motion)
-                {
-                    for (k=0; k<n_fields; k++)
-                    {
-                        temp_u(k) /= J_dyn_upts(j,i);
-                    }
-                }
 
                 if(n_dims==2)
                 {
@@ -2542,31 +2350,6 @@ void eles::evaluate_viscFlux(void)
                 // If LES, add SGS flux to global hf_array (needed for interface flux calc)
                 if(LES > 0)
                 {
-
-                    // Transfer back to static-phsycial domain
-                    if (motion)
-                    {
-                        temp_sgsf_ref.initialize_to_zero();
-                        for(k=0; k<n_fields; k++)
-                        {
-                            for(l=0; l<n_dims; l++)
-                            {
-                                for(m=0; m<n_dims; m++)
-                                {
-                                    temp_sgsf_ref(k,l)+=JGinv_dyn_upts(l,m,j,i)*temp_sgsf(k,m);
-                                }
-                            }
-                        }
-                        // Copy back to original flux hf_array
-                        for (k=0; k<n_fields; k++)
-                        {
-                            for(l=0; l<n_dims; l++)
-                            {
-                                temp_sgsf(k,l) = temp_sgsf_ref(k,l);
-                            }
-                        }
-                    }
-
                     // Transfer back to computational domain
                     for(k=0; k<n_fields; k++)
                     {
@@ -2577,30 +2360,6 @@ void eles::evaluate_viscFlux(void)
                             {
                                 sgsf_upts(j,i,k,l)+=JGinv_upts(l,m,j,i)*temp_sgsf(k,m);
                             }
-                        }
-                    }
-                }
-
-                // Transfer back to static-phsycial domain
-                if (motion)
-                {
-                    temp_f_ref.initialize_to_zero();
-                    for(k=0; k<n_fields; k++)
-                    {
-                        for(l=0; l<n_dims; l++)
-                        {
-                            for(m=0; m<n_dims; m++)
-                            {
-                                temp_f_ref(k,l)+=JGinv_dyn_upts(l,m,j,i)*temp_f(k,m);
-                            }
-                        }
-                    }
-                    // Copy back to original flux hf_array
-                    for(l=0; l<n_dims; l++)
-                    {
-                        for (k=0; k<n_fields; k++)
-                        {
-                            temp_f(k,l) = temp_f_ref(k,l);
                         }
                     }
                 }
@@ -2638,7 +2397,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     double diag=0.0;
     double Smod=0.0;
     double ke=0.0;
-    double Pr_t=run_input.Pr_t; // turbulent Prandtl number
+    double Pr_t=run_input.prandtl_t; // turbulent Prandtl number
     double karman=0.41;//von_karman constant 
     double delta, mu, mu_t, vol;
     double rho, inte, rt_ratio;
@@ -3923,8 +3682,7 @@ int eles::get_n_spts_per_ele(int in_ele)
 void eles::set_shape(int in_max_n_spts_per_ele)
 {
     shape.setup(n_dims,in_max_n_spts_per_ele,n_eles);
-    shape_dyn.setup(n_dims,in_max_n_spts_per_ele,n_eles,5);
-    //shape_dyn_old.setup(n_dims,in_max_n_spts_per_ele,n_eles,4);
+
     n_spts_per_ele.setup(n_eles);
 }
 
@@ -3935,8 +3693,6 @@ void eles::set_shape_node(int in_spt, int in_ele, hf_array<double>& in_pos)
     for(int i=0; i<n_dims; i++)
     {
         shape(i,in_spt,in_ele)=in_pos(i);
-        for (int j=0; j<5; j++)
-            shape_dyn(i,in_spt,in_ele,j)=in_pos(i);
     }
 }
 
@@ -3947,23 +3703,15 @@ double eles::get_shape(int in_dim, int in_spt, int in_ele)
     return shape(in_dim,in_spt,in_ele);
 }
 
-void eles::set_dynamic_shape_node(int in_spt, int in_ele, hf_array<double> &in_pos)
-{
-    for(int i=0; i<n_dims; i++)
-    {
-        shape_dyn(i,in_spt,in_ele)=in_pos(i);
-    }
-}
-
 void eles::set_rank(int in_rank)
 {
     rank = in_rank;
 }
 
 // set bc type
-void eles::set_bctype(int in_ele,int in_inter, int in_bctype)
+void eles::set_bcid(int in_ele,int in_inter, int in_bcid)
 {
-    bctype(in_ele, in_inter) = in_bctype;
+    bcid(in_ele, in_inter) = in_bcid;
 }
 
 // set number of shape points
@@ -4637,18 +4385,11 @@ void eles::calc_pos_ppts(int in_ele, hf_array<double>& out_pos_ppts)
 
     for(i=0; i<n_ppts_per_ele; i++)
     {
-        if (motion)
-        {
-            calc_pos_dyn_ppt(i,in_ele,pos);
-        }
-        else
-        {
             for(j=0; j<n_dims; j++)
             {
                 loc(j)=loc_ppts(j,i);
             }
             calc_pos(loc,in_ele,pos);
-        }
 
         for(j=0; j<n_dims; j++) // TODO: can this be made more efficient/simpler?
         {
@@ -4664,21 +4405,9 @@ void eles::calc_disu_probepoints(int in_ele, hf_array<double>& out_disu_probepoi
         hf_array<double> disu_upts_probe(n_upts_per_ele,n_fields);
 
         for(int i=0; i<n_fields; i++)
-        {
             for(int j=0; j<n_upts_per_ele; j++)
-            {
-                if (motion)
-                {
-                    disu_upts_probe(j,i)=disu_upts(0)(j,in_ele,i)/J_dyn_upts(j,in_ele);
-                    //disu_upts_plot(j,i)=1/J_dyn_upts(j,in_ele);
-                    //cout << in_ele << "," << j << "," << i << ": " << disu_upts(0)(j,in_ele,i) << ", " << J_dyn_upts(j,in_ele) << endl;
-                }
-                else
-                {
                     disu_upts_probe(j,i)=disu_upts(0)(j,in_ele,i);
-                }
-            }
-        }
+
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
 
         cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,1,n_fields,n_upts_per_ele,1.0,opp_probe.get_ptr_cpu(),1,disu_upts_probe.get_ptr_cpu(),n_upts_per_ele,0.0,out_disu_probepoints.get_ptr_cpu(),1);
@@ -4712,21 +4441,8 @@ void eles::calc_disu_ppts(int in_ele, hf_array<double>& out_disu_ppts)
         hf_array<double> disu_upts_plot(n_upts_per_ele,n_fields);
 
         for(i=0; i<n_fields; i++)
-        {
             for(j=0; j<n_upts_per_ele; j++)
-            {
-                if (motion)
-                {
-                    disu_upts_plot(j,i)=disu_upts(0)(j,in_ele,i)/J_dyn_upts(j,in_ele);
-                    //disu_upts_plot(j,i)=1/J_dyn_upts(j,in_ele);
-                    //cout << in_ele << "," << j << "," << i << ": " << disu_upts(0)(j,in_ele,i) << ", " << J_dyn_upts(j,in_ele) << endl;
-                }
-                else
-                {
                     disu_upts_plot(j,i)=disu_upts(0)(j,in_ele,i);
-                }
-            }
-        }
 
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
 
@@ -5089,16 +4805,13 @@ void eles::set_transforms_upts(void)
             for(j=0; j<n_upts_per_ele; j++)
             {
                 // get coordinates of the solution point
-            if(!motion)
-            {
+
                 for(k=0;k<n_dims;k++)
                 {
                     loc(k)=loc_upts(k,j);
                 }
                 calc_pos(loc,i,pos);
-            }
-            else
-                calc_pos_upts(j,i,pos);
+
 
                 for(k=0; k<n_dims; k++)
                 {
@@ -5106,10 +4819,8 @@ void eles::set_transforms_upts(void)
                 }
 
                 // calculate first derivatives of shape functions at the solution point
-                if(!motion)
                     calc_d_pos(loc,i,d_pos);
-                else
-                    calc_d_pos_upt(j,i,d_pos);
+
 
                 // store quantities at the solution point
 
@@ -5220,16 +4931,12 @@ void eles::set_transforms_fpts(void)
             {
                 // get coordinates of the flux point
 
-                if(!motion)
-                {
                     for(k=0;k<n_dims;k++)
                     {
                         loc(k)=tloc_fpts(k,j);
                     }
                     calc_pos(loc,i,pos);
-                }
-                else
-                    calc_pos_fpts(j,i,pos);
+
 
                 for(k=0; k<n_dims; k++)
                 {
@@ -5237,10 +4944,8 @@ void eles::set_transforms_fpts(void)
                 }
 
                 // calculate first derivatives of shape functions at the flux points
-                if(!motion)
                     calc_d_pos(loc,i,d_pos);
-                else
-                    calc_d_pos_fpt(j,i,d_pos);
+
                     
                 // store quantities at the flux point
 
@@ -5346,319 +5051,13 @@ void eles::set_transforms_fpts(void)
         JGinv_fpts.cp_cpu_gpu();
         detjac_fpts.cp_cpu_gpu();
 
-        if (motion)
-        {
-            norm_fpts.cp_cpu_gpu(); // cp b/c needed for set_transforms_dynamic()
-        }
-        else
-        {
+
             norm_fpts.mv_cpu_gpu();
             // move the dummy dynamic-transform pointers to GPUs
             cp_transforms_cpu_gpu();
-        }
 #endif
 }
 
-void eles::set_transforms_dynamic(void)
-{
-    if (n_eles!=0 && motion && first_time)
-    {
-        // Determinant of the dynamic -> static reference transformation matrix ( |G| )
-        J_dyn_upts.setup(n_upts_per_ele,n_eles);
-        // Total dynamic -> static reference transformation matrix ( |G|*G^{-1} )
-        JGinv_dyn_upts.setup(n_dims,n_dims,n_upts_per_ele,n_eles);
-        dyn_pos_upts.setup(n_upts_per_ele,n_eles,n_dims);
-
-        J_dyn_fpts.setup(n_fpts_per_ele,n_eles);
-        JGinv_dyn_fpts.setup(n_dims,n_dims,n_fpts_per_ele,n_eles);
-        norm_dyn_fpts.setup(n_fpts_per_ele,n_eles,n_dims);
-        dyn_pos_fpts.setup(n_fpts_per_ele,n_eles,n_dims);
-
-        ndA_dyn_fpts.setup(n_fpts_per_ele,n_eles);
-    }
-
-#ifdef _CPU
-    if (n_eles!=0 && motion)
-    {
-        int i,j,k;
-
-        hf_array<double> pos(n_dims);
-        hf_array<double> d_pos(n_dims,n_dims);
-        hf_array<double> norm_dot_JGinv(n_dims);  // un-normalized normal vector in moving-physical domain
-
-        double xr, xs, xt;
-        double yr, ys, yt;
-        double zr, zs, zt;
-
-        if (rank==0 && first_time)
-        {
-            cout << " Setting up dynamic->static transforms at solution points" << endl;
-        }
-
-        for(i=0; i<n_eles; i++)
-        {
-            if ((i%(max(n_eles,10)/10))==0 && rank==0 && first_time)
-                cout << fixed << setprecision(2) <<  (i*1.0/n_eles)*100 << "% " << flush;
-
-            for(j=0; j<n_upts_per_ele; j++)
-            {
-                // get coordinates of the solution point
-
-                // calculate first derivatives of shape functions at the solution point
-                calc_d_pos_dyn_upt(j,i,d_pos);
-
-                // store quantities at the solution point
-
-                if(n_dims==2)
-                {
-                    xr = d_pos(0,0);
-                    xs = d_pos(0,1);
-
-                    yr = d_pos(1,0);
-                    ys = d_pos(1,1);
-
-                    // store determinant of jacobian at solution point
-                    J_dyn_upts(j,i)= xr*ys - xs*yr;
-
-                    if (first_time && run_input.GCL)
-                    {
-                        //if (in_rkstep==0) {
-                        Jbar_upts(0)(j,i) = J_dyn_upts(j,i);
-                    }
-
-                    if (J_dyn_upts(j,i) < 0)
-                    {
-                        FatalError("Negative Jacobian at solution points");
-                    }
-
-                    // store determinant of jacobian multiplied by inverse of jacobian at the solution point
-                    JGinv_dyn_upts(0,0,j,i)=  ys;
-                    JGinv_dyn_upts(0,1,j,i)= -xs;
-                    JGinv_dyn_upts(1,1,j,i)= -yr;
-                    JGinv_dyn_upts(1,1,j,i)=  xr;
-                }
-                else if(n_dims==3)
-                {
-                    xr = d_pos(0,0);
-                    xs = d_pos(0,1);
-                    xt = d_pos(0,2);
-
-                    yr = d_pos(1,0);
-                    ys = d_pos(1,1);
-                    yt = d_pos(1,2);
-
-                    zr = d_pos(2,0);
-                    zs = d_pos(2,1);
-                    zt = d_pos(2,2);
-
-                    // store determinant of jacobian at solution point
-                    J_dyn_upts(j,i) = xr*(ys*zt - yt*zs) - xs*(yr*zt - yt*zr) + xt*(yr*zs - ys*zr);
-
-                    // store determinant of jacobian multiplied by inverse of jacobian at the solution point
-                    JGinv_dyn_upts(0,0,j,i) = (ys*zt - yt*zs);
-                    JGinv_dyn_upts(0,1,j,i) = (xt*zs - xs*zt);
-                    JGinv_dyn_upts(0,2,j,i) = (xs*yt - xt*ys);
-                    JGinv_dyn_upts(1,1,j,i) = (yt*zr - yr*zt);
-                    JGinv_dyn_upts(1,1,j,i) = (xr*zt - xt*zr);
-                    JGinv_dyn_upts(1,2,j,i) = (xt*yr - xr*yt);
-                    JGinv_dyn_upts(2,0,j,i) = (yr*zs - ys*zr);
-                    JGinv_dyn_upts(2,1,j,i) = (xs*zr - xr*zs);
-                    JGinv_dyn_upts(2,2,j,i) = (xr*ys - xs*yr);
-                }
-                else
-                {
-                    cout << "ERROR: Invalid number of dimensions ... " << endl;
-                }
-
-                // Have to use the GCL-corrected Jacobain everywhere
-                //J_dyn_upts(j,i) = Jbar_upts(0)(j,i);
-            }
-        }
-
-        // Compute metrics term at flux points
-        if (rank==0 && first_time)
-            cout << endl << " at flux points"  << endl;
-
-        for(i=0; i<n_eles; i++)
-        {
-            if ((i%(max(n_eles,10)/10))==0 && rank==0 && first_time)
-                cout << fixed << setprecision(2) <<  (i*1.0/n_eles)*100 << "% " << flush;
-
-            for(j=0; j<n_fpts_per_ele; j++)
-            {
-                // get coordinates of the flux point
-
-                calc_pos_dyn_fpt(j,i,pos);
-
-                for(k=0; k<n_dims; k++)
-                {
-                    dyn_pos_fpts(j,i,k)=pos(k);
-                }
-
-                // calculate first derivatives of shape functions at the flux points
-                calc_d_pos_dyn_fpt(j,i,d_pos);
-
-                // store quantities at the flux point
-
-                if(n_dims==2)
-                {
-                    xr = d_pos(0,0);
-                    xs = d_pos(0,1);
-
-                    yr = d_pos(1,0);
-                    ys = d_pos(1,1);
-
-                    // store determinant of dynamic transformation Jacobian at flux point
-                    J_dyn_fpts(j,i)= xr*ys - xs*yr;
-
-                    if (first_time && run_input.GCL)
-                    {
-                        //if (in_rkstep==0) {
-                        Jbar_fpts(0)(j,i) = J_dyn_fpts(j,i);
-                    }
-
-                    if (J_dyn_fpts(j,i) < 0)
-                    {
-                        FatalError("Negative Jacobian at flux points");
-                    }
-
-                    // store determinant of jacobian multiplied by inverse of jacobian at the flux point
-                    // (dynamic -> static transformation matrix)
-                    JGinv_dyn_fpts(0,0,j,i)=  ys;
-                    JGinv_dyn_fpts(0,1,j,i)= -xs;
-                    JGinv_dyn_fpts(1,0,j,i)= -yr;
-                    JGinv_dyn_fpts(1,1,j,i)=  xr;
-
-//          if (viscous)
-//          {
-//            // store static->dynamic transformation matrix
-//            JinvG_dyn_fpts(j,i,0,0)= xr/J_dyn_fpts(j,i);
-//            JinvG_dyn_fpts(j,i,0,1)= xs/J_dyn_fpts(j,i);
-//            JinvG_dyn_fpts(j,i,1,0)= yr/J_dyn_fpts(j,i);
-//            JinvG_dyn_fpts(j,i,1,1)= ys/J_dyn_fpts(j,i);
-//          }
-
-                    // temporarily store transformed normal dot determinant of jacobian multiplied by inverse of jacobian at the flux point
-                    norm_dot_JGinv(0)= ( norm_fpts(j,i,0)*ys -norm_fpts(j,i,1)*yr);
-                    norm_dot_JGinv(1)= (-norm_fpts(j,i,0)*xs +norm_fpts(j,i,1)*xr);
-
-                    // store magnitude of transformed normal dot determinant of jacobian multiplied by inverse of jacobian at the flux point
-                    ndA_dyn_fpts(j,i)=sqrt(norm_dot_JGinv(0)*norm_dot_JGinv(0)+
-                                           norm_dot_JGinv(1)*norm_dot_JGinv(1));
-
-                    // store normal at flux point
-                    norm_dyn_fpts(j,i,0)=norm_dot_JGinv(0)/ndA_dyn_fpts(j,i);
-                    norm_dyn_fpts(j,i,1)=norm_dot_JGinv(1)/ndA_dyn_fpts(j,i);
-                }
-                else if(n_dims==3)
-                {
-                    xr = d_pos(0,0);
-                    xs = d_pos(0,1);
-                    xt = d_pos(0,2);
-
-                    yr = d_pos(1,0);
-                    ys = d_pos(1,1);
-                    yt = d_pos(1,2);
-
-                    zr = d_pos(2,0);
-                    zs = d_pos(2,1);
-                    zt = d_pos(2,2);
-
-                    // store determinant of jacobian at flux point
-
-                    J_dyn_fpts(j,i) = xr*(ys*zt - yt*zs) - xs*(yr*zt - yt*zr) + xt*(yr*zs - ys*zr);
-
-                    // store determinant of jacobian multiplied by inverse of jacobian at the flux point
-
-                    JGinv_dyn_fpts(0,0,j,i) = (ys*zt - yt*zs);
-                    JGinv_dyn_fpts(0,1,j,i) = (xt*zs - xs*zt);
-                    JGinv_dyn_fpts(0,2,j,i) = (xs*yt - xt*ys);
-                    JGinv_dyn_fpts(1,0,j,i) = (yt*zr - yr*zt);
-                    JGinv_dyn_fpts(1,1,j,i) = (xr*zt - xt*zr);
-                    JGinv_dyn_fpts(1,2,j,i) = (xt*yr - xr*yt);
-                    JGinv_dyn_fpts(2,0,j,i) = (yr*zs - ys*zr);
-                    JGinv_dyn_fpts(2,1,j,i) = (xs*zr - xr*zs);
-                    JGinv_dyn_fpts(2,2,j,i) = (xr*ys - xs*yr);
-
-                    // temporarily store moving-physical domain interface normal at the flux point
-                    // [transformed normal dot determinant of jacobian multiplied by inverse of jacobian]
-                    norm_dot_JGinv(0)=((norm_fpts(j,i,0)*(ys*zt-yt*zs))+(norm_fpts(j,i,1)*(yt*zr-yr*zt))+(norm_fpts(j,i,2)*(yr*zs-ys*zr)));
-                    norm_dot_JGinv(1)=((norm_fpts(j,i,0)*(xt*zs-xs*zt))+(norm_fpts(j,i,1)*(xr*zt-xt*zr))+(norm_fpts(j,i,2)*(xs*zr-xr*zs)));
-                    norm_dot_JGinv(2)=((norm_fpts(j,i,0)*(xs*yt-xt*ys))+(norm_fpts(j,i,1)*(xt*yr-xr*yt))+(norm_fpts(j,i,2)*(xr*ys-xs*yr)));
-
-                    // store magnitude of transformed normal dot determinant of jacobian multiplied by inverse of jacobian at the flux point
-                    ndA_dyn_fpts(j,i)=sqrt(norm_dot_JGinv(0)*norm_dot_JGinv(0)+
-                                           norm_dot_JGinv(1)*norm_dot_JGinv(1)+
-                                           norm_dot_JGinv(2)*norm_dot_JGinv(2));
-
-                    // store normal at flux point
-                    norm_dyn_fpts(j,i,0)=norm_dot_JGinv(0)/ndA_dyn_fpts(j,i);
-                    norm_dyn_fpts(j,i,1)=norm_dot_JGinv(1)/ndA_dyn_fpts(j,i);
-                    norm_dyn_fpts(j,i,2)=norm_dot_JGinv(2)/ndA_dyn_fpts(j,i);
-                }
-                else
-                {
-                    cout << "ERROR: Invalid number of dimensions ... " << endl;
-                }
-            }
-        }
-        if (rank==0 && first_time) cout << endl;
-
-        // To avoid re-setting up ALL transform arrays in the future (for dynamic grids)
-        first_time = false;
-    }
-#endif
-
-#ifdef _GPU
-    if (n_eles!=0 && motion)
-    {
-        if (first_time) cp_transforms_cpu_gpu();
-
-        if (rank == 0 && first_time) cout << "Setting dynamic transformations ... " << flush;
-        set_transforms_dynamic_fpts_kernel_wrapper(n_fpts_per_ele,n_eles,n_dims,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),detjac_fpts.get_ptr_gpu(),J_dyn_fpts.get_ptr_gpu(),JGinv_fpts.get_ptr_gpu(),JGinv_dyn_fpts.get_ptr_gpu(),ndA_dyn_fpts.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),d_nodal_s_basis_fpts.get_ptr_gpu(),shape_dyn.get_ptr_gpu());
-        set_transforms_dynamic_upts_kernel_wrapper(n_upts_per_ele,n_eles,n_dims,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),detjac_upts.get_ptr_gpu(),J_dyn_upts.get_ptr_gpu(),JGinv_upts.get_ptr_gpu(),JGinv_dyn_upts.get_ptr_gpu(),d_nodal_s_basis_upts.get_ptr_gpu(),shape_dyn.get_ptr_gpu());
-        if (rank == 0 && first_time) cout << "done." << endl;
-    }
-
-    first_time = false;
-#endif
-}
-
-#ifdef _GPU
-void eles::cp_transforms_gpu_cpu(void)
-{
-    J_dyn_upts.cp_gpu_cpu();
-    JGinv_dyn_upts.cp_gpu_cpu();
-
-    J_dyn_fpts.cp_gpu_cpu();
-    JGinv_dyn_fpts.cp_gpu_cpu();
-    ndA_dyn_fpts.cp_gpu_cpu();
-    norm_dyn_fpts.cp_gpu_cpu();
-    dyn_pos_fpts.cp_gpu_cpu();
-
-    shape_dyn.cp_gpu_cpu();
-    vel_spts.cp_gpu_cpu();
-}
-
-void eles::cp_transforms_cpu_gpu(void)
-{
-    J_dyn_upts.cp_cpu_gpu();
-    J_dyn_fpts.cp_cpu_gpu();
-
-    JGinv_dyn_upts.cp_cpu_gpu();
-    JGinv_dyn_fpts.cp_cpu_gpu();
-
-    ndA_dyn_fpts.cp_cpu_gpu();
-    norm_dyn_fpts.cp_cpu_gpu();
-    dyn_pos_fpts.cp_cpu_gpu();
-
-    n_spts_per_ele.cp_cpu_gpu();
-    shape.cp_cpu_gpu();
-    shape_dyn.cp_cpu_gpu();
-
-    //grid_vel_upts.cp_cpu_gpu();
-}
-#endif
 
 void eles::set_bdy_ele2ele(void)
 {
@@ -5669,7 +5068,7 @@ void eles::set_bdy_ele2ele(void)
     {
         for (int j=0; j<n_inters_per_ele; j++)
         {
-            if (bctype(i,j) != 0)
+            if (bcid(i,j) != -1)
             {
                 n_bdy_eles++;
                 break;
@@ -5687,7 +5086,7 @@ void eles::set_bdy_ele2ele(void)
         {
             for (int j=0; j<n_inters_per_ele; j++)
             {
-                if (bctype(i,j) != 0)
+                if (bcid(i,j) != -1)
                 {
                     bdy_ele2ele(n_bdy_eles++) = i;
                     break;
@@ -5932,28 +5331,6 @@ double* eles::get_detjac_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter
 #endif
 }
 
-// get a pointer to the determinant of the jacobian at a flux point (dynamic->static)
-
-double* eles::get_detjac_dyn_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele)
-{
-    int i;
-
-    int fpt;
-
-    fpt=in_inter_local_fpt;
-
-    for(i=0; i<in_ele_local_inter; i++)
-    {
-        fpt+=n_fpts_per_inter(i);
-    }
-
-#ifdef _GPU
-    return J_dyn_fpts.get_ptr_gpu(fpt,in_ele);
-#else
-    return J_dyn_fpts.get_ptr_cpu(fpt,in_ele);
-#endif
-}
-
 // get a pointer to the magnitude of normal dot inverse of (determinant of jacobian multiplied by jacobian) at flux points
 
 double* eles::get_tdA_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele)
@@ -5976,27 +5353,6 @@ double* eles::get_tdA_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, i
 #endif
 }
 
-// get pointer to the equivalent of 'dA' (face area) at a flux point in dynamic physical space */
-
-double* eles::get_ndA_dyn_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele)
-{
-    int i;
-
-    int fpt;
-
-    fpt=in_inter_local_fpt;
-
-    for(i=0; i<in_ele_local_inter; i++)
-    {
-        fpt+=n_fpts_per_inter(i);
-    }
-
-#ifdef _GPU
-    return ndA_dyn_fpts.get_ptr_gpu(fpt,in_ele);
-#else
-    return ndA_dyn_fpts.get_ptr_cpu(fpt,in_ele);
-#endif
-}
 
 // get a pointer to the normal at a flux point
 
@@ -6017,28 +5373,6 @@ double* eles::get_norm_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, 
     return norm_fpts.get_ptr_gpu(fpt,in_ele,in_dim);
 #else
     return norm_fpts.get_ptr_cpu(fpt,in_ele,in_dim);
-#endif
-}
-
-// get a pointer to the normal at a flux point in dynamic space
-
-double* eles::get_norm_dyn_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele)
-{
-    int i;
-
-    int fpt;
-
-    fpt=in_inter_local_fpt;
-
-    for(i=0; i<in_ele_local_inter; i++)
-    {
-        fpt+=n_fpts_per_inter(i);
-    }
-
-#ifdef _GPU
-    return norm_dyn_fpts.get_ptr_gpu(fpt,in_ele,in_dim);
-#else
-    return norm_dyn_fpts.get_ptr_cpu(fpt,in_ele,in_dim);
 #endif
 }
 
@@ -6076,24 +5410,6 @@ double* eles::get_loc_fpts_ptr_gpu(int in_inter_local_fpt, int in_ele_local_inte
     }
 
     return pos_fpts.get_ptr_gpu(fpt,in_ele,in_dim);
-}
-
-// get a CPU pointer to the coordinates at a flux point
-
-double* eles::get_pos_dyn_fpts_ptr_cpu(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele)
-{
-    int i;
-
-    int fpt;
-
-    fpt=in_inter_local_fpt;
-
-    for(i=0; i<in_ele_local_inter; i++)
-    {
-        fpt+=n_fpts_per_inter(i);
-    }
-
-    return dyn_pos_fpts.get_ptr_cpu(fpt,in_ele,in_dim);
 }
 
 // get a pointer to delta of the transformed discontinuous solution at a flux point
@@ -6210,26 +5526,7 @@ double* eles::get_normal_disu_fpts_ptr(int in_inter_local_fpt, int in_ele_local_
  }
  */
 
-// Get a pointer to the grid velocity at a flux point */
-double* eles::get_grid_vel_fpts_ptr(int in_ele, int in_ele_local_inter, int in_inter_local_fpt, int in_dim)
-{
-    int i;
 
-    int fpt;
-
-    fpt=in_inter_local_fpt;
-
-    for(i=0; i<in_ele_local_inter; i++)
-    {
-        fpt+=n_fpts_per_inter(i);
-    }
-
-#ifdef _GPU
-    return grid_vel_fpts.get_ptr_gpu(fpt,in_ele,in_dim);
-#else
-    return grid_vel_fpts.get_ptr_cpu(fpt,in_ele,in_dim);
-#endif
-}
 
 // get a pointer to the subgrid-scale flux at a flux point
 double* eles::get_sgsf_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_field, int in_dim, int in_ele)
@@ -6302,96 +5599,6 @@ void eles::calc_pos_fpts(int in_fpt, int in_ele, hf_array<double>& out_pos)
         }
     }
 
-}
-/** find the position of a point within the element (r,s,t -> xd,yd,zd) (using positions in dynamic grid) */
-void eles::calc_pos_dyn(hf_array<double> in_loc, int in_ele, hf_array<double>& out_pos)
-{
-    int i,j;
-
-    for(i=0; i<n_dims; i++)
-    {
-        out_pos(i)=0.0;
-
-        for(j=0; j<n_spts_per_ele(in_ele); j++)
-        {
-            out_pos(i)+=eval_nodal_s_basis(j,in_loc,n_spts_per_ele(in_ele))*shape_dyn(i,j,in_ele);
-        }
-    }
-}
-
-/** find the physical position of a flux point within the element (using positions in dynamic grid) */
-void eles::calc_pos_dyn_fpt(int in_fpt, int in_ele, hf_array<double>& out_pos)
-{
-    int i,j;
-
-    out_pos.initialize_to_zero();
-    for(i=0; i<n_dims; i++)
-    {
-        for(j=0; j<n_spts_per_ele(in_ele); j++)
-        {
-            out_pos(i)+=nodal_s_basis_fpts(j,in_fpt,in_ele)*shape_dyn(i,j,in_ele);
-        }
-    }
-}
-
-/** find the physical position of a solution point within the element (using positions in dynamic grid) */
-void eles::calc_pos_dyn_upt(int in_upt, int in_ele, hf_array<double>& out_pos)
-{
-    int i,j;
-
-    out_pos.initialize_to_zero();
-    for(i=0; i<n_dims; i++)
-    {
-        for(j=0; j<n_spts_per_ele(in_ele); j++)
-        {
-            out_pos(i)+=nodal_s_basis_upts(j,in_upt,in_ele)*shape_dyn(i,j,in_ele);
-        }
-    }
-}
-
-/** find the physical position of a plot point within the element (using positions in dynamic grid) */
-void eles::calc_pos_dyn_ppt(int in_ppt, int in_ele, hf_array<double>& out_pos)
-{
-    int i,j;
-
-    out_pos.initialize_to_zero();
-    for(i=0; i<n_dims; i++)
-    {
-        for(j=0; j<n_spts_per_ele(in_ele); j++)
-        {
-            out_pos(i)+=nodal_s_basis_ppts(j,in_ppt,in_ele)*shape_dyn(i,j,in_ele);
-        }
-    }
-}
-
-/** find the physical position of a volume cubature point within the element (using positions in dynamic grid) */
-void eles::calc_pos_dyn_vol_cubpt(int in_ppt, int in_ele, hf_array<double>& out_pos)
-{
-    int i,j;
-
-    out_pos.initialize_to_zero();
-    for(i=0; i<n_dims; i++)
-    {
-        for(j=0; j<n_spts_per_ele(in_ele); j++)
-        {
-            out_pos(i)+=nodal_s_basis_vol_cubpts(j,in_ppt,in_ele)*shape_dyn(i,j,in_ele);
-        }
-    }
-}
-
-/** find the physical position of a interface cubature point within the element (using positions in dynamic grid) */
-void eles::calc_pos_dyn_inters_cubpt(int in_cubpt, int in_face, int in_ele, hf_array<double>& out_pos)
-{
-    int i,j;
-
-    out_pos.initialize_to_zero();
-    for(i=0; i<n_dims; i++)
-    {
-        for(j=0; j<n_spts_per_ele(in_ele); j++)
-        {
-            out_pos(i)+=nodal_s_basis_inters_cubpts(in_face)(j,in_cubpt,in_ele)*shape_dyn(i,j,in_ele);
-        }
-    }
 }
 
 // calculate derivative of position - NEEDS TO BE OPTIMIZED
@@ -6467,217 +5674,6 @@ void eles::calc_d_pos_fpt(int in_fpt, int in_ele, hf_array<double>& out_d_pos)
     }
 }
 
-/**
- * Calculate derivative of dynamic position wrt reference (initial,static) position
- * \param[in] in_loc - position of point in computational space
- * \param[in] in_ele - local element ID
- * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
- */
-void eles::calc_d_pos_dyn(hf_array<double> in_loc, int in_ele, hf_array<double>& out_d_pos)
-{
-    int i,j,k;
-
-    eval_d_nodal_s_basis(d_nodal_s_basis,in_loc,n_spts_per_ele(in_ele));
-
-    // Calculate dx/d<c>
-    out_d_pos.initialize_to_zero();
-    for(j=0; j<n_dims; j++)
-    {
-        for(k=0; k<n_dims; k++)
-        {
-            for(i=0; i<n_spts_per_ele(in_ele); i++)
-            {
-                out_d_pos(j,k)+=d_nodal_s_basis(i,k)*shape_dyn(j,i,in_ele);
-            }
-        }
-    }
-}
-
-/**
- * Calculate derivative of dynamic physical position wrt static/reference physical position at fpt
- * Uses pre-computed nodal shape basis derivatives for efficiency
- * \param[in] in_fpt - ID of flux point within element to evaluate at
- * \param[in] in_ele - local element ID
- * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
- */
-void eles::calc_d_pos_dyn_fpt(int in_fpt, int in_ele, hf_array<double>& out_d_pos)
-{
-    if (run_input.motion==4)
-    {
-        // Analytical formula for perturbed motion
-        out_d_pos(0,0) = 1 + 0.2*pi*cos(pi*pos_fpts(in_fpt,in_ele,0)/10)*sin(pi*pos_fpts(in_fpt,in_ele,1)/10)*sin(2*pi*run_input.rk_time/10);
-        out_d_pos(0,1) = 0.2*pi*sin(pi*pos_fpts(in_fpt,in_ele,0)/10)*cos(pi*pos_fpts(in_fpt,in_ele,1)/10)*sin(2*pi*run_input.rk_time/10);
-        out_d_pos(1,0) = 0.2*pi*cos(pi*pos_fpts(in_fpt,in_ele,0)/10)*sin(pi*pos_fpts(in_fpt,in_ele,1)/10)*sin(2*pi*run_input.rk_time/10);
-        out_d_pos(1,1) = 1 + 0.2*pi*sin(pi*pos_fpts(in_fpt,in_ele,0)/10)*cos(pi*pos_fpts(in_fpt,in_ele,1)/10)*sin(2*pi*run_input.rk_time/10);
-    }
-    else
-    {
-        // For all cases which do not have an analytical solution (i.e. for linear-elasticity deformation)
-        int i,j,k;
-
-        // Calculate dx/dr
-        hf_array<double> dxdr(n_dims,n_dims);
-        dxdr.initialize_to_zero();
-        for(i=0; i<n_dims; i++)
-        {
-            for(j=0; j<n_dims; j++)
-            {
-                for(k=0; k<n_spts_per_ele(in_ele); k++)
-                {
-                    dxdr(i,j) += shape_dyn(i,k,in_ele)*d_nodal_s_basis_fpts(j,k,in_fpt,in_ele);
-                    //dxdr(i,j) += shape_dyn(i,k,in_ele)*d_nodal_s_basis_fpts(in_fpt,in_ele,j,k);
-                }
-            }
-        }
-
-        // Calculate dx/dX using transformation matrix
-        out_d_pos.initialize_to_zero();
-        for(i=0; i<n_dims; i++)
-        {
-            for(j=0; j<n_dims; j++)
-            {
-                for(k=0; k<n_dims; k++)
-                {
-                    out_d_pos(i,j) += dxdr(i,k)*JGinv_fpts(k,j,in_fpt,in_ele)/detjac_fpts(in_fpt,in_ele);
-                }
-            }
-        }
-    }
-}
-
-/**
- * Calculate derivative of dynamic physical position wrt static/reference physical position at upt
- * Uses pre-computed nodal shape basis derivatives for efficiency
- * \param[in] in_upt - ID of solution point within element to evaluate at
- * \param[in] in_ele - local element ID
- * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
- */
-void eles::calc_d_pos_dyn_upt(int in_upt, int in_ele, hf_array<double>& out_d_pos)
-{
-    if (run_input.motion==4)
-    {
-        // Analytical formula for perturbed motion test case
-        out_d_pos(0,0) = 1 + 0.2*pi*cos(pi*pos_upts(in_upt,in_ele,0)/10)*sin(pi*pos_upts(in_upt,in_ele,1)/10)*sin(2*pi*run_input.rk_time/10);
-        out_d_pos(0,1) = 0.2*pi*sin(pi*pos_upts(in_upt,in_ele,0)/10)*cos(pi*pos_upts(in_upt,in_ele,1)/10)*sin(2*pi*run_input.rk_time/10);
-        out_d_pos(1,0) = 0.2*pi*cos(pi*pos_upts(in_upt,in_ele,0)/10)*sin(pi*pos_upts(in_upt,in_ele,1)/10)*sin(2*pi*run_input.rk_time/10);
-        out_d_pos(1,1) = 1 + 0.2*pi*sin(pi*pos_upts(in_upt,in_ele,0)/10)*cos(pi*pos_upts(in_upt,in_ele,1)/10)*sin(2*pi*run_input.rk_time/10);
-    }
-    else
-    {
-        // For all cases which do not have an analytical solution (i.e. for linear-elasticity deformation)
-        int i,j,k;
-
-        // Calculate dx/dr
-        hf_array<double> dxdr(n_dims,n_dims);
-        dxdr.initialize_to_zero();
-        for(i=0; i<n_dims; i++)
-        {
-            for(j=0; j<n_dims; j++)
-            {
-                for(k=0; k<n_spts_per_ele(in_ele); k++)
-                {
-                    dxdr(i,j) += shape_dyn(i,k,in_ele)*d_nodal_s_basis_upts(j,k,in_upt,in_ele);
-                    //dxdr(i,j) += shape_dyn(i,k,in_ele)*d_nodal_s_basis_upts(in_upt,in_ele,j,k);
-                }
-            }
-        }
-
-        // Calculate dx/dX using transformation matrix
-        out_d_pos.initialize_to_zero();
-        for(i=0; i<n_dims; i++)
-        {
-            for(j=0; j<n_dims; j++)
-            {
-                for(k=0; k<n_dims; k++)
-                {
-                    out_d_pos(i,j) += dxdr(i,k)*JGinv_upts(k,j,in_upt,in_ele)/detjac_upts(in_upt,in_ele);
-                }
-            }
-        }
-    }
-}
-
-/**
- * Calculate derivative of dynamic physical position wrt static/reference physical position at volume cubature point
- * Uses pre-computed nodal shape basis derivatives for efficiency
- * \param[in] in_cubpt - ID of volume cubature point within element to evaluate at
- * \param[in] in_ele - local element ID
- * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
- */
-void eles::calc_d_pos_dyn_vol_cubpt(int in_cubpt, int in_ele, hf_array<double>& out_d_pos)
-{
-    int i,j,k;
-
-    // Calculate dx/dr
-    hf_array<double> dxdr(n_dims,n_dims);
-    dxdr.initialize_to_zero();
-    for(i=0; i<n_dims; i++)
-    {
-        for(j=0; j<n_dims; j++)
-        {
-            for(k=0; k<n_spts_per_ele(in_ele); k++)
-            {
-                dxdr(i,j) += d_nodal_s_basis_vol_cubpts(j,k,in_cubpt,in_ele)*shape_dyn(i,k,in_ele);
-            }
-        }
-    }
-
-    // Apply chain rule: dx/dX = (dx/dr) / (dX/dr)
-    // *** FIX ME *** (see proper method above - fpts, upts method using JGinv)
-    out_d_pos.initialize_to_zero();
-    for (i=0; i<n_dims; i++)
-    {
-        for (j=0; j<n_dims; j++)
-        {
-            for (k=0; k<n_dims; k++)
-            {
-                //out_d_pos(i,j) += dxdr(i,k)/jac_vol_cubpts(in_cubpt),in_ele,j,k);
-            }
-        }
-    }
-}
-
-/**
- * Calculate derivative of dynamic physical position wrt static/reference physical position at interface cubature point
- * Uses pre-computed nodal shape basis derivatives for efficiency
- * \param[in] in_cubpt - ID of interface cubature point within element to evaluate at
- * \param[in] in_face - Local ID of face within element
- * \param[in] in_ele - local element ID
- * \param[out] out_d_pos - hf_array of size (n_dims,n_dims); (i,j) = dx_i / dX_j
- */
-void eles::calc_d_pos_dyn_inters_cubpt(int in_cubpt, int in_face, int in_ele, hf_array<double>& out_d_pos)
-{
-    int i,j,k;
-
-    // Calculate dx/dr
-    hf_array<double> dxdr(n_dims,n_dims);
-    dxdr.initialize_to_zero();
-    for(i=0; i<n_dims; i++)
-    {
-        for(j=0; j<n_dims; j++)
-        {
-            for(k=0; k<n_spts_per_ele(in_ele); k++)
-            {
-                dxdr(i,j) += d_nodal_s_basis_inters_cubpts(in_face)(j,k,in_cubpt,in_ele)*shape_dyn(i,k,in_ele);
-            }
-        }
-    }
-
-    // Apply chain rule: dx/dX = (dx/dr) / (dX/dr)
-    // *** FIX ME *** (see proper method above - fpts, upts method using JGinv)
-    out_d_pos.initialize_to_zero();
-    for (i=0; i<n_dims; i++)
-    {
-        for (j=0; j<n_dims; j++)
-        {
-            for (k=0; k<n_dims; k++)
-            {
-                //out_d_pos(i,j) += dxdr(i,k)/jac_inters_cubpts(in_face)(in_cubpt,in_ele,j,k);
-            }
-        }
-    }
-}
-
 /*! Calculate residual sum for monitoring purposes */
 double eles::compute_res_upts(int in_norm_type, int in_field)
 {
@@ -6717,206 +5713,206 @@ double eles::compute_res_upts(int in_norm_type, int in_field)
 }
 
 
-hf_array<double> eles::compute_error(int in_norm_type, double& time)
-{
-    hf_array<double> disu_cubpt(n_fields);
-    hf_array<double> grad_disu_cubpt(n_fields,n_dims);
-    double detjac;
-    hf_array<double> pos(n_dims);
+//hf_array<double> eles::compute_error(int in_norm_type, double& time)
+//{
+//    hf_array<double> disu_cubpt(n_fields);
+//    hf_array<double> grad_disu_cubpt(n_fields,n_dims);
+//    double detjac;
+//    hf_array<double> pos(n_dims);
+//
+//    hf_array<double> error(2,n_fields);  //storage
+//    hf_array<double> error_sum(2,n_fields);  //output
+//
+//    for (int i=0; i<n_fields; i++)
+//    {
+//        error_sum(0,i) = 0.;
+//        error_sum(1,i) = 0.;
+//    }
+//
+//    for (int i=0; i<n_eles; i++)
+//    {
+//        for (int j=0; j<n_cubpts_per_ele; j++)
+//        {
+//            // Get jacobian determinant at cubpts
+//            detjac = vol_detjac_vol_cubpts(j)(i);
+//
+//            // Get the solution at cubature point
+//            for (int m=0; m<n_fields; m++)
+//            {
+//                disu_cubpt(m) = 0.;
+//                for (int k=0; k<n_upts_per_ele; k++)
+//                {
+//                    disu_cubpt(m) += opp_volume_cubpts(j,k)*disu_upts(0)(k,i,m);
+//                }
+//            }
+//
+//            // Get the gradient at cubature point
+//            if (viscous==1)
+//            {
+//                for (int m=0; m<n_fields; m++)
+//                {
+//                    for (int n=0; n<n_dims; n++)
+//                    {
+//                        double value=0.;
+//                        for (int k=0; k<n_upts_per_ele; k++)
+//                        {
+//                            value += opp_volume_cubpts(j,k)*grad_disu_upts(k,i,m,n);
+//                        }
+//                        grad_disu_cubpt(m,n) = value;
+//                        //cout << value << endl;
+//                    }
+//                }
+//            }
+//
+//            error = get_pointwise_error(disu_cubpt,grad_disu_cubpt,pos,time,in_norm_type);
+//
+//            for (int m=0; m<n_fields; m++)
+//            {
+//                error_sum(0,m) += error(0,m)*weight_volume_cubpts(j)*detjac;
+//                error_sum(1,m) += error(1,m)*weight_volume_cubpts(j)*detjac;
+//            }
+//        }
+//    }
+//
+//    cout << "time   " << time << endl;
+//
+//    return error_sum;
+//}
+//
 
-    hf_array<double> error(2,n_fields);  //storage
-    hf_array<double> error_sum(2,n_fields);  //output
-
-    for (int i=0; i<n_fields; i++)
-    {
-        error_sum(0,i) = 0.;
-        error_sum(1,i) = 0.;
-    }
-
-    for (int i=0; i<n_eles; i++)
-    {
-        for (int j=0; j<n_cubpts_per_ele; j++)
-        {
-            // Get jacobian determinant at cubpts
-            detjac = vol_detjac_vol_cubpts(j)(i);
-
-            // Get the solution at cubature point
-            for (int m=0; m<n_fields; m++)
-            {
-                disu_cubpt(m) = 0.;
-                for (int k=0; k<n_upts_per_ele; k++)
-                {
-                    disu_cubpt(m) += opp_volume_cubpts(j,k)*disu_upts(0)(k,i,m);
-                }
-            }
-
-            // Get the gradient at cubature point
-            if (viscous==1)
-            {
-                for (int m=0; m<n_fields; m++)
-                {
-                    for (int n=0; n<n_dims; n++)
-                    {
-                        double value=0.;
-                        for (int k=0; k<n_upts_per_ele; k++)
-                        {
-                            value += opp_volume_cubpts(j,k)*grad_disu_upts(k,i,m,n);
-                        }
-                        grad_disu_cubpt(m,n) = value;
-                        //cout << value << endl;
-                    }
-                }
-            }
-
-            error = get_pointwise_error(disu_cubpt,grad_disu_cubpt,pos,time,in_norm_type);
-
-            for (int m=0; m<n_fields; m++)
-            {
-                error_sum(0,m) += error(0,m)*weight_volume_cubpts(j)*detjac;
-                error_sum(1,m) += error(1,m)*weight_volume_cubpts(j)*detjac;
-            }
-        }
-    }
-
-    cout << "time   " << time << endl;
-
-    return error_sum;
-}
-
-
-hf_array<double> eles::get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type)
-{
-    hf_array<double> error(2,n_fields);  //output
-
-    hf_array<double> error_sol(n_fields);
-    hf_array<double> error_grad_sol(n_fields,n_dims);
-
-    for (int i=0; i<n_fields; i++)
-    {
-        error_sol(i) = 0.;
-
-        error(0,i) = 0.;
-        error(1,i) = 0.;
-
-        for (int j=0; j<n_dims; j++)
-        {
-            error_grad_sol(i,j) = 0.;
-        }
-    }
-
-    if (run_input.test_case==1) // Isentropic vortex
-    {
-        // Computing error in all quantities
-        double rho,vx,vy,vz,p;
-        eval_isentropic_vortex(loc,time,rho,vx,vy,vz,p,n_dims);
-
-        error_sol(0) = sol(0) - rho;
-        error_sol(1) = sol(1) - rho*vx;
-        error_sol(2) = sol(2) - rho*vy;
-        error_sol(3) = sol(3) - (p/(run_input.gamma-1) + 0.5*rho*(vx*vx+vy*vy));
-    }
-    else if (run_input.test_case==2) // Sine Wave (single)
-    {
-        double rho;
-        hf_array<double> grad_rho(n_dims);
-
-        if(viscous)
-        {
-            eval_sine_wave_single(loc,run_input.wave_speed,run_input.diff_coeff,time,rho,grad_rho,n_dims);
-        }
-        else
-        {
-            eval_sine_wave_single(loc,run_input.wave_speed,0.,time,rho,grad_rho,n_dims);
-        }
-
-        error_sol(0) = sol(0) - rho;
-
-        for (int j=0; j<n_dims; j++)
-        {
-            error_grad_sol(0,j) = grad_sol(0,j) - grad_rho(j);
-        }
-
-    }
-    else if (run_input.test_case==3) // Sine Wave (group)
-    {
-        double rho;
-        hf_array<double> grad_rho(n_dims);
-
-        if(viscous)
-        {
-            eval_sine_wave_group(loc,run_input.wave_speed,run_input.diff_coeff,time,rho,grad_rho,n_dims);
-        }
-        else
-        {
-            eval_sine_wave_group(loc,run_input.wave_speed,0.,time,rho,grad_rho,n_dims);
-        }
-
-        error_sol(0) = sol(0) - rho;
-
-        for (int j=0; j<n_dims; j++)
-        {
-            error_grad_sol(0,j) = grad_sol(0,j) - grad_rho(j);
-        }
-    }
-    else if (run_input.test_case==4) // Sphere Wave
-    {
-        double rho;
-        eval_sphere_wave(loc,run_input.wave_speed,time,rho,n_dims);
-        error_sol(0) = sol(0) - rho;
-    }
-    else if (run_input.test_case==5) // Couette flow
-    {
-        int ind;
-        double ene, u_wall;
-        hf_array<double> grad_ene(n_dims);
-
-        u_wall = run_input.v_wall(0);
-
-        eval_couette_flow(loc,run_input.gamma, run_input.R_ref, u_wall, run_input.T_wall, run_input.p_bound, run_input.prandtl, time, ene, grad_ene, n_dims);
-
-        ind = n_dims+1;
-
-        error_sol(ind) = sol(ind) - ene;
-
-        for (int j=0; j<n_dims; j++)
-        {
-            error_grad_sol(ind,j) = grad_sol(ind,j) - grad_ene(j);
-        }
-    }
-    else
-    {
-        FatalError("Test case not recognized in compute error, exiting");
-    }
-
-    if (in_norm_type==1)
-    {
-        for (int m=0; m<n_fields; m++)
-        {
-            error(0,m) += abs(error_sol(m));
-
-            for(int n=0; n<n_dims; n++)
-            {
-                error(1,m) += abs(error_grad_sol(m,n)); //might be incorrect
-            }
-        }
-    }
-
-    if (in_norm_type==2)
-    {
-        for (int m=0; m<n_fields; m++)
-        {
-            error(0,m) += error_sol(m)*error_sol(m);
-
-            for(int n=0; n<n_dims; n++)
-            {
-                error(1,m) += error_grad_sol(m,n)*error_grad_sol(m,n);
-            }
-        }
-    }
-
-    return error;
-}
-
+//hf_array<double> eles::get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type)
+//{
+//    hf_array<double> error(2,n_fields);  //output
+//
+//    hf_array<double> error_sol(n_fields);
+//    hf_array<double> error_grad_sol(n_fields,n_dims);
+//
+//    for (int i=0; i<n_fields; i++)
+//    {
+//        error_sol(i) = 0.;
+//
+//        error(0,i) = 0.;
+//        error(1,i) = 0.;
+//
+//        for (int j=0; j<n_dims; j++)
+//        {
+//            error_grad_sol(i,j) = 0.;
+//        }
+//    }
+//
+//    if (run_input.test_case==1) // Isentropic vortex
+//    {
+//        // Computing error in all quantities
+//        double rho,vx,vy,vz,p;
+//        eval_isentropic_vortex(loc,time,rho,vx,vy,vz,p,n_dims);
+//
+//        error_sol(0) = sol(0) - rho;
+//        error_sol(1) = sol(1) - rho*vx;
+//        error_sol(2) = sol(2) - rho*vy;
+//        error_sol(3) = sol(3) - (p/(run_input.gamma-1) + 0.5*rho*(vx*vx+vy*vy));
+//    }
+//    else if (run_input.test_case==2) // Sine Wave (single)
+//    {
+//        double rho;
+//        hf_array<double> grad_rho(n_dims);
+//
+//        if(viscous)
+//        {
+//            eval_sine_wave_single(loc,run_input.wave_speed,run_input.diff_coeff,time,rho,grad_rho,n_dims);
+//        }
+//        else
+//        {
+//            eval_sine_wave_single(loc,run_input.wave_speed,0.,time,rho,grad_rho,n_dims);
+//        }
+//
+//        error_sol(0) = sol(0) - rho;
+//
+//        for (int j=0; j<n_dims; j++)
+//        {
+//            error_grad_sol(0,j) = grad_sol(0,j) - grad_rho(j);
+//        }
+//
+//    }
+//    else if (run_input.test_case==3) // Sine Wave (group)
+//    {
+//        double rho;
+//        hf_array<double> grad_rho(n_dims);
+//
+//        if(viscous)
+//        {
+//            eval_sine_wave_group(loc,run_input.wave_speed,run_input.diff_coeff,time,rho,grad_rho,n_dims);
+//        }
+//        else
+//        {
+//            eval_sine_wave_group(loc,run_input.wave_speed,0.,time,rho,grad_rho,n_dims);
+//        }
+//
+//        error_sol(0) = sol(0) - rho;
+//
+//        for (int j=0; j<n_dims; j++)
+//        {
+//            error_grad_sol(0,j) = grad_sol(0,j) - grad_rho(j);
+//        }
+//    }
+//    else if (run_input.test_case==4) // Sphere Wave
+//    {
+//        double rho;
+//        eval_sphere_wave(loc,run_input.wave_speed,time,rho,n_dims);
+//        error_sol(0) = sol(0) - rho;
+//    }
+//    else if (run_input.test_case==5) // Couette flow
+//    {
+//        int ind;
+//        double ene, u_wall;
+//        hf_array<double> grad_ene(n_dims);
+//
+//        u_wall = run_input.v_wall(0);
+//
+//        eval_couette_flow(loc,run_input.gamma, run_input.R_ref, u_wall, run_input.T_wall, run_input.p_bound, run_input.prandtl, time, ene, grad_ene, n_dims);
+//
+//        ind = n_dims+1;
+//
+//        error_sol(ind) = sol(ind) - ene;
+//
+//        for (int j=0; j<n_dims; j++)
+//        {
+//            error_grad_sol(ind,j) = grad_sol(ind,j) - grad_ene(j);
+//        }
+//    }
+//    else
+//    {
+//        FatalError("Test case not recognized in compute error, exiting");
+//    }
+//
+//    if (in_norm_type==1)
+//    {
+//        for (int m=0; m<n_fields; m++)
+//        {
+//            error(0,m) += abs(error_sol(m));
+//
+//            for(int n=0; n<n_dims; n++)
+//            {
+//                error(1,m) += abs(error_grad_sol(m,n)); //might be incorrect
+//            }
+//        }
+//    }
+//
+//    if (in_norm_type==2)
+//    {
+//        for (int m=0; m<n_fields; m++)
+//        {
+//            error(0,m) += error_sol(m)*error_sol(m);
+//
+//            for(int n=0; n<n_dims; n++)
+//            {
+//                error(1,m) += error_grad_sol(m,n)*error_grad_sol(m,n);
+//            }
+//        }
+//    }
+//
+//    return error;
+//}
+//
 // Calculate body forcing term for periodic channel flow. HARDCODED FOR THE CHANNEL AND PERIODIC HILL!
 
 void eles::evaluate_body_force(int in_file_num)
@@ -6960,7 +5956,7 @@ void eles::evaluate_body_force(int in_file_num)
                 if(inflowinters(i,l)!=1) // only unflagged inters
                 {
                     // HACK: Inlet is always a Cyclic (9) BC
-                    if(bctype(ele,l) == 9)
+                    if(run_input.bc_list(bcid(ele,l)).get_bc_flag()==CYCLIC)
                     {
                         // Get the normal
                         for (m=0; m<n_dims; m++)
@@ -7317,7 +6313,7 @@ void eles::CalcTimeAverageQuantities(double& time)
                 if (run_input.dt_type == 0||run_input.dt_type == 1)
                     dt = run_input.dt;
                 else if (run_input.dt_type == 2)
-                    FatalError("Not sure what value of timestep to use to calculate average values when using local timestepping.");
+                    dt=dt_local(k);
 
                 // set average value to current value if before spinup time
                 // and prevent division by a very small number if time = spinup time
@@ -7404,7 +6400,8 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
         for (int l=0; l<n_inters_per_ele; l++)
         {
 
-            if (bctype(ele,l) == 7 || bctype(ele,l) == 11 || bctype(ele,l) == 12 || bctype(ele,l)==16)
+            if (run_input.bc_list(bcid(ele,l)).get_bc_flag() == SLIP_WALL || run_input.bc_list(bcid(ele,l)).get_bc_flag() == ISOTHERM_FIX ||
+             run_input.bc_list(bcid(ele,l)).get_bc_flag() == ADIABAT_FIX || run_input.bc_list(bcid(ele,l)).get_bc_flag()==SLIP_WALL_DUAL)
             {
 
                 // Compute force on this interface
@@ -7459,7 +6456,7 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                     // Get pressure
 
                     // Not dual consistent
-                    if (bctype(ele,l)!=16)
+                    if (run_input.bc_list(bcid(ele,l)).get_bc_flag()!=SLIP_WALL_DUAL)
                     {
                         v_sq = 0.;
                         for (int m=0; m<n_dims; m++)
@@ -7641,14 +6638,6 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
             }
         }
     }
-}
-
-/*! Set the grid velocity at one shape point
- *  TODO: CUDA */
-void eles::set_grid_vel_spt(int in_ele, int in_spt, hf_array<double> in_vel)
-{
-    for (int i=0; i<n_dims; i++)
-        vel_spts(i,in_spt,in_ele) = in_vel(i);
 }
 
 /*! Store nodal basis at flux points to avoid re-calculating every time
@@ -7886,137 +6875,6 @@ void eles::store_d_nodal_s_basis_inters_cubpts(void)
     }
 }
 
-/*! Setup arrays for storing grid velocity */
-void eles::initialize_grid_vel(int in_max_n_spts_per_ele)
-{
-    if (motion)
-    {
-        // At solution & flux points
-        grid_vel_fpts.setup(n_fpts_per_ele,n_eles,n_dims);
-        grid_vel_fpts.initialize_to_zero();
-
-        grid_vel_upts.setup(n_upts_per_ele,n_eles,n_dims);
-        grid_vel_upts.initialize_to_zero();
-
-        // At output / plotting points
-        vel_ppts.setup(n_dims,n_ppts_per_ele,n_eles);
-        vel_ppts.initialize_to_zero();
-
-        // at shape points
-        vel_spts.setup(n_dims,in_max_n_spts_per_ele,n_eles);
-        vel_spts.initialize_to_zero();
-
-        /// TODO: after other mesh stuff implemented in CUDA, *.mv_cpu_gpu()
-        /// ALSO: *_nodal_s_basis data is redundant: same for every element (of same type)
-    }
-}
-
-/*! Interpolate the grid velocity from shape points to flux points
- *  TODO: Find a way to speed up with BLAS or something
- *  TODO: Implement these routines in CUDA (just 'for' loops - easy!)
- *  (would have to use sparse BLAS - think block-diag matrix) */
-void eles::set_grid_vel_fpts(int in_rk_step)
-{
-    int ic,fpt,j,k;
-//  if (run_input.motion==3) {
-//    double rk_time;
-//    rk_time = run_input.time+RK_c(in_rk_step)*run_input.dt;
-//    for (ic=0; ic<n_eles; ic++) {
-//      for (fpt=0; fpt<n_fpts_per_ele; fpt++) {
-//        grid_vel_fpts(fpt,ic,0) = 4*pi/10*sin(pi*pos_fpts(fpt,ic,0)/10)*sin(pi*pos_fpts(fpt,ic,1)/10)*cos(2*pi*rk_time/10);
-//        grid_vel_fpts(fpt,ic,1) = 4*pi/10*sin(pi*pos_fpts(fpt,ic,0)/10)*sin(pi*pos_fpts(fpt,ic,1)/10)*cos(2*pi*rk_time/10);
-//      }
-//    }
-//  }
-//  else
-//  {
-    for (ic=0; ic<n_eles; ic++)
-    {
-        for (fpt=0; fpt<n_fpts_per_ele; fpt++)
-        {
-            for(k=0; k<n_dims; k++)
-            {
-                grid_vel_fpts(fpt,ic,k) = 0.0;
-                for(j=0; j<n_spts_per_ele(ic); j++)
-                {
-                    grid_vel_fpts(fpt,ic,k)+=nodal_s_basis_fpts(j,fpt,ic)*vel_spts(k,j,ic);
-                }
-            }
-        }
-    }
-//  }
-#ifdef _GPU
-    //grid_vel_fpts.cp_cpu_gpu();
-    eval_grid_vel_pts_kernel_wrapper(n_dims,n_eles,n_fpts_per_ele,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),nodal_s_basis_fpts.get_ptr_gpu(),vel_spts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu());
-#endif
-}
-
-/*! Interpolate the grid velocity from shape points to solution points
- *  TODO: Find a way to speed up with BLAS or something
- *  TODO: Implement these routines in CUDA (just 'for' loops - easy!) */
-void eles::set_grid_vel_upts(int in_rk_step)
-{
-    int ic,upt,j,k;
-//  if (run_input.motion==3) {
-//    double rk_time;
-//    rk_time = run_input.time+RK_c(in_rk_step)*run_input.dt;
-//    for (ic=0; ic<n_eles; ic++) {
-//      for (upt=0; upt<n_upts_per_ele; upt++) {
-//        grid_vel_upts(upt,ic,0) = 4*pi/10*sin(pi*pos_upts(upt,ic,0)/10)*sin(pi*pos_upts(upt,ic,1)/10)*cos(2*pi*rk_time/10);
-//        grid_vel_upts(upt,ic,1) = 4*pi/10*sin(pi*pos_upts(upt,ic,0)/10)*sin(pi*pos_upts(upt,ic,1)/10)*cos(2*pi*rk_time/10);
-//      }
-//    }
-//  }
-//  else
-//  {
-    for (ic=0; ic<n_eles; ic++)
-    {
-        for (upt=0; upt<n_upts_per_ele; upt++)
-        {
-            for(k=0; k<n_dims; k++)
-            {
-                grid_vel_upts(upt,ic,k) = 0.0;
-                for(j=0; j<n_spts_per_ele(ic); j++)
-                {
-                    grid_vel_upts(upt,ic,k)+=nodal_s_basis_upts(j,upt,ic)*vel_spts(k,j,ic);
-                }
-            }
-        }
-    }
-//  }
-#ifdef _GPU
-    //grid_vel_upts.cp_cpu_gpu();
-    eval_grid_vel_pts_kernel_wrapper(n_dims,n_eles,n_upts_per_ele,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),nodal_s_basis_upts.get_ptr_gpu(),vel_spts.get_ptr_gpu(),grid_vel_upts.get_ptr_gpu());
-#endif
-}
-
-
-/*! Interpolate the grid velocity from shape points to solution points
- *  TODO: Find a way to speed up with BLAS or something */
-void eles::set_grid_vel_ppts(void)
-{
-    int ic,ppt,j,k;
-    for (ic=0; ic<n_eles; ic++)
-    {
-        for (ppt=0; ppt<n_ppts_per_ele; ppt++)
-        {
-            for(k=0; k<n_dims; k++)
-            {
-                vel_ppts(k,ppt,ic) = 0.0;
-                for(j=0; j<n_spts_per_ele(ic); j++)
-                {
-                    vel_ppts(k,ppt,ic)+=nodal_s_basis_ppts(j,ppt,ic)*vel_spts(k,j,ic);
-                }
-            }
-        }
-    }
-}
-
-hf_array<double> eles::get_grid_vel_ppts(void)
-{
-    return vel_ppts;
-}
-
 void eles::pos_to_loc(hf_array<double>& in_pos,int in_ele,hf_array<double>& out_loc)
 {
     //use newton's method to solve non-linear system
@@ -8065,52 +6923,3 @@ void eles::dealias_over_integration(void)
 #endif
     }
 }
-
-#ifdef _GPU
-void eles::rigid_move(double rk_time)
-{
-    if (n_eles!=0)
-    {
-        rigid_motion_kernel_wrapper(n_dims,n_eles,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),shape.get_ptr_gpu(),shape_dyn.get_ptr_gpu(),run_input.bound_vel_simple(0).get_ptr_gpu(),rk_time);
-    }
-}
-
-void eles::perturb_shape(double rk_time)
-{
-    if (n_eles!=0)
-    {
-        push_back_shape_dyn_kernel_wrapper(n_dims,n_eles,max_n_spts_per_ele,5,n_spts_per_ele.get_ptr_gpu(),shape_dyn.get_ptr_gpu());
-        perturb_shape_kernel_wrapper(n_dims,n_eles,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),shape.get_ptr_gpu(),shape_dyn.get_ptr_gpu(),rk_time);
-    }
-}
-
-void eles::rigid_grid_velocity(double rk_time)
-{
-    if (n_eles!=0)
-    {
-        calc_rigid_grid_vel_spts_kernel_wrapper(n_dims,n_eles,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),run_input.bound_vel_simple(0).get_ptr_gpu(),vel_spts.get_ptr_gpu(),rk_time);
-        eval_grid_vel_pts_kernel_wrapper(n_dims,n_eles,n_upts_per_ele,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),nodal_s_basis_upts.get_ptr_gpu(),vel_spts.get_ptr_gpu(),grid_vel_upts.get_ptr_gpu());
-        eval_grid_vel_pts_kernel_wrapper(n_dims,n_eles,n_fpts_per_ele,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),nodal_s_basis_fpts.get_ptr_gpu(),vel_spts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu());
-    }
-}
-
-void eles::perturb_grid_velocity(double rk_time)
-{
-    if (n_eles!=0)
-    {
-        calc_perturb_grid_vel_spts_kernel_wrapper(n_dims,n_eles,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),shape.get_ptr_gpu(),vel_spts.get_ptr_gpu(),rk_time);
-        eval_grid_vel_pts_kernel_wrapper(n_dims,n_eles,n_upts_per_ele,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),nodal_s_basis_upts.get_ptr_gpu(),vel_spts.get_ptr_gpu(),grid_vel_upts.get_ptr_gpu());
-        eval_grid_vel_pts_kernel_wrapper(n_dims,n_eles,n_fpts_per_ele,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),nodal_s_basis_fpts.get_ptr_gpu(),vel_spts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu());
-    }
-}
-
-void eles::calc_grid_velocity(void)
-{
-    if (n_eles!=0)
-    {
-        calc_grid_vel_spts_kernel_wrapper(n_dims,n_eles,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),shape_dyn.get_ptr_gpu(),vel_spts.get_ptr_gpu(),run_input.dt);
-        eval_grid_vel_pts_kernel_wrapper(n_dims,n_eles,n_upts_per_ele,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),nodal_s_basis_upts.get_ptr_gpu(),vel_spts.get_ptr_gpu(),grid_vel_upts.get_ptr_gpu());
-        eval_grid_vel_pts_kernel_wrapper(n_dims,n_eles,n_fpts_per_ele,max_n_spts_per_ele,n_spts_per_ele.get_ptr_gpu(),nodal_s_basis_fpts.get_ptr_gpu(),vel_spts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu());
-    }
-}
-#endif

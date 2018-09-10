@@ -676,11 +676,6 @@ void output::write_vtu(int in_file_num)
 
           }
 
-          /*! Temporary grid velocity hf_array at plot points */
-          if (run_input.motion) {
-            FlowSol->mesh_eles(i)->set_grid_vel_ppts();
-            grid_vel_ppts_temp = FlowSol->mesh_eles(i)->get_grid_vel_ppts();
-          }
 
           con.setup(n_verts,n_cells);
           con = FlowSol->mesh_eles(i)->get_connectivity_plot();
@@ -785,27 +780,6 @@ void output::write_vtu(int in_file_num)
                 write_vtu << "				</DataArray>" << endl;
               }
 
-              if (run_input.motion) {
-                /*! grid velocity */
-                write_vtu << "				<DataArray type= \"Float32\" NumberOfComponents=\"3\" Name=\"GridVelocity\" format=\"ascii\">" << endl;
-                for(k=0;k<n_points;k++)
-                {
-                  write_vtu << grid_vel_ppts_temp(0,k,j) << " " << grid_vel_ppts_temp(1,k,j) << " ";
-
-                  /*! In 2D the z-component of velocity is not stored, but Paraview needs it so write a 0. */
-                  if(n_fields==4)
-                  {
-                    write_vtu << 0.0 << " ";
-                  }
-                  /*! In 3D just write the z-component of velocity */
-                  else
-                  {
-                    write_vtu << grid_vel_ppts_temp(2,k,j) << " ";
-                  }
-                }
-                write_vtu << endl;
-                write_vtu << "				</DataArray>" << endl;
-              }
 
               /*! Write out optional time-averaged diagnostic fields */
               for(m=0;m<n_average_fields;m++)
@@ -1583,11 +1557,10 @@ void output::write_probe(void)
 void output::write_restart(int in_file_num)
 {
 
-  char file_name_s[256], file_name_s2[256], folder[50];
+  char file_name_s[256], folder[50];
   char *file_name;
-  ofstream restart_file, restart_mesh;
+  ofstream restart_file;
   restart_file.precision(15);
-  restart_mesh.precision(15);
 
 #ifdef _MPI
 if (FlowSol->nproc>1)
@@ -1607,25 +1580,16 @@ if (FlowSol->nproc>1)
 
   else//==1
       sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,FlowSol->rank);
-      sprintf(file_name_s2,"Rest_%s_%.09d_p%.04d.dat",run_input.data_file_name.c_str(),in_file_num,FlowSol->rank);
-  if (FlowSol->rank==0) cout << "Writing Restart file number " << in_file_num << " ...." << endl;
 #else
   sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,0);
-  sprintf(file_name_s2,"Rest_%s_%.09d_p%.04d.dat",run_input.data_file_name.c_str(),in_file_num,0);
-  cout << "Writing Restart file number " << in_file_num << " ...." << endl;
 #endif
 
+  if (FlowSol->rank==0) cout << "Writing Restart file number " << in_file_num << " ...." << endl;
 
   file_name = &file_name_s[0];
   restart_file.open(file_name);
 
   restart_file << FlowSol->time << endl;
-
-  if (run_input.restart_mesh_out) {
-    file_name = &file_name_s2[0];
-    restart_mesh.open(file_name);
-    restart_mesh << FlowSol->time << endl;
-  }
 
   //header
   for (int i=0;i<FlowSol->n_ele_types;i++) {
@@ -1633,12 +1597,6 @@ if (FlowSol->nproc>1)
 
           FlowSol->mesh_eles(i)->write_restart_info(restart_file);
           FlowSol->mesh_eles(i)->write_restart_data(restart_file);
-
-          // Output handy file of point locations for easy post-processing
-          if (run_input.restart_mesh_out) {
-            FlowSol->mesh_eles(i)->write_restart_info(restart_mesh);
-            FlowSol->mesh_eles(i)->write_restart_mesh(restart_mesh);
-          }
 
         }
     }
@@ -1823,172 +1781,172 @@ void output::CalcTimeAverageQuantities(void) {
     }
 }
 
-void output::compute_error(int in_file_num)
-{
-  int n_fields;
-
-  //HACK (assume same number of fields for all elements)
-  for(int i=0;i<FlowSol->n_ele_types;i++) {
-      if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
-          n_fields = FlowSol->mesh_eles(i)->get_n_fields();
-        }
-    }
-
-  hf_array<double> error(2,n_fields);
-  hf_array<double> temp_error(2,n_fields);
-
-  for (int i=0; i<n_fields; i++)
-    {
-      error(0,i) = 0.;
-      error(1,i) = 0.;
-    }
-
-  //Compute the error
-  for(int i=0;i<FlowSol->n_ele_types;i++) {
-      if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
-          temp_error = FlowSol->mesh_eles(i)->compute_error(run_input.error_norm_type,FlowSol->time);
-
-          for(int j=0;j<n_fields; j++) {
-              error(0,j) += temp_error(0,j);
-              if(FlowSol->viscous) {
-                  error(1,j) += temp_error(1,j);
-                }
-            }
-        }
-    }
-
-#ifdef _MPI
-  int n_err_vals = 2*n_fields;
-
-  hf_array<double> error_global(2,n_fields);
-  for (int i=0; i<n_fields; i++)
-    {
-      error_global(0,i) = 0.;
-      error_global(1,i) = 0.;
-    }
-
-  MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Reduce(error.get_ptr_cpu(),error_global.get_ptr_cpu(),n_err_vals,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
-
-  error = error_global;
-#endif
-
-  if (FlowSol->rank==0)
-    {
-      if (run_input.error_norm_type==1) // L1 norm
-        {
-          error = error;
-        }
-      else if (run_input.error_norm_type==2) // L2 norm
-        {
-          for(int j=0;j<n_fields; j++) {
-              error(0,j) = sqrt(error(0,j));
-              if(FlowSol->viscous) {
-                  error(1,j) = sqrt(error(1,j));
-                }
-            }
-        }
-
-      for(int j=0;j<n_fields; j++) {
-          cout << scientific << " sol error, field " << j << " = " << setprecision(13) << error(0,j) << endl;
-        }
-      if(FlowSol->viscous)
-        {
-          for(int j=0;j<n_fields; j++) {
-              cout << scientific << " grad error, field " << j << " = " << setprecision(13) << error(1,j) << endl;
-            }
-        }
-
-    }
-
-  // Writing error to file
-
-  char  file_name_s[256] ;
-  char *file_name;
-  int r_flag;
-
-  if (FlowSol->rank==0)
-    {
-      sprintf(file_name_s,"error000.dat");
-      file_name = &file_name_s[0];
-      ofstream write_error;
-
-      write_error.open(file_name,ios::app);
-      write_error << in_file_num << ", ";
-      write_error <<  run_input.order << ", ";
-      write_error <<  scientific << run_input.c_tet << ", ";
-      write_error << run_input.mesh_file << ", ";
-      write_error << run_input.upts_type_tri << ", ";
-      write_error << run_input.upts_type_quad << ", ";
-      write_error << run_input.fpts_type_tri << ", ";
-      write_error << run_input.adv_type << ", ";
-      write_error << run_input.riemann_solve_type << ", ";
-      write_error << scientific << run_input.error_norm_type  << ", " ;
-
-      for(int j=0;j<n_fields; j++) {
-          write_error << scientific << error(0,j);
-          if((j == (n_fields-1)) && FlowSol->viscous==0)
-            {
-              write_error << endl;
-            }
-          else
-            {
-              write_error <<", ";
-            }
-        }
-
-      if(FlowSol->viscous) {
-          for(int j=0;j<n_fields; j++) {
-              write_error << scientific << error(1,j);
-              if(j == (n_fields-1))
-                {
-                  write_error << endl;
-                }
-              else
-                {
-                  write_error <<", ";
-                }
-            }
-        }
-
-      write_error.close();
-
-      double etol = 1.0e-5;
-
-      r_flag = 0;
-
-      //HACK
-      /*
-     if( ((abs(ene_hist - error(0,n_fields-1))/ene_hist) < etol && (abs(grad_ene_hist - error(1,n_fields-1))/grad_ene_hist) < etol) || (abs(error(0,n_fields-1)) > abs(ene_hist)) )
-     {
-     r_flag = 1;
-     }
-     */
-
-      FlowSol->ene_hist = error(0,n_fields-1);
-      FlowSol->grad_ene_hist = error(1,n_fields-1);
-    }
-
-  //communicate exit_state across processors
-#ifdef _MPI
-  MPI_Bcast(&r_flag,1,MPI_INT,0,MPI_COMM_WORLD);
-  MPI_Barrier(MPI_COMM_WORLD);
-#endif
-
-#ifdef _MPI
-  if(r_flag)
-    {
-      MPI_Finalize();
-    }
-#endif
-
-  if(r_flag)
-    {
-      cout << "Tolerance achieved " << endl;
-      exit(0);
-    }
-
-}
+//void output::compute_error(int in_file_num)
+//{
+//  int n_fields;
+//
+//  //HACK (assume same number of fields for all elements)
+//  for(int i=0;i<FlowSol->n_ele_types;i++) {
+//      if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
+//          n_fields = FlowSol->mesh_eles(i)->get_n_fields();
+//        }
+//    }
+//
+//  hf_array<double> error(2,n_fields);
+//  hf_array<double> temp_error(2,n_fields);
+//
+//  for (int i=0; i<n_fields; i++)
+//    {
+//      error(0,i) = 0.;
+//      error(1,i) = 0.;
+//    }
+//
+//  //Compute the error
+//  for(int i=0;i<FlowSol->n_ele_types;i++) {
+//      if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
+//          temp_error = FlowSol->mesh_eles(i)->compute_error(run_input.error_norm_type,FlowSol->time);
+//
+//          for(int j=0;j<n_fields; j++) {
+//              error(0,j) += temp_error(0,j);
+//              if(FlowSol->viscous) {
+//                  error(1,j) += temp_error(1,j);
+//                }
+//            }
+//        }
+//    }
+//
+//#ifdef _MPI
+//  int n_err_vals = 2*n_fields;
+//
+//  hf_array<double> error_global(2,n_fields);
+//  for (int i=0; i<n_fields; i++)
+//    {
+//      error_global(0,i) = 0.;
+//      error_global(1,i) = 0.;
+//    }
+//
+//  MPI_Barrier(MPI_COMM_WORLD);
+//  MPI_Reduce(error.get_ptr_cpu(),error_global.get_ptr_cpu(),n_err_vals,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
+//
+//  error = error_global;
+//#endif
+//
+//  if (FlowSol->rank==0)
+//    {
+//      if (run_input.error_norm_type==1) // L1 norm
+//        {
+//          error = error;
+//        }
+//      else if (run_input.error_norm_type==2) // L2 norm
+//        {
+//          for(int j=0;j<n_fields; j++) {
+//              error(0,j) = sqrt(error(0,j));
+//              if(FlowSol->viscous) {
+//                  error(1,j) = sqrt(error(1,j));
+//                }
+//            }
+//        }
+//
+//      for(int j=0;j<n_fields; j++) {
+//          cout << scientific << " sol error, field " << j << " = " << setprecision(13) << error(0,j) << endl;
+//        }
+//      if(FlowSol->viscous)
+//        {
+//          for(int j=0;j<n_fields; j++) {
+//              cout << scientific << " grad error, field " << j << " = " << setprecision(13) << error(1,j) << endl;
+//            }
+//        }
+//
+//    }
+//
+//  // Writing error to file
+//
+//  char  file_name_s[256] ;
+//  char *file_name;
+//  int r_flag;
+//
+//  if (FlowSol->rank==0)
+//    {
+//      sprintf(file_name_s,"error000.dat");
+//      file_name = &file_name_s[0];
+//      ofstream write_error;
+//
+//      write_error.open(file_name,ios::app);
+//      write_error << in_file_num << ", ";
+//      write_error <<  run_input.order << ", ";
+//      write_error <<  scientific << run_input.c_tet << ", ";
+//      write_error << run_input.mesh_file << ", ";
+//      write_error << run_input.upts_type_tri << ", ";
+//      write_error << run_input.upts_type_quad << ", ";
+//      write_error << run_input.fpts_type_tri << ", ";
+//      write_error << run_input.adv_type << ", ";
+//      write_error << run_input.riemann_solve_type << ", ";
+//      write_error << scientific << run_input.error_norm_type  << ", " ;
+//
+//      for(int j=0;j<n_fields; j++) {
+//          write_error << scientific << error(0,j);
+//          if((j == (n_fields-1)) && FlowSol->viscous==0)
+//            {
+//              write_error << endl;
+//            }
+//          else
+//            {
+//              write_error <<", ";
+//            }
+//        }
+//
+//      if(FlowSol->viscous) {
+//          for(int j=0;j<n_fields; j++) {
+//              write_error << scientific << error(1,j);
+//              if(j == (n_fields-1))
+//                {
+//                  write_error << endl;
+//                }
+//              else
+//                {
+//                  write_error <<", ";
+//                }
+//            }
+//        }
+//
+//      write_error.close();
+//
+//      double etol = 1.0e-5;
+//
+//      r_flag = 0;
+//
+//      //HACK
+//      /*
+//     if( ((abs(ene_hist - error(0,n_fields-1))/ene_hist) < etol && (abs(grad_ene_hist - error(1,n_fields-1))/grad_ene_hist) < etol) || (abs(error(0,n_fields-1)) > abs(ene_hist)) )
+//     {
+//     r_flag = 1;
+//     }
+//     */
+//
+//      FlowSol->ene_hist = error(0,n_fields-1);
+//      FlowSol->grad_ene_hist = error(1,n_fields-1);
+//    }
+//
+//  //communicate exit_state across processors
+//#ifdef _MPI
+//  MPI_Bcast(&r_flag,1,MPI_INT,0,MPI_COMM_WORLD);
+//  MPI_Barrier(MPI_COMM_WORLD);
+//#endif
+//
+//#ifdef _MPI
+//  if(r_flag)
+//    {
+//      MPI_Finalize();
+//    }
+//#endif
+//
+//  if(r_flag)
+//    {
+//      cout << "Tolerance achieved " << endl;
+//      exit(0);
+//    }
+//
+//}
 
 void output::CalcNormResidual(void) {
 
@@ -2072,7 +2030,7 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
 
   int i, n_fields;
   clock_t final;
-  // TODO: write heads when starting from a restart file
+  ios_base::openmode mode;
   bool open_hist, write_heads;
   int n_diags = run_input.n_integral_quantities;
   double in_time = FlowSol->time;
@@ -2088,68 +2046,80 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
   if (run_input.restart_flag==0) {
     open_hist = (in_file_num == 1);
     write_heads = (((in_file_num % (run_input.monitor_res_freq*20)) == 0) || (in_file_num == 1));
+    mode=ios::out;
   }
   else {
     open_hist = (in_file_num == run_input.restart_iter+1);
     write_heads = (((in_file_num % (run_input.monitor_res_freq*20)) == 0) || (in_file_num == run_input.restart_iter+1));
+    mode = ios::app;
   }
 
   if (FlowSol->rank == 0) {
 
     // Open history file
-    if (open_hist) {
+    if (open_hist)
+    {
 
-      write_hist->open("history.plt", ios::out);
+      write_hist->open("history.plt", mode);
       write_hist->precision(15);
-      write_hist[0] << "TITLE = \"HiFiLES simulation\"" << endl;
+      if (mode == ios::out)
+      {
+        write_hist[0] << "TITLE = \"HiFiLES simulation\"" << endl;
 
-      write_hist[0] << "VARIABLES = \"Iteration\"";
+        write_hist[0] << "VARIABLES = \"Iteration\"";
 
-      // Add residual and variables
-      if (FlowSol->n_dims==2)
+        // Add residual and variables
+        if (FlowSol->n_dims == 2)
         {
-            write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
-      if(run_input.turb_model)
-      {
-          write_hist[0] <<",\"mu_tilde\"";
-          //write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+          write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
+          if (run_input.turb_model)
+          {
+            write_hist[0] << ",\"mu_tilde\"";
+            //write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+          }
+          if (run_input.calc_force)
+            write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+        }
+        else
+        {
+          write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>z</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
+
+          if (run_input.turb_model)
+          {
+            write_hist[0] << ",\"<greek>mu</greek><sub>tilde</sub>\"";
+            //write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+          }
+          if (run_input.calc_force)
+            write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+        }
+
+        // Add integral diagnostics
+        for (i = 0; i < n_diags; i++)
+          write_hist[0] << ",\"Diagnostics[" << run_input.integral_quantities(i) << "]\"";
+
+        // Add physical and computational time
+        write_hist[0] << ",\"Time<sub>Physical</sub>(sec)\",\"Time<sub>Comp</sub>(m)\"" << endl;
+
+        write_hist[0] << "ZONE T= \"Convergence history\"" << endl;
       }
-      if(run_input.calc_force)
-        write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
-      }
-      else {
-       write_hist[0] <<  ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>z</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
-
-       if(run_input.turb_model)
-      {
-          write_hist[0] <<",\"<greek>mu</greek><sub>tilde</sub>\"";
-          //write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
-
-      }
-       if(run_input.calc_force)
-        write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
-      }
-
-
-      // Add integral diagnostics
-      for(i=0; i<n_diags; i++)
-        write_hist[0] << ",\"Diagnostics[" << run_input.integral_quantities(i) << "]\"";
-
-      // Add physical and computational time
-      write_hist[0] << ",\"Time<sub>Physical</sub>\",\"Time<sub>Comp</sub>(m)\"" << endl;
-
-      write_hist[0] << "ZONE T= \"Convergence history\"" << endl;
     }
-
     // Write the header
     if (write_heads) {
       if (FlowSol->n_dims==2) {
-        if (n_fields == 4) cout << "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]      Res[RhoE]       Fx_Total       Fy_Total" << endl;
-        else cout << "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]      Res[RhoE]   Res[MuTilde]       Fx_Total       Fy_Total" << endl;
+        if (n_fields == 4) cout << "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]      Res[RhoE]";
+        else cout << "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]      Res[RhoE]   Res[MuTilde]";
+        if(run_input.calc_force)
+        cout<<"       Fx_Total       Fy_Total"<<endl;
+        else
+        cout<<endl;
       }
       else {
-        if (n_fields == 5) cout <<  "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]   Res[RhoVelz]      Res[RhoE]       Fx_Total       Fy_Total       Fz_Total" << endl;
-        else cout <<  "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]   Res[RhoVelz]      Res[RhoE]   Res[MuTilde]       Fx_Total       Fy_Total       Fz_Total" << endl;
+        if (n_fields == 5) cout <<  "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]   Res[RhoVelz]      Res[RhoE]" ;
+        else cout <<  "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]   Res[RhoVelz]      Res[RhoE]   Res[MuTilde]";
+              if(run_input.calc_force)
+        cout<<"       Fx_Total       Fy_Total       Fz_Total"<<endl;
+        else
+        cout<<endl;
       }
     }
 
@@ -2180,8 +2150,8 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
             for(i=0; i<n_diags; i++)
                 write_hist[0] << ", " << FlowSol->integral_quantities(i);
 
-    // Output physical time
-    write_hist[0] << ", " << in_time;
+    // Output physical time in seconds
+    write_hist[0] << ", " << in_time*run_input.time_ref;
 
     // Compute execution time
     final = clock()-init;
@@ -2322,8 +2292,6 @@ void output::CopyGPUCPU(void)
   {
     if (FlowSol->mesh_eles(i)->get_n_eles()!=0)
     {
-      if (run_input.motion)
-        FlowSol->mesh_eles(i)->cp_transforms_gpu_cpu();
       FlowSol->mesh_eles(i)->cp_disu_upts_gpu_cpu();
       if (FlowSol->viscous==1)
       {

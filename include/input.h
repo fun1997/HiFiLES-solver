@@ -30,6 +30,7 @@
 #include <vector>
 #include <map>
 #include "hf_array.h"
+#include "bc.h"
 
 class input
 {
@@ -51,11 +52,14 @@ public:
     /*! Read in parameters from file */
     void read_input_file(string fileName, int rank);
 
+    /*! Read in boundary condition parameters from file */
+    void read_boundary_param(void);
+
     /*! Apply non-dimensionalization and do misc. error checks */
     void setup_params(int rank);
 
     // #### members ####
-
+    string fileNameS; //input file name
     /*--- basic solver parameters ---*/
     int viscous;
     int equation;
@@ -96,10 +100,11 @@ public:
     double c_sth;
     double mu_inf;
     double rt_inf;
+    double prandtl_t;
 
     /* ---LES options --- */
     int LES;
-    double C_s,Pr_t;
+    double C_s;
     int filter_type;
     double filter_ratio;
     int SGS_model;
@@ -110,21 +115,10 @@ public:
     int restart_flag;
     int restart_iter;
     int n_restart_files;
-    int restart_mesh_out; // Print out separate restart file with X,Y,Z of all sol'n points?
 
     /*--- mesh parameters ---*/
     int mesh_format;
     string mesh_file;
-
-    /* --- Mesh deformation options --- */
-    int n_moving_bnds, motion;
-    int GCL;
-    int n_deform_iters;
-    int mesh_output_freq;
-    int mesh_output_format;
-    hf_array<string> boundary_flags;
-    hf_array<hf_array<double> > bound_vel_simple;
-    hf_array<int> motion_type;
 
     /* --- Shock Capturing/dealiasing options --- */
     int over_int,N_under;
@@ -184,102 +178,13 @@ public:
     int sparse_pri;
 
     /*---- boundary_conditions ---- */
-    double p_bound;
-    hf_array<double> v_bound_sub_in_simp;
-    hf_array<double> v_bound_sup_in;
-    hf_array<double> v_bound_sub_in_simp2;
-    hf_array<double> v_bound_sup_in2;
-    hf_array<double> v_bound_sup_in3;
-    hf_array<double> v_bound_far_field;
+    hf_array<bc> bc_list;
+    int pressure_ramp,ramp_counter;
 
     //cyclic interfaces
     double dx_cyclic;
     double dy_cyclic;
     double dz_cyclic;
-
-    //Sub_In_Simp
-    int Sub_In_Simp;
-    double Mach_sub_in_simp;
-    double rho_sub_in_simp;
-    double rho_bound_sub_in_simp;
-    double nx_sub_in_simp;
-    double ny_sub_in_simp;
-    double nz_sub_in_simp;
-    //Sub_In_Simp2
-    int Sub_In_Simp2;
-    double Mach_sub_in_simp2;
-    double rho_sub_in_simp2;
-    double rho_bound_sub_in_simp2;
-    double nx_sub_in_simp2;
-    double ny_sub_in_simp2;
-    double nz_sub_in_simp2;
-    //Sub_In_Char
-    int Sub_In_char;
-    double p_total_sub_in;
-    double T_total_sub_in;
-    double p_total_bound_sub_in;
-    double T_total_bound_sub_in;
-    double nx_sub_in_char;
-    double ny_sub_in_char;
-    double nz_sub_in_char;
-    int pressure_ramp;
-    double p_ramp_coeff;
-    double T_ramp_coeff;
-    double p_total_old;
-    double T_total_old;
-    double p_total_bound_old;
-    double T_total_bound_old;
-    int ramp_counter;
-    //Sub_Out
-    int Sub_Out;
-    double p_sub_out;
-    double p_bound_sub_out;
-    double T_total_sub_out;
-    double T_total_bound_sub_out;
-    //Sup_In
-    int Sup_In;
-    double rho_sup_in;
-    double p_sup_in;
-    double Mach_sup_in;
-    double rho_bound_sup_in;
-    double p_bound_sup_in;
-    double nx_sup_in;
-    double ny_sup_in;
-    double nz_sup_in;
-    double T_sup_in;
-    //Sup_In2
-    int Sup_In2;
-    double rho_sup_in2;
-    double p_sup_in2;
-    double Mach_sup_in2;
-    double rho_bound_sup_in2;
-    double p_bound_sup_in2;
-    double nx_sup_in2;
-    double ny_sup_in2;
-    double nz_sup_in2;
-    double T_sup_in2;
-    //Sup_In3
-    int Sup_In3;
-    double rho_sup_in3;
-    double p_sup_in3;
-    double Mach_sup_in3;
-    double rho_bound_sup_in3;
-    double p_bound_sup_in3;
-    double nx_sup_in3;
-    double ny_sup_in3;
-    double nz_sup_in3;
-    double T_sup_in3;
-    //Far_Field
-    int Far_Field;
-    double rho_far_field;
-    double p_far_field;
-    double Mach_far_field;
-    double rho_bound_far_field;
-    double p_bound_far_field;
-    double nx_far_field;
-    double ny_far_field;
-    double nz_far_field;
-    double T_far_field;
 
     //public values
     double Mach_free_stream;
@@ -290,14 +195,7 @@ public:
     double v_free_stream;
     double w_free_stream;
     double mu_free_stream;
-    //wall
-    double Mach_wall;
-    double nx_wall;
-    double ny_wall;
-    double nz_wall;
 
-    hf_array<double> v_wall;
-    double uvw_wall;
     double T_wall;
 
     /*--- reference values ---*/
@@ -343,7 +241,6 @@ public:
     double c_w2;
     double c_w3;
     double omega;
-    double prandtl_t;
     double Kappa;
     double mu_tilde_c_ic;
     double mu_tilde_inf;
@@ -356,67 +253,4 @@ public:
     hf_array<double> y_coeffs;
     hf_array<double> z_coeffs;
     int perturb_ic;
-};
-
-/*! \class fileReader
- *  \brief Simple, robust method for reading input files
- *  \author Jacob Crabill
- *  \date 4/30/2015
- */
-class fileReader
-{
-public:
-    /*! Default constructor */
-    fileReader();
-
-    fileReader(string fileName);
-
-    /*! Default destructor */
-    ~fileReader();
-
-    /*! Set the file to be read from */
-    void setFile(string fileName);
-
-    /*! Open the file to prepare for reading simulation parameters */
-    void openFile(void);
-
-    /*! Close the file & clean up */
-    void closeFile(void);
-
-    /* === Functions to read paramters from input file === */
-
-    /*! Read a single value from the input file; if not found, apply a default value */
-    template <typename T>
-    void getScalarValue(string optName, T &opt, T defaultVal);
-
-    /*! Read a single value from the input file; if not found, throw an error and exit */
-    template <typename T>
-    void getScalarValue(string optName, T &opt);
-
-    /*! Read a vector of values from the input file; if not found, apply the default value to all elements */
-    template <typename T>
-    void getVectorValue(string optName, vector<T> &opt, T defaultVal);
-
-    /*! Read a vector of values from the input file; if not found, throw an error and exit */
-    template <typename T>
-    void getVectorValue(string optName, vector<T> &opt);
-
-    template <typename T>
-    void getVectorValue(string optName, hf_array<T> &opt);
-
-    /*! Read a vector of values from the input file; if not found, setup vector to size 0 and continue */
-    template <typename T>
-    void getVectorValueOptional(string optName, vector<T> &opt);
-
-    template <typename T>
-    void getVectorValueOptional(string optName, hf_array<T> &opt);
-
-    /*! Read in a map of type <T,U> from input file; each entry prefaced by optName */
-    template <typename T, typename U>
-    void getMap(string optName, map<T, U> &opt);
-
-private:
-    ifstream optFile;
-    string fileName;
-
 };
