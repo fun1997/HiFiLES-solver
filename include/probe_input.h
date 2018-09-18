@@ -42,20 +42,16 @@ public:
     int probe_freq;
     int n_probe_fields;
     hf_array<double> pos_probe;
-    //point source
-    hf_array<double> probe_x;
-    hf_array<double> probe_y;
-    hf_array<double> probe_z;
-    //line source
-    hf_array<double> p_0;//start point coord
-    hf_array<double> p_1;//end point coord
-    double growth_rate;
-    double init_incre;
-    //gambit surface
-    #define MAX_V_PER_C 27
-    hf_array<double> surf_normal;//surface normals
-    hf_array<double> surf_area;//surface area
-    bool output_normal;
+
+    vector<hf_array<double> > surf_normal; 
+    vector<double> surf_area;
+    //from script
+    vector<int> line_start;
+    vector<int> surf_start;
+    vector<string> line_name;
+    vector<string> surf_name;
+    //from mesh
+    int mesh_dims,ele_dims;
     //connetivity
     hf_array<int> p2c;//probe point to cell number(local typewise)
     hf_array<int> p2t;//probe point to cell type
@@ -65,8 +61,25 @@ public:
 private:
     void read_probe_input(int rank);
     void set_probe_connectivity(struct solution* FlowSol,int rank);
+    void create_folder(int rank);
+
+    void read_probe_script(string filename);
+    void set_probe_line(hf_array<double>& in_p0, hf_array<double>& in_p1,const double in_init_incre,
+    const int in_n_pts,vector<hf_array<double> > &out_pos_line);
+    //read in start index and return number of points
+    void set_probe_circle(hf_array<double> &in_cent, hf_array<double> &in_ori, const double in_r, const int n_layer,
+                          vector<hf_array<double> > &out_normal, vector<double> &out_area,
+                          vector<hf_array<double> > &out_pos_circle);
+
+    void set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &in_ori, double r0, const double r1,
+                        const int n_layer_r, const double in_l,
+                        const int n_layer_l, vector<hf_array<double> > &out_normal,
+                        vector<double> &out_area, vector<hf_array<double> > &out_pos_cone);
+
     void set_probe_mesh(string filename);
+
     void set_loc_probepts(struct solution* FlowSol);
-    int n_dims;
-    string fileNameS,probe_source_file;
+
+    int n_dims;//simulation dimension
+    string fileNameS,probe_source_file;//filenames
 };

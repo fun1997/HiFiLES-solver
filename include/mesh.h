@@ -53,6 +53,7 @@ public:
   int num_verts_global; //total number of vertics
   int n_bdy;            //number of boundary groups
   int n_dims;           //number of dimensions of the mesh
+  int n_ele_dims;       //number of dimensions of the element(surf/vol)
   int n_unmatched_inters;
   //cell
   hf_array<int> c2v;    //ID of vertices making up each cell.

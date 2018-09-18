@@ -953,8 +953,6 @@ int eles_tris::calc_p2c(hf_array<double>& in_pos)
                 temp_pos_s_pts(k,j)=shape(k,j,i);
         pos_centroid=calc_centroid(temp_pos_s_pts);
 
-        if (n_spts_per_ele(i)==3)//linear tris
-        {
             int num_f_per_c = 3;
             for(int j=0; j<num_f_per_c; j++)//for each face
             {
@@ -988,12 +986,6 @@ int eles_tris::calc_p2c(hf_array<double>& in_pos)
                       if (alpha==0)
                           break;
             }
-
-        }
-        else
-        {
-            FatalError("Quadratic element haven't been implemented yet!")
-        }
         if (alpha>0)
             return i;
     }

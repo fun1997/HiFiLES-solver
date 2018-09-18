@@ -162,11 +162,13 @@ void input::read_input_file(string fileName, int rank)
     if (LES)
     {
         opts.getScalarValue("C_s", C_s);
-        opts.getScalarValue("filter_type", filter_type);
-        opts.getScalarValue("filter_ratio", filter_ratio);
         opts.getScalarValue("SGS_model", SGS_model);
+        if (SGS_model == 3 || SGS_model == 2 || SGS_model == 4)
+            opts.getScalarValue("filter_type", filter_type);
+        opts.getScalarValue("filter_ratio", filter_ratio);
         opts.getScalarValue("wall_model", wall_model);
-        opts.getScalarValue("wall_layer_thickness", wall_layer_t);
+        if (wall_model)
+            opts.getScalarValue("wall_layer_thickness", wall_layer_t);
     }
 
     /* ---- Gas Parameters ---- */
@@ -561,7 +563,7 @@ void input::setup_params(int rank)
             // non-dimensionalize sutherland law parameters
             c_sth = S_gas / T_gas;
             mu_inf = mu_gas / mu_ref;                     //non-dimensionalized mu_gas=1/Re
-            rt_inf = T_gas * R_gas / (uvw_ref * uvw_ref); //T_gas/(R_ref*T_ref)
+            rt_inf = T_gas * R_gas / (uvw_ref * uvw_ref); //T_gas*(R_ref/T_ref)
 
             //non-dimensionalize time step size if using fixed time step
             dt /= time_ref;

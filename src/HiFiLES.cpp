@@ -48,7 +48,7 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
-  int rank = 0, error_state = 0;
+  int rank = 0;// error_state = 0;
   int i, j;                           /*!< Loop iterators */
   int i_steps = 0;                    /*!< Iteration index */
   int RKSteps;                        /*!< Number of RK steps */
@@ -94,20 +94,18 @@ int main(int argc, char *argv[]) {
   /*! Read the config file and store the information in run_input. */
 
   run_input.setup(argv[1], rank);
-  /*! Set the input values in the FlowSol structure. */
 
+  /*! Set the input values in the FlowSol structure. */
   SetInput(&FlowSol);
 
   /*! Read the mesh file from a file. */
-
   GeoPreprocess(&FlowSol, *mesh_data);
   delete mesh_data;
+
   /*! initialize object to output result/restart files */   
-   
   output run_output(&FlowSol); 
 
   /*! Initialize solution and patch solution if needed */
-
   InitSolution(&FlowSol);
 
   if(run_input.patch)
@@ -115,8 +113,8 @@ int main(int argc, char *argv[]) {
 
   /*! Read the probe file if needed and store the information in run_probe. */
 
-  if(run_input.probe)
-          run_probe.setup(argv[1],&FlowSol,rank);//TODO: combine probe in the same input file
+  if (run_input.probe)
+    run_probe.setup(argv[1], &FlowSol, rank); 
 
   /////////////////////////////////////////////////
   /// Pre-processing
@@ -124,7 +122,7 @@ int main(int argc, char *argv[]) {
 
   /*! Variable initialization. */
 
-  error_state = 0;
+  //error_state = 0;
   //FlowSol.ene_hist = 1000.;
   //FlowSol.grad_ene_hist = 1000.;
 
@@ -160,7 +158,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   /*! Dump initial Paraview, tecplot or CGNS files. */
-
+  
   if (FlowSol.write_type == 0) run_output.write_vtu(FlowSol.ini_iter+i_steps);
   else if (FlowSol.write_type == 1) run_output.write_tec(FlowSol.ini_iter+i_steps);
   else if(FlowSol.write_type == 2) run_output.write_CGNS(FlowSol.ini_iter+i_steps);

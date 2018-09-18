@@ -1312,52 +1312,76 @@ int eles_quads::calc_p2c(hf_array<double>& in_pos)
                 temp_pos_s_pts(k,j)=shape(k,j,i);
         pos_centroid=calc_centroid(temp_pos_s_pts);
 
-        if (n_spts_per_ele(i)==4)//linear quad
+        int num_f_per_c = 4;
+
+        for (int j = 0; j < num_f_per_c; j++) //for each face
         {
-            int num_f_per_c = 4;
+          if (is_perfect_square(n_spts_per_ele(i)))
+          {
             int n_spts_1d = 2;
-            for(int j=0; j<num_f_per_c; j++)//for each face
+            if (j == 0)
             {
-                if (j==0)
-                {
-                    vertex_index_loc(0) = 0;
-                    vertex_index_loc(1) = n_spts_1d-1;
-                }
-                else if (j==1)
-                {
-                    vertex_index_loc(0) = n_spts_1d-1;
-                    vertex_index_loc(1) = n_spts_per_ele(i)-1;
-                }
-                else if (j==2)
-                {
-                    vertex_index_loc(0) = n_spts_per_ele(i)-1;
-                    vertex_index_loc(1) = n_spts_per_ele(i)-n_spts_1d;
-                }
-                else if (j==3)
-                {
-                    vertex_index_loc(0) = n_spts_per_ele(i)-n_spts_1d;
-                    vertex_index_loc(1) = 0;
-                }
-
-                //store position of vertex on each face
-                for (int k=0; k<2; k++) //number of points needed to define a line
-                    for (int l=0; l<n_dims; l++) //dims
-                        pos_line_pts(l,k)=shape(l,vertex_index_loc(k),i);
-
-                //calculate plane coeff
-                line_coeff=calc_line(pos_line_pts);
-
-                alpha=alpha*((line_coeff(0)*in_pos(0)+line_coeff(1)*in_pos(1)+line_coeff(2))*
-                        (line_coeff(0)*pos_centroid(0)+line_coeff(1)*pos_centroid(1)+line_coeff(2))>=0);
-                      if (alpha==0)
-                          break;
+              vertex_index_loc(0) = 0;
+              vertex_index_loc(1) = n_spts_1d - 1;
             }
+            else if (j == 1)
+            {
+              vertex_index_loc(0) = n_spts_1d - 1;
+              vertex_index_loc(1) = n_spts_per_ele(i) - 1;
+            }
+            else if (j == 2)
+            {
+              vertex_index_loc(0) = n_spts_per_ele(i) - 1;
+              vertex_index_loc(1) = n_spts_per_ele(i) - n_spts_1d;
+            }
+            else if (j == 3)
+            {
+              vertex_index_loc(0) = n_spts_per_ele(i) - n_spts_1d;
+              vertex_index_loc(1) = 0;
+            }
+          }
+          else if (n_spts_per_ele(i) == 8)
+          {
+            if (j == 0)
+            {
+              vertex_index_loc(0) = 0;
+              vertex_index_loc(1) = 1;
+            }
+            else if (j == 1)
+            {
+              vertex_index_loc(0) = 1;
+              vertex_index_loc(1) = 2;
+            }
+            else if (j == 2)
+            {
+              vertex_index_loc(0) = 2;
+              vertex_index_loc(1) = 3;
+            }
+            else if (j == 3)
+            {
+              vertex_index_loc(0) = 3;
+              vertex_index_loc(1) = 0;
+            }
+          }
+          else
+          {
+            FatalError("cell type not implemented");
+          }
 
+          //store position of vertex on each face
+          for (int k = 0; k < 2; k++)//number of points needed to define a line
+            for (int l = 0; l < n_dims; l++) //dims
+              pos_line_pts(l, k) = shape(l, vertex_index_loc(k), i);
+
+          //calculate plane coeff
+          line_coeff = calc_line(pos_line_pts);
+
+          alpha = alpha * ((line_coeff(0) * in_pos(0) + line_coeff(1) * in_pos(1) + line_coeff(2)) *
+                               (line_coeff(0) * pos_centroid(0) + line_coeff(1) * pos_centroid(1) + line_coeff(2)) >= 0);
+          if (alpha == 0)
+            break;
         }
-        else
-        {
-            FatalError("Quadratic element haven't been implemented yet!")
-        }
+
         if (alpha>0)
             return i;
     }

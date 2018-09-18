@@ -279,6 +279,12 @@ inline int compare_ints(const void * a, const void *b)
   return ( *(int*)a-*(int*)b );
 }
 
+template <class T>
+inline int
+sgn(T v) {
+    return (v > T(0)) - (v < T(0));
+}
+
 // Check if all contents of polynomial are zero
 template <typename T>
 bool iszero(hf_array<T> & poly);

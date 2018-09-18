@@ -96,8 +96,8 @@ void mesh_reader::read_header_gambit(void)
         >> mesh_ptr->num_cells_global       // num elements
         >> dummy                            // num material groups
         >> mesh_ptr->n_bdy                  // num boundary groups
-        >> mesh_ptr->n_dims;                // num space dimensions
-
+        >> mesh_ptr->n_ele_dims             // num ele dimensions(surf/vol)
+        >> mesh_ptr->n_dims;                // num coordinate dimensions
     if (mesh_ptr->n_dims != 2 && mesh_ptr->n_dims != 3)
     {
         FatalError("Invalid mesh dimensionality. Expected 2D or 3D.");

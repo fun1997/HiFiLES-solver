@@ -1406,20 +1406,8 @@ void output::write_probe(void)
     /*! output file object*/
     ofstream write_probe;
     /*! set file name*/
-    char folder[]="Probes";
+    string folder;
 
-    /*! master node create a directory to store .dat*/
-    if(myrank==0)
-    {
-        struct stat st = {0};
-        if(stat(folder,&st)==-1)
-        {
-            mkdir(folder,0755);
-        }
-    }
-#ifdef _MPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MPI
     /*! every node write .dat*/
     if(myrank ==0) cout<<"writing probe point data...";
     for (int i=0; i<n_probe; i++) //loop over every probe point i
@@ -1433,10 +1421,54 @@ void output::write_probe(void)
             for (int j=0;j<n_dims;j++)
                 loc_probe_point_temp(j)=run_probe.loc_probe(j,i);
 
+            bool surf_flag;
+            //set the folder name
+            if (run_input.probe == 2) //from script
+            {
+              if (i < run_probe.line_start[0]) //is a surf
+              {
+                if (n_dims == 3) //3D sims
+                  surf_flag = true;
+                for (int id = 1; id < run_probe.surf_start.size(); id++)
+                {
+                  if (i < run_probe.surf_start[id] && i >= run_probe.surf_start[id - 1])
+                  {
+                    folder = run_probe.surf_name[id - 1];
+                    break;
+                  }
+                }
+              }
+              else //is a line
+              {
+                surf_flag=false;
+                for (int id = 1; id < run_probe.line_start.size(); id++)
+                {
+                  if (i < run_probe.line_start[id] && i >= run_probe.line_start[id - 1])
+                  {
+                    folder = run_probe.line_name[id - 1];
+                    break;
+                  }
+                }
+              }
+            }
+            else if(run_input.probe==3)//gambit
+            {
+              if (run_probe.ele_dims ==2 &&n_dims==3)//3D simulation and surf mesh
+                surf_flag = true;
+              else
+                surf_flag = false;
+              folder = "probes";
+            }
+            else//point
+            {
+              folder = "probes";
+              surf_flag=false;
+            }
+
             //check if file exist
             bool exist=true;
             struct stat st= {0};
-            sprintf(probe_data,"Probes/probe_%.04d.dat",i);//generate file name
+            sprintf(probe_data, "%s/%s_%.04d.dat", folder.c_str(),folder.c_str(),i); //generate file name
             if (stat(probe_data,&st)==-1) exist = false;
 
             write_probe.open(probe_data,ios_base::out|ios_base::app);//open file
@@ -1456,18 +1488,18 @@ void output::write_probe(void)
                         write_probe<<setw(15)<<setprecision(5)<<run_probe.pos_probe(2,i)*run_input.L_free_stream<<endl;
                     else
                         write_probe<<endl;
-                /*! write gambit surface information*/
-                if (run_input.probe==2 &&run_probe.output_normal==true)
+                /*! write surface information*/
+                if (surf_flag==true)
                 {
                     write_probe<<"Surface normal"<<endl;
-                    write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_normal(0,i)<<setw(15)<<setprecision(5)<<run_probe.surf_normal(1,i);
+                    write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_normal[i][0]<<setw(15)<<setprecision(5)<<run_probe.surf_normal[i][1];
                     if(n_dims==3)
-                        write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_normal(2,i)<<endl;
+                        write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_normal[i][2]<<endl;
                     else
                         write_probe<<endl;
 
                     write_probe<<"Surface area"<<endl;
-                        write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_area(i)*run_input.L_free_stream*run_input.L_free_stream<<endl;
+                        write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_area[i]*run_input.L_free_stream*run_input.L_free_stream<<endl;
                 }
                 /*! write field titles*/
                 write_probe<<setw(17)<<"time";

@@ -473,8 +473,8 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
 //  Initialize MPI faces
 //  --------------------------------
 
-int max_inters = mesh_data.num_cells * MAX_F_PER_C; //place holder for face arrays
-hf_array<int> f_mpi2f(max_inters);
+int max_mpi_inters = mesh_data.n_unmatched_inters; //place holder for face arrays
+hf_array<int> f_mpi2f(max_mpi_inters);
 FlowSol->n_mpi_inters = 0;
 int n_seg_mpi_inters = 0;
 int n_tri_mpi_inters = 0;

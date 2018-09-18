@@ -1592,8 +1592,6 @@ int eles_tets::calc_p2c(hf_array<double>& in_pos)
                 temp_pos_s_pts(k,j)=shape(k,j,i);
         pos_centroid=calc_centroid(temp_pos_s_pts);
 
-        if (n_spts_per_ele(i)==4)//linear tet
-        {
             int num_f_per_c = 4;
 
             for(int j=0; j<num_f_per_c; j++)//for each face
@@ -1639,11 +1637,6 @@ int eles_tets::calc_p2c(hf_array<double>& in_pos)
                     break;
             }
 
-        }
-        else
-        {
-            FatalError("Quadratic element haven't been implemented yet!")
-        }
         if (alpha>0)
             return i;
     }
