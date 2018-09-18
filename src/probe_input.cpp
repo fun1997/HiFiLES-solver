@@ -788,6 +788,8 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
             hf_array<double> temp_normal;
             for (int j = 0; j < probe_msh.ctype(i) + 1; j++) //1->2 part
             {
+                if ((probe_msh.ctype(i) == 1 && probe_msh.c2n_v(i) > 4)||(probe_msh.ctype(i) == 0 && probe_msh.c2n_v(i) > 3))
+                    FatalError("2nd order surf not supported for area calculation");
                 for (int k = 0; k < n_dims; k++) //every dimension
                 {
                     temp_vec(k) = probe_msh.xv(probe_msh.c2v(i, 1 + j), k) - probe_msh.xv(probe_msh.c2v(i, j), k);
