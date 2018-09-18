@@ -1478,7 +1478,8 @@ void output::write_probe(void)
                 if (!write_probe.is_open())
                     FatalError("Cannont open input file for reading.");
             }
-
+            //use normal notation
+            write_probe.unsetf(ios::floatfield);
             if(exist==false)//if doesn't exist write headers
             {
                 write_probe<<"NOTE: ALL OUTPUTS ARE DIMENSIONAL IN SI UNITS"<<endl;
@@ -1502,54 +1503,58 @@ void output::write_probe(void)
                         write_probe<<setw(15)<<setprecision(5)<<run_probe.surf_area[i]*run_input.L_free_stream*run_input.L_free_stream<<endl;
                 }
                 /*! write field titles*/
-                write_probe<<setw(17)<<"time";
+                write_probe<<setw(16)<<"time";
                 for(int j=0; j<n_probe_fields; j++)
-                    write_probe<<setw(17)<<run_probe.probe_fields(j);
+                    write_probe<<setw(20)<<run_probe.probe_fields(j);
 
                 write_probe<<endl;
             }
+
+            //use scientific notation
+            write_probe.setf(ios::scientific);
 
             //calculate fields data on probe points
             FlowSol->mesh_eles(run_probe.p2t(i))->set_opp_probe(loc_probe_point_temp);//calculate solution on upts to probe points matrix
             FlowSol->mesh_eles(run_probe.p2t(i))->calc_disu_probepoints(run_probe.p2c(i),disu_probe_point_temp);//calculate solution on the reference probe point
 
             /*! Start writing data*/
+            //write time
             if (run_input.viscous)
-                write_probe<<setw(17)<<setprecision(10)<<FlowSol->time*run_input.L_free_stream/run_input.uvw_ref;
+                write_probe<<setw(16)<<setprecision(10)<<FlowSol->time*run_input.L_free_stream/run_input.uvw_ref;
             else
-                write_probe<<setw(17)<<setprecision(10)<<FlowSol->time;
+                write_probe<<setw(16)<<setprecision(10)<<FlowSol->time;
             for (int j=0; j<n_probe_fields; j++)//write transient fields
             {
 
                 if (run_probe.probe_fields(j)=="rho")
                 {
                     if(run_input.viscous)
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(0)*run_input.rho_ref;
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(0)*run_input.rho_ref;
                     else
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(0);
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(0);
                 }
                 else if (run_probe.probe_fields(j)=="u")
                 {
                     if (run_input.viscous)
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(1)/disu_probe_point_temp(0)*run_input.uvw_ref;
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(1)/disu_probe_point_temp(0)*run_input.uvw_ref;
                     else
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(1)/disu_probe_point_temp(0);
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(1)/disu_probe_point_temp(0);
                 }
                 else if (run_probe.probe_fields(j)=="v")
                 {
                     if(run_input.viscous)
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(2)/disu_probe_point_temp(0)*run_input.uvw_ref;
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(2)/disu_probe_point_temp(0)*run_input.uvw_ref;
                     else
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(2)/disu_probe_point_temp(0);
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(2)/disu_probe_point_temp(0);
                 }
                 else if (run_probe.probe_fields(j)=="w")
                 {
                     if(n_dims==3)
                     {
                         if(run_input.viscous)
-                            write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0)*run_input.uvw_ref;
+                            write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0)*run_input.uvw_ref;
                         else
-                            write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
+                            write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(3)/disu_probe_point_temp(0);
                     }
 
                     else FatalError("2 dimensional elements don't have z velocity");
@@ -1557,9 +1562,9 @@ void output::write_probe(void)
                 else if (run_probe.probe_fields(j)== "specific_energy")//e
                 {
                     if(run_input.viscous)
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(n_dims+1)/disu_probe_point_temp(0)*run_input.uvw_ref*run_input.uvw_ref;
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(n_dims+1)/disu_probe_point_temp(0)*run_input.uvw_ref*run_input.uvw_ref;
                     else
-                        write_probe<<setw(17)<<setprecision(10)<<disu_probe_point_temp(n_dims+1)/disu_probe_point_temp(0);
+                        write_probe<<setw(20)<<setprecision(10)<<disu_probe_point_temp(n_dims+1)/disu_probe_point_temp(0);
                 }
                 else if (run_probe.probe_fields(j)=="pressure")
                 {
@@ -1572,9 +1577,9 @@ void output::write_probe(void)
                     // Compute pressure
                     pressure = (run_input.gamma-1.0)*( disu_probe_point_temp(n_dims+1) - 0.5*disu_probe_point_temp(0)*v_sq);
                     if (run_input.viscous)
-                        write_probe<<setw(17)<<setprecision(10)<<pressure*run_input.rho_ref*run_input.uvw_ref*run_input.uvw_ref;
+                        write_probe<<setw(20)<<setprecision(10)<<pressure*run_input.rho_ref*run_input.uvw_ref*run_input.uvw_ref;
                     else
-                        write_probe<<setw(17)<<setprecision(10)<<pressure;
+                        write_probe<<setw(20)<<setprecision(10)<<pressure;
                 }
                 else FatalError("Probe field not implemented yet!");
             }
