@@ -160,7 +160,7 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
   max_n_spts(HEX) = mesh_data.get_max_n_spts(HEX);
 
   // Initialize the mesh_eles
- 
+
   FlowSol->mesh_eles.setup(FlowSol->n_ele_types);
 
   FlowSol->mesh_eles(0) = &FlowSol->mesh_eles_tris;
@@ -349,7 +349,7 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
   if (run_input.test_case != 0 || run_input.n_integral_quantities != 0)
   { //|| run_input.monitor_integrals_freq!=0
     if (FlowSol->rank == 0)
-      cout << "setting element transforms at volume cubpts ... " << endl; 
+      cout << "setting element transforms at volume cubpts ... " << endl;
     for (int i = 0; i < FlowSol->n_ele_types; i++)
     {
       if (FlowSol->mesh_eles(i)->get_n_eles() != 0)
@@ -413,7 +413,7 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
 
       for (int k = 0; k < mesh_data.f2nv(i); k++)
         for (int m = 0; m < FlowSol->n_dims; m++)
-          loc_center_inter_0(m) += mesh_data.xv(mesh_data.f2v(i, k), m) / mesh_data.f2nv(i);
+          loc_center_inter_0(m) += mesh_data.xv(mesh_data.f2v(i, k), m) / (double)mesh_data.f2nv(i);
 
       found = 0;
       for (int j = 0; j < mesh_data.n_unmatched_inters; j++)//loop over all unmatched interfaces including other bdy and mpi internal face
@@ -430,7 +430,7 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
         //calculate center of the unmatched interface
         for (int k = 0; k < mesh_data.f2nv(i2); k++)
           for (int m = 0; m < FlowSol->n_dims; m++)
-            loc_center_inter_1(m) += mesh_data.xv(mesh_data.f2v(i2, k), m) / mesh_data.f2nv(i2);
+            loc_center_inter_1(m) += mesh_data.xv(mesh_data.f2v(i2, k), m) / (double)mesh_data.f2nv(i2);
 
         if (check_cyclic(delta_cyclic, loc_center_inter_0, loc_center_inter_1, tol, FlowSol)) //TODO: if the unmatched interface is the corresponding cyclic face
         {
@@ -452,7 +452,7 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
               loc_vert_1(k, m) = mesh_data.xv(mesh_data.f2v(i2, k), m);
             }
           }
-          compare_cyclic_faces(loc_vert_0, loc_vert_1, mesh_data.f2nv(i), rtag, delta_cyclic, tol, FlowSol); 
+          compare_cyclic_faces(loc_vert_0, loc_vert_1, mesh_data.f2nv(i), rtag, delta_cyclic, tol, FlowSol);
           mesh_data.rot_tag(i) = rtag;
           break;
         }
@@ -469,469 +469,469 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
 #ifdef _MPI
 
 
-// ---------------------------------
-//  Initialize MPI faces
-//  --------------------------------
+  // ---------------------------------
+  //  Initialize MPI faces
+  //  --------------------------------
 
-int max_mpi_inters = mesh_data.n_unmatched_inters; //place holder for face arrays
-hf_array<int> f_mpi2f(max_mpi_inters);
-FlowSol->n_mpi_inters = 0;
-int n_seg_mpi_inters = 0;
-int n_tri_mpi_inters = 0;
-int n_quad_mpi_inters = 0;
+  int max_mpi_inters = mesh_data.n_unmatched_inters; //place holder for face arrays
+  hf_array<int> f_mpi2f(max_mpi_inters);
+  FlowSol->n_mpi_inters = 0;
+  int n_seg_mpi_inters = 0;
+  int n_tri_mpi_inters = 0;
+  int n_quad_mpi_inters = 0;
 
-for (int i = 0; i < mesh_data.num_inters; i++)
-{
-  bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
-  ic_r = mesh_data.f2c(i, 1);
-  if (ic_r == -1 && bcid_f == -1)
-  { // if mpi_interface or mpi cyclic setting
-    if (FlowSol->nproc == 1)
-    {
-      cout << "ic=" << mesh_data.f2c(i, 0) << endl;
-      cout << "local_face=" << mesh_data.f2loc_f(i, 0) << endl;
-      FatalError("Can't find coupled cyclic interface");
+  for (int i = 0; i < mesh_data.num_inters; i++)
+  {
+    bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
+    ic_r = mesh_data.f2c(i, 1);
+    if (ic_r == -1 && bcid_f == -1)
+    { // if mpi_interface or mpi cyclic setting
+      if (FlowSol->nproc == 1)
+      {
+        cout << "ic=" << mesh_data.f2c(i, 0) << endl;
+        cout << "local_face=" << mesh_data.f2loc_f(i, 0) << endl;
+        FatalError("Can't find coupled cyclic interface");
+      }
+
+      mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0)) = -2; // flag as mpi_interface or mpi_cyclic
+      f_mpi2f(FlowSol->n_mpi_inters) = i;//set local mpiface to local face index
+      FlowSol->n_mpi_inters++;
+
+      if (mesh_data.f2nv(i) == 2)
+        n_seg_mpi_inters++;
+      if (mesh_data.f2nv(i) == 3)
+        n_tri_mpi_inters++;
+      if (mesh_data.f2nv(i) == 4)
+        n_quad_mpi_inters++;
     }
-
-    mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0)) = -2; // flag as mpi_interface or mpi_cyclic
-    f_mpi2f(FlowSol->n_mpi_inters) = i;//set local mpiface to local face index
-    FlowSol->n_mpi_inters++;
-
-    if (mesh_data.f2nv(i) == 2)
-      n_seg_mpi_inters++;
-    if (mesh_data.f2nv(i) == 3)
-      n_tri_mpi_inters++;
-    if (mesh_data.f2nv(i) == 4)
-      n_quad_mpi_inters++;
   }
-}
 
-FlowSol->n_mpi_inter_types = 3;
-FlowSol->mesh_mpi_inters.setup(FlowSol->n_mpi_inter_types);
+  FlowSol->n_mpi_inter_types = 3;
+  FlowSol->mesh_mpi_inters.setup(FlowSol->n_mpi_inter_types);
 
-for (int i = 0; i < FlowSol->n_mpi_inter_types; i++)
-  FlowSol->mesh_mpi_inters(i).set_nproc(FlowSol->nproc, FlowSol->rank);
+  for (int i = 0; i < FlowSol->n_mpi_inter_types; i++)
+    FlowSol->mesh_mpi_inters(i).set_nproc(FlowSol->nproc, FlowSol->rank);
 
-FlowSol->mesh_mpi_inters(0).setup(n_seg_mpi_inters, 0);
-FlowSol->mesh_mpi_inters(1).setup(n_tri_mpi_inters, 1);
-FlowSol->mesh_mpi_inters(2).setup(n_quad_mpi_inters, 2);
+  FlowSol->mesh_mpi_inters(0).setup(n_seg_mpi_inters, 0);
+  FlowSol->mesh_mpi_inters(1).setup(n_tri_mpi_inters, 1);
+  FlowSol->mesh_mpi_inters(2).setup(n_quad_mpi_inters, 2);
 
-hf_array<int> mpifaces_part(FlowSol->nproc); //number of interface send to each processor
+  hf_array<int> mpifaces_part(FlowSol->nproc); //number of interface send to each processor
 
-// Call function that takes in f_mpi2f,f2v and returns a new hf_array f_mpi2f, and an hf_array mpiface_part
-// that contains the number of faces to send to each processor
-// the new hf_array f_mpi2f is in good order i.e. proc1,proc2,....
+  // Call function that takes in f_mpi2f,f2v and returns a new hf_array f_mpi2f, and an hf_array mpiface_part
+  // that contains the number of faces to send to each processor
+  // the new hf_array f_mpi2f is in good order i.e. proc1,proc2,....
 
-match_mpifaces(mesh_data.f2v, mesh_data.f2nv, mesh_data.xv, f_mpi2f, mpifaces_part, delta_cyclic, FlowSol->n_mpi_inters, tol, FlowSol);
+  match_mpifaces(mesh_data.f2v, mesh_data.f2nv, mesh_data.xv, f_mpi2f, mpifaces_part, delta_cyclic, FlowSol->n_mpi_inters, tol, FlowSol);
 
-hf_array<int> rot_tag_mpi(FlowSol->n_mpi_inters);
-find_rot_mpifaces(mesh_data.f2v, mesh_data.f2nv, mesh_data.xv, f_mpi2f, rot_tag_mpi, mpifaces_part, delta_cyclic, FlowSol->n_mpi_inters, tol, FlowSol);
+  hf_array<int> rot_tag_mpi(FlowSol->n_mpi_inters);
+  find_rot_mpifaces(mesh_data.f2v, mesh_data.f2nv, mesh_data.xv, f_mpi2f, rot_tag_mpi, mpifaces_part, delta_cyclic, FlowSol->n_mpi_inters, tol, FlowSol);
 
-//Initialize the mpi faces
-//with local element type wise index, local element type, rotation tag and interface type
-int i_seg_mpi = 0;
-int i_tri_mpi = 0;
-int i_quad_mpi = 0;
+  //Initialize the mpi faces
+  //with local element type wise index, local element type, rotation tag and interface type
+  int i_seg_mpi = 0;
+  int i_tri_mpi = 0;
+  int i_quad_mpi = 0;
 
-for (int i_mpi = 0; i_mpi < FlowSol->n_mpi_inters; i_mpi++) //loop over all local mpi_inters
-{
-  int i = f_mpi2f(i_mpi);
-  ic_l = mesh_data.f2c(i, 0);
-
-  if (mesh_data.f2nv(i) == 2)
+  for (int i_mpi = 0; i_mpi < FlowSol->n_mpi_inters; i_mpi++) //loop over all local mpi_inters
   {
-    FlowSol->mesh_mpi_inters(0).set_mpi(i_seg_mpi, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), rot_tag_mpi(i_mpi), FlowSol);
-    i_seg_mpi++;
-  }
-  else if (mesh_data.f2nv(i) == 3)
-  {
-    FlowSol->mesh_mpi_inters(1).set_mpi(i_tri_mpi, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), rot_tag_mpi(i_mpi), FlowSol);
-    i_tri_mpi++;
-  }
-  else if (mesh_data.f2nv(i) == 4)
-  {
-    FlowSol->mesh_mpi_inters(2).set_mpi(i_quad_mpi, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), rot_tag_mpi(i_mpi), FlowSol);
-    i_quad_mpi++;
-  }
-}
-
-// Initialize Nout_proc
-int icount = 0; //starting index of interface send to each processor
-int request_seg = 0;
-int request_tri = 0;
-int request_quad = 0;
-//set number of requests to each processor for each type of mpi_interface
-for (int p = 0; p < FlowSol->nproc; p++)
-{
-  // For all faces to send to processor p, split between face types
-  int Nout_seg = 0;
-  int Nout_tri = 0;
-  int Nout_quad = 0;
-
-  for (int j = 0; j < mpifaces_part(p); j++)
-  {
-    int i_mpi = icount + j;
     int i = f_mpi2f(i_mpi);
+    ic_l = mesh_data.f2c(i, 0);
+
     if (mesh_data.f2nv(i) == 2)
-      Nout_seg++;
+    {
+      FlowSol->mesh_mpi_inters(0).set_mpi(i_seg_mpi, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), rot_tag_mpi(i_mpi), FlowSol);
+      i_seg_mpi++;
+    }
     else if (mesh_data.f2nv(i) == 3)
-      Nout_tri++;
+    {
+      FlowSol->mesh_mpi_inters(1).set_mpi(i_tri_mpi, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), rot_tag_mpi(i_mpi), FlowSol);
+      i_tri_mpi++;
+    }
     else if (mesh_data.f2nv(i) == 4)
-      Nout_quad++;
+    {
+      FlowSol->mesh_mpi_inters(2).set_mpi(i_quad_mpi, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), rot_tag_mpi(i_mpi), FlowSol);
+      i_quad_mpi++;
+    }
   }
-  icount += mpifaces_part(p);
 
-  if (Nout_seg != 0)
+  // Initialize Nout_proc
+  int icount = 0; //starting index of interface send to each processor
+  int request_seg = 0;
+  int request_tri = 0;
+  int request_quad = 0;
+  //set number of requests to each processor for each type of mpi_interface
+  for (int p = 0; p < FlowSol->nproc; p++)
   {
-    FlowSol->mesh_mpi_inters(0).set_nout_proc(Nout_seg, p);
-    request_seg++;
-  }
-  if (Nout_tri != 0)
-  {
-    FlowSol->mesh_mpi_inters(1).set_nout_proc(Nout_tri, p);
-    request_tri++;
-  }
-  if (Nout_quad != 0)
-  {
-    FlowSol->mesh_mpi_inters(2).set_nout_proc(Nout_quad, p);
-    request_quad++;
-  }
-}
+    // For all faces to send to processor p, split between face types
+    int Nout_seg = 0;
+    int Nout_tri = 0;
+    int Nout_quad = 0;
 
-FlowSol->mesh_mpi_inters(0).set_mpi_requests(request_seg);
-FlowSol->mesh_mpi_inters(1).set_mpi_requests(request_tri);
-FlowSol->mesh_mpi_inters(2).set_mpi_requests(request_quad);
+    for (int j = 0; j < mpifaces_part(p); j++)
+    {
+      int i_mpi = icount + j;
+      int i = f_mpi2f(i_mpi);
+      if (mesh_data.f2nv(i) == 2)
+        Nout_seg++;
+      else if (mesh_data.f2nv(i) == 3)
+        Nout_tri++;
+      else if (mesh_data.f2nv(i) == 4)
+        Nout_quad++;
+    }
+    icount += mpifaces_part(p);
+
+    if (Nout_seg != 0)
+    {
+      FlowSol->mesh_mpi_inters(0).set_nout_proc(Nout_seg, p);
+      request_seg++;
+    }
+    if (Nout_tri != 0)
+    {
+      FlowSol->mesh_mpi_inters(1).set_nout_proc(Nout_tri, p);
+      request_tri++;
+    }
+    if (Nout_quad != 0)
+    {
+      FlowSol->mesh_mpi_inters(2).set_nout_proc(Nout_quad, p);
+      request_quad++;
+    }
+  }
+
+  FlowSol->mesh_mpi_inters(0).set_mpi_requests(request_seg);
+  FlowSol->mesh_mpi_inters(1).set_mpi_requests(request_tri);
+  FlowSol->mesh_mpi_inters(2).set_mpi_requests(request_quad);
 
 #ifdef _GPU
 
-for (int i = 0; i < FlowSol->n_mpi_inter_types; i++)
-  FlowSol->mesh_mpi_inters(i).mv_all_cpu_gpu(); 
+  for (int i = 0; i < FlowSol->n_mpi_inter_types; i++)
+    FlowSol->mesh_mpi_inters(i).mv_all_cpu_gpu();
 #endif
 
 #endif
 
-// ---------------------------------------
-// Initializing internal and bdy faces
-// ---------------------------------------
+  // ---------------------------------------
+  // Initializing internal and bdy faces
+  // ---------------------------------------
 
-// Count the number of int_inters and bdy_inters
-int n_seg_int_inters = 0;
-int n_tri_int_inters = 0;
-int n_quad_int_inters = 0;
+  // Count the number of int_inters and bdy_inters
+  int n_seg_int_inters = 0;
+  int n_tri_int_inters = 0;
+  int n_quad_int_inters = 0;
 
-int n_seg_bdy_inters = 0;
-int n_tri_bdy_inters = 0;
-int n_quad_bdy_inters = 0;
+  int n_seg_bdy_inters = 0;
+  int n_tri_bdy_inters = 0;
+  int n_quad_bdy_inters = 0;
 
-for (int i = 0; i < mesh_data.num_inters; i++)
-{
-  bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
-  ic_r = mesh_data.f2c(i, 1);
-
-  if (bcid_f != -2) //not an mpi face or mpi cyclic face
+  for (int i = 0; i < mesh_data.num_inters; i++)
   {
-    if (bcid_f == -1) // internal interface or internal cyclic face
-    {
-      if (ic_r == -1)
-      {
-        FatalError("Error: Interior interface has i_cell_right=-1. Should not be here, exiting");
-      }
-      n_int_inters++;
-      if (mesh_data.f2nv(i) == 2)
-        n_seg_int_inters++;
-      if (mesh_data.f2nv(i) == 3)
-        n_tri_int_inters++;
-      if (mesh_data.f2nv(i) == 4)
-        n_quad_int_inters++;
-    }
-    else // boundary interface
-    {
-      if (bcid_f != -3)
-      { //not a coupled cyclic face(deleted one)
-        n_bdy_inters++;
-        if (mesh_data.f2nv(i) == 2)
-        {
-          n_seg_bdy_inters++;
-        }
-        else if (mesh_data.f2nv(i) == 3)
-        {
-          n_tri_bdy_inters++;
-        }
-        else if (mesh_data.f2nv(i) == 4)
-        {
-          n_quad_bdy_inters++;
-        }
-      }
-    }
-  }
-}
-
-FlowSol->n_int_inter_types = 3;
-FlowSol->mesh_int_inters.setup(FlowSol->n_int_inter_types);
-FlowSol->mesh_int_inters(0).setup(n_seg_int_inters, 0);
-FlowSol->mesh_int_inters(1).setup(n_tri_int_inters, 1);
-FlowSol->mesh_int_inters(2).setup(n_quad_int_inters, 2);
-
-FlowSol->n_bdy_inter_types = 3;
-FlowSol->mesh_bdy_inters.setup(FlowSol->n_bdy_inter_types);
-FlowSol->mesh_bdy_inters(0).setup(n_seg_bdy_inters, 0);
-FlowSol->mesh_bdy_inters(1).setup(n_tri_bdy_inters, 1);
-FlowSol->mesh_bdy_inters(2).setup(n_quad_bdy_inters, 2);
-
-int i_seg_int = 0;
-int i_tri_int = 0;
-int i_quad_int = 0;
-
-int i_seg_bdy = 0;
-int i_tri_bdy = 0;
-int i_quad_bdy = 0;
-
-for (int i = 0; i < mesh_data.num_inters; i++)
-{
-  bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
-  ic_l = mesh_data.f2c(i, 0);
-  ic_r = mesh_data.f2c(i, 1);
-
-  if (bcid_f != -2) // internal/local cyclic or boundary edge
-  {
-    if (bcid_f == -1)//internal/local cyclic
-    {
-      if (mesh_data.f2nv(i) == 2)
-      {
-        FlowSol->mesh_int_inters(0).set_interior(i_seg_int, mesh_data.ctype(ic_l), mesh_data.ctype(ic_r), local_c(ic_l), local_c(ic_r), mesh_data.f2loc_f(i, 0), mesh_data.f2loc_f(i, 1), mesh_data.rot_tag(i), FlowSol);
-        i_seg_int++;
-      }
-      if (mesh_data.f2nv(i) == 3)
-      {
-        FlowSol->mesh_int_inters(1).set_interior(i_tri_int, mesh_data.ctype(ic_l), mesh_data.ctype(ic_r), local_c(ic_l), local_c(ic_r), mesh_data.f2loc_f(i, 0), mesh_data.f2loc_f(i, 1), mesh_data.rot_tag(i), FlowSol);
-        i_tri_int++;
-      }
-      if (mesh_data.f2nv(i) == 4)
-      {
-        FlowSol->mesh_int_inters(2).set_interior(i_quad_int, mesh_data.ctype(ic_l), mesh_data.ctype(ic_r), local_c(ic_l), local_c(ic_r), mesh_data.f2loc_f(i, 0), mesh_data.f2loc_f(i, 1), mesh_data.rot_tag(i), FlowSol);
-        i_quad_int++;
-      }
-    }
-    else // boundary face other than cyclic face
-    {
-      if (bcid_f != -3)//not a coupled local cyclic face(deleted one)
-      {
-        if (mesh_data.f2nv(i) == 2)
-        {
-          FlowSol->mesh_bdy_inters(0).set_boundary(i_seg_bdy, bcid_f, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), FlowSol);
-          i_seg_bdy++;
-        }
-        else if (mesh_data.f2nv(i) == 3)
-        {
-          FlowSol->mesh_bdy_inters(1).set_boundary(i_tri_bdy, bcid_f, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), FlowSol);
-          i_tri_bdy++;
-        }
-        else if (mesh_data.f2nv(i) == 4)
-        {
-          FlowSol->mesh_bdy_inters(2).set_boundary(i_quad_bdy, bcid_f, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), FlowSol);
-          i_quad_bdy++;
-        }
-      }
-    }
-  }
-}
-
-// Flag interfaces for calculating LES wall model
-if (run_input.LES || run_input.turb_model)
-{
-
-  if (FlowSol->rank == 0)
-    cout << "calculating wall distance... " << endl;
-
-  int n_seg_noslip_inters = 0;
-  int n_tri_noslip_inters = 0;
-  int n_quad_noslip_inters = 0;
-  int order = run_input.order;
-  int n_fpts_per_inter_seg = order + 1;
-  int n_fpts_per_inter_tri = (order + 2) * (order + 1) / 2;
-  int n_fpts_per_inter_quad = (order + 1) * (order + 1);
-
-  for (int i = 0; i <mesh_data.num_inters; i++)
-  {
-
     bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
+    ic_r = mesh_data.f2c(i, 1);
 
-    int bctype_f=run_input.bc_list(bcid_f).get_bc_flag();
-    // All types of no-slip wall
-    if (bctype_f == ISOTHERM_FIX || bctype_f == ADIABAT_FIX)
+    if (bcid_f != -2) //not an mpi face or mpi cyclic face
     {
-      // segs
-      if (mesh_data.f2nv(i) == 2)
-        n_seg_noslip_inters++;
-
-      // tris
-      if (mesh_data.f2nv(i) == 3)
-        n_tri_noslip_inters++;
-
-      // quads
-      if (mesh_data.f2nv(i) == 4)
-        n_quad_noslip_inters++;
+      if (bcid_f == -1) // internal interface or internal cyclic face
+      {
+        if (ic_r == -1)
+        {
+          FatalError("Error: Interior interface has i_cell_right=-1. Should not be here, exiting");
+        }
+        n_int_inters++;
+        if (mesh_data.f2nv(i) == 2)
+          n_seg_int_inters++;
+        if (mesh_data.f2nv(i) == 3)
+          n_tri_int_inters++;
+        if (mesh_data.f2nv(i) == 4)
+          n_quad_int_inters++;
+      }
+      else // boundary interface
+      {
+        if (bcid_f != -3)
+        { //not a coupled cyclic face(deleted one)
+          n_bdy_inters++;
+          if (mesh_data.f2nv(i) == 2)
+          {
+            n_seg_bdy_inters++;
+          }
+          else if (mesh_data.f2nv(i) == 3)
+          {
+            n_tri_bdy_inters++;
+          }
+          else if (mesh_data.f2nv(i) == 4)
+          {
+            n_quad_bdy_inters++;
+          }
+        }
+      }
     }
   }
+
+  FlowSol->n_int_inter_types = 3;
+  FlowSol->mesh_int_inters.setup(FlowSol->n_int_inter_types);
+  FlowSol->mesh_int_inters(0).setup(n_seg_int_inters, 0);
+  FlowSol->mesh_int_inters(1).setup(n_tri_int_inters, 1);
+  FlowSol->mesh_int_inters(2).setup(n_quad_int_inters, 2);
+
+  FlowSol->n_bdy_inter_types = 3;
+  FlowSol->mesh_bdy_inters.setup(FlowSol->n_bdy_inter_types);
+  FlowSol->mesh_bdy_inters(0).setup(n_seg_bdy_inters, 0);
+  FlowSol->mesh_bdy_inters(1).setup(n_tri_bdy_inters, 1);
+  FlowSol->mesh_bdy_inters(2).setup(n_quad_bdy_inters, 2);
+
+  int i_seg_int = 0;
+  int i_tri_int = 0;
+  int i_quad_int = 0;
+
+  int i_seg_bdy = 0;
+  int i_tri_bdy = 0;
+  int i_quad_bdy = 0;
+
+  for (int i = 0; i < mesh_data.num_inters; i++)
+  {
+    bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
+    ic_l = mesh_data.f2c(i, 0);
+    ic_r = mesh_data.f2c(i, 1);
+
+    if (bcid_f != -2) // internal/local cyclic or boundary edge
+    {
+      if (bcid_f == -1)//internal/local cyclic
+      {
+        if (mesh_data.f2nv(i) == 2)
+        {
+          FlowSol->mesh_int_inters(0).set_interior(i_seg_int, mesh_data.ctype(ic_l), mesh_data.ctype(ic_r), local_c(ic_l), local_c(ic_r), mesh_data.f2loc_f(i, 0), mesh_data.f2loc_f(i, 1), mesh_data.rot_tag(i), FlowSol);
+          i_seg_int++;
+        }
+        if (mesh_data.f2nv(i) == 3)
+        {
+          FlowSol->mesh_int_inters(1).set_interior(i_tri_int, mesh_data.ctype(ic_l), mesh_data.ctype(ic_r), local_c(ic_l), local_c(ic_r), mesh_data.f2loc_f(i, 0), mesh_data.f2loc_f(i, 1), mesh_data.rot_tag(i), FlowSol);
+          i_tri_int++;
+        }
+        if (mesh_data.f2nv(i) == 4)
+        {
+          FlowSol->mesh_int_inters(2).set_interior(i_quad_int, mesh_data.ctype(ic_l), mesh_data.ctype(ic_r), local_c(ic_l), local_c(ic_r), mesh_data.f2loc_f(i, 0), mesh_data.f2loc_f(i, 1), mesh_data.rot_tag(i), FlowSol);
+          i_quad_int++;
+        }
+      }
+      else // boundary face other than cyclic face
+      {
+        if (bcid_f != -3)//not a coupled local cyclic face(deleted one)
+        {
+          if (mesh_data.f2nv(i) == 2)
+          {
+            FlowSol->mesh_bdy_inters(0).set_boundary(i_seg_bdy, bcid_f, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), FlowSol);
+            i_seg_bdy++;
+          }
+          else if (mesh_data.f2nv(i) == 3)
+          {
+            FlowSol->mesh_bdy_inters(1).set_boundary(i_tri_bdy, bcid_f, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), FlowSol);
+            i_tri_bdy++;
+          }
+          else if (mesh_data.f2nv(i) == 4)
+          {
+            FlowSol->mesh_bdy_inters(2).set_boundary(i_quad_bdy, bcid_f, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), FlowSol);
+            i_quad_bdy++;
+          }
+        }
+      }
+    }
+  }
+
+  // Flag interfaces for calculating LES wall model
+  if (run_input.LES || run_input.turb_model)
+  {
+
+    if (FlowSol->rank == 0)
+      cout << "calculating wall distance... " << endl;
+
+    int n_seg_noslip_inters = 0;
+    int n_tri_noslip_inters = 0;
+    int n_quad_noslip_inters = 0;
+    int order = run_input.order;
+    int n_fpts_per_inter_seg = order + 1;
+    int n_fpts_per_inter_tri = (order + 2) * (order + 1) / 2;
+    int n_fpts_per_inter_quad = (order + 1) * (order + 1);
+
+    for (int i = 0; i < mesh_data.num_inters; i++)
+    {
+
+      bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
+
+      int bctype_f = run_input.bc_list(bcid_f).get_bc_flag();
+      // All types of no-slip wall
+      if (bctype_f == ISOTHERM_FIX || bctype_f == ADIABAT_FIX)
+      {
+        // segs
+        if (mesh_data.f2nv(i) == 2)
+          n_seg_noslip_inters++;
+
+        // tris
+        if (mesh_data.f2nv(i) == 3)
+          n_tri_noslip_inters++;
+
+        // quads
+        if (mesh_data.f2nv(i) == 4)
+          n_quad_noslip_inters++;
+      }
+    }
 
 #ifdef _MPI
 
-  /*! Code paraphrased from SU2 */
+    /*! Code paraphrased from SU2 */
 
-  hf_array<int> n_seg_inters_array(FlowSol->nproc);
-  hf_array<int> n_tri_inters_array(FlowSol->nproc);
-  hf_array<int> n_quad_inters_array(FlowSol->nproc);
-  int n_global_seg_noslip_inters = 0;
-  int n_global_tri_noslip_inters = 0;
-  int n_global_quad_noslip_inters = 0;
-  int max_seg_noslip_inters = 0;
-  int max_tri_noslip_inters = 0;
-  int max_quad_noslip_inters = 0;
-  int buf;
+    hf_array<int> n_seg_inters_array(FlowSol->nproc);
+    hf_array<int> n_tri_inters_array(FlowSol->nproc);
+    hf_array<int> n_quad_inters_array(FlowSol->nproc);
+    int n_global_seg_noslip_inters = 0;
+    int n_global_tri_noslip_inters = 0;
+    int n_global_quad_noslip_inters = 0;
+    int max_seg_noslip_inters = 0;
+    int max_tri_noslip_inters = 0;
+    int max_quad_noslip_inters = 0;
+    int buf;
 
-  /*! Communicate to all processors the total number of no-slip boundary
+    /*! Communicate to all processors the total number of no-slip boundary
     inters, the maximum number of no-slip boundary inters on any single
     partition, and the number of no-slip inters on each partition. */
 
-  MPI_Allreduce(&n_seg_noslip_inters, &n_global_seg_noslip_inters, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(&n_tri_noslip_inters, &n_global_tri_noslip_inters, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(&n_quad_noslip_inters, &n_global_quad_noslip_inters, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&n_seg_noslip_inters, &n_global_seg_noslip_inters, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&n_tri_noslip_inters, &n_global_tri_noslip_inters, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&n_quad_noslip_inters, &n_global_quad_noslip_inters, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-  MPI_Allreduce(&n_seg_noslip_inters, &max_seg_noslip_inters, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&n_tri_noslip_inters, &max_tri_noslip_inters, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&n_quad_noslip_inters, &max_quad_noslip_inters, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&n_seg_noslip_inters, &max_seg_noslip_inters, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&n_tri_noslip_inters, &max_tri_noslip_inters, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&n_quad_noslip_inters, &max_quad_noslip_inters, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
-  MPI_Allgather(&n_seg_noslip_inters, 1, MPI_INT, n_seg_inters_array.get_ptr_cpu(), 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Allgather(&n_tri_noslip_inters, 1, MPI_INT, n_tri_inters_array.get_ptr_cpu(), 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Allgather(&n_quad_noslip_inters, 1, MPI_INT, n_quad_inters_array.get_ptr_cpu(), 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Allgather(&n_seg_noslip_inters, 1, MPI_INT, n_seg_inters_array.get_ptr_cpu(), 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Allgather(&n_tri_noslip_inters, 1, MPI_INT, n_tri_inters_array.get_ptr_cpu(), 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Allgather(&n_quad_noslip_inters, 1, MPI_INT, n_quad_inters_array.get_ptr_cpu(), 1, MPI_INT, MPI_COMM_WORLD);
 
-  // Set loop counters to max. inters on any partition
-  n_seg_noslip_inters = max_seg_noslip_inters;
-  n_tri_noslip_inters = max_tri_noslip_inters;
-  n_quad_noslip_inters = max_quad_noslip_inters;
+    // Set loop counters to max. inters on any partition
+    n_seg_noslip_inters = max_seg_noslip_inters;
+    n_tri_noslip_inters = max_tri_noslip_inters;
+    n_quad_noslip_inters = max_quad_noslip_inters;
 
 #endif
 
-  // Allocate arrays for coordinates of points on no-slip boundaries
-  FlowSol->loc_noslip_bdy.setup(FlowSol->n_bdy_inter_types);
-  FlowSol->loc_noslip_bdy(0).setup(n_fpts_per_inter_seg, n_seg_noslip_inters, FlowSol->n_dims);
-  FlowSol->loc_noslip_bdy(1).setup(n_fpts_per_inter_tri, n_tri_noslip_inters, FlowSol->n_dims);
-  FlowSol->loc_noslip_bdy(2).setup(n_fpts_per_inter_quad, n_quad_noslip_inters, FlowSol->n_dims);
+    // Allocate arrays for coordinates of points on no-slip boundaries
+    FlowSol->loc_noslip_bdy.setup(FlowSol->n_bdy_inter_types);
+    FlowSol->loc_noslip_bdy(0).setup(n_fpts_per_inter_seg, n_seg_noslip_inters, FlowSol->n_dims);
+    FlowSol->loc_noslip_bdy(1).setup(n_fpts_per_inter_tri, n_tri_noslip_inters, FlowSol->n_dims);
+    FlowSol->loc_noslip_bdy(2).setup(n_fpts_per_inter_quad, n_quad_noslip_inters, FlowSol->n_dims);
 
-  n_seg_noslip_inters = 0;
-  n_tri_noslip_inters = 0;
-  n_quad_noslip_inters = 0;
+    n_seg_noslip_inters = 0;
+    n_tri_noslip_inters = 0;
+    n_quad_noslip_inters = 0;
 
-  // Get coordinates
-  for (int i = 0; i < mesh_data.num_inters; i++)
-  {
-
-    ic_l =mesh_data. f2c(i, 0);
-    bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0),mesh_data. f2loc_f(i, 0));
-    int bctype_f=run_input.bc_list(bcid_f).get_bc_flag();
-    // All types of no-slip wall
-    if (bctype_f == ISOTHERM_FIX || bctype_f == ADIABAT_FIX)
+    // Get coordinates
+    for (int i = 0; i < mesh_data.num_inters; i++)
     {
 
-      // segs
-      if (mesh_data.f2nv(i) == 2)
+      ic_l = mesh_data.f2c(i, 0);
+      bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
+      int bctype_f = run_input.bc_list(bcid_f).get_bc_flag();
+      // All types of no-slip wall
+      if (bctype_f == ISOTHERM_FIX || bctype_f == ADIABAT_FIX)
       {
-        for (int j = 0; j < n_fpts_per_inter_seg; j++)
+
+        // segs
+        if (mesh_data.f2nv(i) == 2)
         {
-          for (int k = 0; k < FlowSol->n_dims; k++)
+          for (int j = 0; j < n_fpts_per_inter_seg; j++)
           {
+            for (int k = 0; k < FlowSol->n_dims; k++)
+            {
 
-            // find coordinates
-            FlowSol->loc_noslip_bdy(0)(j, n_seg_noslip_inters, k) = *get_loc_fpts_ptr_cpu(mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), j, k, FlowSol);
+              // find coordinates
+              FlowSol->loc_noslip_bdy(0)(j, n_seg_noslip_inters, k) = *get_loc_fpts_ptr_cpu(mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), j, k, FlowSol);
+            }
           }
+          n_seg_noslip_inters++;
         }
-        n_seg_noslip_inters++;
-      }
-      // tris
-      if (mesh_data.f2nv(i) == 3)
-      {
-        for (int j = 0; j < n_fpts_per_inter_tri; j++)
+        // tris
+        if (mesh_data.f2nv(i) == 3)
         {
-          for (int k = 0; k < FlowSol->n_dims; k++)
+          for (int j = 0; j < n_fpts_per_inter_tri; j++)
           {
+            for (int k = 0; k < FlowSol->n_dims; k++)
+            {
 
-            FlowSol->loc_noslip_bdy(1)(j, n_tri_noslip_inters, k) = *get_loc_fpts_ptr_cpu(mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), j, k, FlowSol);
+              FlowSol->loc_noslip_bdy(1)(j, n_tri_noslip_inters, k) = *get_loc_fpts_ptr_cpu(mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), j, k, FlowSol);
+            }
           }
+          n_tri_noslip_inters++;
         }
-        n_tri_noslip_inters++;
-      }
-      // quads
-      if (mesh_data.f2nv(i) == 4)
-      {
-        for (int j = 0; j < n_fpts_per_inter_quad; j++)
+        // quads
+        if (mesh_data.f2nv(i) == 4)
         {
-          for (int k = 0; k < FlowSol->n_dims; k++)
+          for (int j = 0; j < n_fpts_per_inter_quad; j++)
           {
+            for (int k = 0; k < FlowSol->n_dims; k++)
+            {
 
-            FlowSol->loc_noslip_bdy(2)(j, n_quad_noslip_inters, k) = *get_loc_fpts_ptr_cpu(mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), j, k, FlowSol);
+              FlowSol->loc_noslip_bdy(2)(j, n_quad_noslip_inters, k) = *get_loc_fpts_ptr_cpu(mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), j, k, FlowSol);
+            }
           }
-        }
 
-        n_quad_noslip_inters++;
+          n_quad_noslip_inters++;
+        }
       }
     }
-  }
 
 #ifdef _MPI
 
-  // Allocate global arrays for coordinates of points on no-slip boundaries
-  FlowSol->loc_noslip_bdy_global.setup(FlowSol->n_bdy_inter_types);
+    // Allocate global arrays for coordinates of points on no-slip boundaries
+    FlowSol->loc_noslip_bdy_global.setup(FlowSol->n_bdy_inter_types);
 
-  FlowSol->loc_noslip_bdy_global(0).setup(n_fpts_per_inter_seg, max_seg_noslip_inters, FlowSol->nproc * FlowSol->n_dims);
+    FlowSol->loc_noslip_bdy_global(0).setup(n_fpts_per_inter_seg, max_seg_noslip_inters, FlowSol->nproc * FlowSol->n_dims);
 
-  FlowSol->loc_noslip_bdy_global(1).setup(n_fpts_per_inter_tri, max_tri_noslip_inters, FlowSol->nproc * FlowSol->n_dims);
+    FlowSol->loc_noslip_bdy_global(1).setup(n_fpts_per_inter_tri, max_tri_noslip_inters, FlowSol->nproc * FlowSol->n_dims);
 
-  FlowSol->loc_noslip_bdy_global(2).setup(n_fpts_per_inter_quad, max_quad_noslip_inters, FlowSol->nproc * FlowSol->n_dims);
+    FlowSol->loc_noslip_bdy_global(2).setup(n_fpts_per_inter_quad, max_quad_noslip_inters, FlowSol->nproc * FlowSol->n_dims);
 
-  // Broadcast coordinates of interface points to all partitions
+    // Broadcast coordinates of interface points to all partitions
 
-  buf = max_seg_noslip_inters * n_fpts_per_inter_seg * FlowSol->n_dims;
+    buf = max_seg_noslip_inters * n_fpts_per_inter_seg * FlowSol->n_dims;
 
-  MPI_Allgather(FlowSol->loc_noslip_bdy(0).get_ptr_cpu(), buf, MPI_DOUBLE, FlowSol->loc_noslip_bdy_global(0).get_ptr_cpu(), buf, MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Allgather(FlowSol->loc_noslip_bdy(0).get_ptr_cpu(), buf, MPI_DOUBLE, FlowSol->loc_noslip_bdy_global(0).get_ptr_cpu(), buf, MPI_DOUBLE, MPI_COMM_WORLD);
 
-  buf = max_tri_noslip_inters * n_fpts_per_inter_tri * FlowSol->n_dims;
+    buf = max_tri_noslip_inters * n_fpts_per_inter_tri * FlowSol->n_dims;
 
-  MPI_Allgather(FlowSol->loc_noslip_bdy(1).get_ptr_cpu(), buf, MPI_DOUBLE, FlowSol->loc_noslip_bdy_global(1).get_ptr_cpu(), buf, MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Allgather(FlowSol->loc_noslip_bdy(1).get_ptr_cpu(), buf, MPI_DOUBLE, FlowSol->loc_noslip_bdy_global(1).get_ptr_cpu(), buf, MPI_DOUBLE, MPI_COMM_WORLD);
 
-  buf = max_quad_noslip_inters * n_fpts_per_inter_quad * FlowSol->n_dims;
+    buf = max_quad_noslip_inters * n_fpts_per_inter_quad * FlowSol->n_dims;
 
-  MPI_Allgather(FlowSol->loc_noslip_bdy(2).get_ptr_cpu(), buf, MPI_DOUBLE, FlowSol->loc_noslip_bdy_global(2).get_ptr_cpu(), buf, MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Allgather(FlowSol->loc_noslip_bdy(2).get_ptr_cpu(), buf, MPI_DOUBLE, FlowSol->loc_noslip_bdy_global(2).get_ptr_cpu(), buf, MPI_DOUBLE, MPI_COMM_WORLD);
 
-  // Calculate distance of every solution point to nearest point on no-slip boundary for every partition
-  for (int i = 0; i < FlowSol->n_ele_types; i++)
-    FlowSol->mesh_eles(i)->calc_wall_distance_parallel(n_seg_inters_array, n_tri_inters_array, n_quad_inters_array, FlowSol->loc_noslip_bdy_global, FlowSol->nproc);
+    // Calculate distance of every solution point to nearest point on no-slip boundary for every partition
+    for (int i = 0; i < FlowSol->n_ele_types; i++)
+      FlowSol->mesh_eles(i)->calc_wall_distance_parallel(n_seg_inters_array, n_tri_inters_array, n_quad_inters_array, FlowSol->loc_noslip_bdy_global, FlowSol->nproc);
 
 #else // serial
 
-  // Calculate distance of every solution point to nearest point on no-slip boundary
-  for (int i = 0; i < FlowSol->n_ele_types; i++)
-    FlowSol->mesh_eles(i)->calc_wall_distance(n_seg_noslip_inters, n_tri_noslip_inters, n_quad_noslip_inters, FlowSol->loc_noslip_bdy);
+    // Calculate distance of every solution point to nearest point on no-slip boundary
+    for (int i = 0; i < FlowSol->n_ele_types; i++)
+      FlowSol->mesh_eles(i)->calc_wall_distance(n_seg_noslip_inters, n_tri_noslip_inters, n_quad_noslip_inters, FlowSol->loc_noslip_bdy);
 
 #endif
-}
+  }
 
 // set on GPU
 #ifdef _GPU
-if (FlowSol->rank == 0)
-  cout << "Moving interfaces to GPU ... " << endl;
-for (int i = 0; i < FlowSol->n_int_inter_types; i++)
-  FlowSol->mesh_int_inters(i).mv_all_cpu_gpu();
+  if (FlowSol->rank == 0)
+    cout << "Moving interfaces to GPU ... " << endl;
+  for (int i = 0; i < FlowSol->n_int_inter_types; i++)
+    FlowSol->mesh_int_inters(i).mv_all_cpu_gpu();
 
-for (int i = 0; i < FlowSol->n_bdy_inter_types; i++)
-  FlowSol->mesh_bdy_inters(i).mv_all_cpu_gpu();
+  for (int i = 0; i < FlowSol->n_bdy_inter_types; i++)
+    FlowSol->mesh_bdy_inters(i).mv_all_cpu_gpu();
 
-if (FlowSol->rank == 0)
-  cout << "Moving wall_distance to GPU ... " << endl;
-for (int i = 0; i < FlowSol->n_ele_types; i++)
-  FlowSol->mesh_eles(i)->mv_wall_distance_cpu_gpu();
+  if (FlowSol->rank == 0)
+    cout << "Moving wall_distance to GPU ... " << endl;
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+    FlowSol->mesh_eles(i)->mv_wall_distance_cpu_gpu();
 
-for (int i = 0; i < FlowSol->n_ele_types; i++)
-  FlowSol->mesh_eles(i)->mv_wall_distance_mag_cpu_gpu();
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+    FlowSol->mesh_eles(i)->mv_wall_distance_mag_cpu_gpu();
 #endif
 
 }
@@ -1009,13 +1009,13 @@ void ReadMesh(struct solution *FlowSol, mesh &mesh_data)
   run_input.read_boundary_param();
   if (FlowSol->rank == 0)
   {
-    for(int i=0;i<mesh_data.n_bdy;i++)
+    for (int i = 0; i < mesh_data.n_bdy; i++)
     {
-      cout<<run_input.bc_list(i).get_bc_name()<<" -> "<<run_input.bc_list(i).get_bc_type()<<endl;
+      cout << run_input.bc_list(i).get_bc_name() << " -> " << run_input.bc_list(i).get_bc_type() << endl;
     }
     cout << "done reading boundary conditions" << endl;
   }
-
+  
 }
 
 /*! method to create list of faces & edges from the mesh */
@@ -1178,7 +1178,7 @@ void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<doub
     iglob = old_f_mpi2f(i); //old index
     for (int k = 0; k < in_f2nv(iglob); k++)
       for (int m = 0; m < FlowSol->n_dims; m++)
-        loc_center_inter(m, i) += in_xv(in_f2v(iglob, k), m) / in_f2nv(iglob);
+        loc_center_inter(m, i) += in_xv(in_f2v(iglob, k), m) / (double)in_f2nv(iglob);
   }
 
   // Initialize hf_array matched with 0

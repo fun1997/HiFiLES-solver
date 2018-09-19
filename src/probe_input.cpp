@@ -222,13 +222,13 @@ void probe_input::set_probe_connectivity(struct solution *FlowSol, int rank)
 void probe_input::read_probe_script(string filename)
 {
     //macro to skip space
-#define SKIP_SPACE(A, B) \
-    A.get(B);            \
-    while (B == ' ')     \
+#define SKIP_SPACE(A, B)                       \
+    A.get(B);                                  \
+    while (B == ' ' || B == '\n' || B == '\r') \
         A.get(B);
 
 #define COMP_SYN(VAR, SYN)          \
-    if ((strcmp(&VAR, SYN)))        \
+    if (VAR!=SYN)        \
     {                               \
         FatalError("Syntax error"); \
     }
@@ -237,8 +237,8 @@ void probe_input::read_probe_script(string filename)
     string temp_name;
     char dlm;
     //declare number of points for both type
-    vector<hf_array<double>> pos_line;
-    vector<hf_array<double>> pos_surf;
+    vector<hf_array<double> > pos_line;
+    vector<hf_array<double> > pos_surf;
     //start index for each type of block
     int surf_kstart = 0;
     int line_kstart = 0;
@@ -260,7 +260,7 @@ void probe_input::read_probe_script(string filename)
 
             //look for "{"
             SKIP_SPACE(script_f, dlm);
-            COMP_SYN(dlm, "{");
+            COMP_SYN(dlm, '{');
 
             //initialize surface block
             surf_start.push_back(surf_kstart);
@@ -278,7 +278,7 @@ void probe_input::read_probe_script(string filename)
                     for (int ct = 0; ct < 3; ct++) //read 2 group
                     {
                         SKIP_SPACE(script_f, dlm);
-                        COMP_SYN(dlm, "(");
+                        COMP_SYN(dlm, '(');
                         if (ct == 0) //centroid
                             for (int i = 0; i < n_dims; i++)
                                 script_f >> cent(i);
@@ -289,12 +289,12 @@ void probe_input::read_probe_script(string filename)
                             script_f >> radius >> n_layer;
                         //look for ")"
                         SKIP_SPACE(script_f, dlm);
-                        COMP_SYN(dlm, ")");
+                        COMP_SYN(dlm, ')');
                     }
                     //load positions of probes into pos_surf
                     set_probe_circle(cent, ori, radius, n_layer, surf_normal, surf_area, pos_surf);
                 }
-                else if (temp_name == "cone") //TODO:in x dir for now
+                else if (temp_name == "cone") 
                 {
                     hf_array<double> cent(n_dims);
                     hf_array<double> ori(n_dims);
@@ -303,7 +303,7 @@ void probe_input::read_probe_script(string filename)
                     for (int ct = 0; ct < 4; ct++) //read 2 group
                     {
                         SKIP_SPACE(script_f, dlm);
-                        COMP_SYN(dlm, "(");
+                        COMP_SYN(dlm, '(');
                         if (ct == 0)
                             for (int i = 0; i < n_dims; i++)
                                 script_f >> cent(i);
@@ -317,7 +317,7 @@ void probe_input::read_probe_script(string filename)
 
                         //look for ")"
                         SKIP_SPACE(script_f, dlm);
-                        COMP_SYN(dlm, ")")
+                        COMP_SYN(dlm, ')')
                     }
                     //load positions of probes into pos_surf
                     set_probe_cone(cent, ori, radius_0, radius_1, n_layer_r,
@@ -330,7 +330,7 @@ void probe_input::read_probe_script(string filename)
                 }
 
                 SKIP_SPACE(script_f, dlm);
-                if (!strcmp(&dlm, "}")) //test if end of block
+                if (dlm=='}') //test if end of block
                     break;
             } //end of block
 
@@ -354,7 +354,7 @@ void probe_input::read_probe_script(string filename)
             for (int ct = 0; ct < 3; ct++)
             {
                 SKIP_SPACE(script_f, dlm);
-                COMP_SYN(dlm, "(");
+                COMP_SYN(dlm, '(');
                 if (ct == 0)
                     for (int i = 0; i < n_dims; i++)
                         script_f >> p_0(i);
@@ -365,7 +365,7 @@ void probe_input::read_probe_script(string filename)
                     script_f >> init_incre >> npt_line;
                 //look for ")"
                 SKIP_SPACE(script_f, dlm);
-                COMP_SYN(dlm, ")");
+                COMP_SYN(dlm, ')');
             }
             set_probe_line(p_0, p_1, init_incre, npt_line, pos_line);
             line_kstart = pos_line.size(); //update start index of line
@@ -395,7 +395,7 @@ void probe_input::read_probe_script(string filename)
 }
 
 void probe_input::set_probe_line(hf_array<double> &in_p0, hf_array<double> &in_p1, const double in_init_incre,
-                                 const int in_n_pts, vector<hf_array<double>> &out_pos_line)
+                                 const int in_n_pts, vector<hf_array<double> > &out_pos_line)
 {
     //calculate growth rate
     double l_length = 0.;
@@ -420,7 +420,7 @@ void probe_input::set_probe_line(hf_array<double> &in_p0, hf_array<double> &in_p
         while (fabs(growth_rate - growth_rate_old) > tol)
         {
             growth_rate_old = growth_rate;
-            jacob = in_init_incre * ((in_n_pts - 2.) * pow(growth_rate, in_n_pts) - (in_n_pts - 1.) * pow(growth_rate, in_n_pts - 1) + growth_rate) / (pow(growth_rate - 1., 2) * growth_rate);
+            jacob = in_init_incre * ((in_n_pts - 2.) * pow(growth_rate, in_n_pts) - (in_n_pts - 1.) * pow(growth_rate, in_n_pts - 1.) + growth_rate) / (pow(growth_rate - 1., 2.) * growth_rate);
             fx_n = l_length - in_init_incre * (pow(growth_rate, in_n_pts - 1) - 1.) / (growth_rate - 1.);
             growth_rate += fx_n / jacob;
         }
@@ -450,8 +450,8 @@ void probe_input::set_probe_line(hf_array<double> &in_p0, hf_array<double> &in_p
 }
 
 void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &in_ori, const double in_r, const int n_layer,
-                                   vector<hf_array<double>> &out_normal, vector<double> &out_area,
-                                   vector<hf_array<double>> &out_pos_circle)
+                                   vector<hf_array<double> > &out_normal, vector<double> &out_area,
+                                   vector<hf_array<double> > &out_pos_circle)
 {
     //calculate number of cell center points for the face
     int n_cell = 6 * pow(n_layer, 2);
@@ -471,8 +471,8 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
         for (int iv = 0; iv < nv_per_vlayer(ivl); iv++) //for each vertex in that layer, start from y=in_cent(1),+z dir
         {
             probe_xv(ct, 0) = 0;
-            probe_xv(ct, 1) = sin(iv / nv_per_vlayer(ivl) * (2 * pi)) * ivl * in_r / n_layer;
-            probe_xv(ct, 2) = cos(iv / nv_per_vlayer(ivl) * (2 * pi)) * ivl * in_r / n_layer;
+            probe_xv(ct, 1) = sin((double)iv / (double)nv_per_vlayer(ivl) * (2 * pi)) * ivl * in_r / (double)n_layer;
+            probe_xv(ct, 2) = cos((double)iv / (double)nv_per_vlayer(ivl) * (2 * pi)) * ivl * in_r / (double)n_layer;
             ct++;
         }
     }
@@ -482,15 +482,15 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
     hf_array<double> rot_y(n_dims, n_dims);
     hf_array<double> rot_z(n_dims, n_dims);
     rot_y.initialize_to_zero();
-    rot_y(0, 0) = in_ori(0) / sqrt(pow(in_ori(0), 2) + pow(in_ori(2), 2));
-    rot_y(0, 2) = in_ori(2) / sqrt(pow(in_ori(0), 2) + pow(in_ori(2), 2));
+    rot_y(0, 0) = in_ori(0) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
+    rot_y(0, 2) = in_ori(2) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
     rot_y(1, 1) = 1;
     rot_y(2, 0) = -rot_y(0, 2);
     rot_y(2, 2) = rot_y(0, 0);
 
     rot_z.initialize_to_zero();
-    rot_z(0, 0) = sgn(in_ori(0)) * sqrt(pow(in_ori(0), 2) + pow(in_ori(2), 2)) / sqrt(pow(in_ori(0), 2) + pow(in_ori(1), 2) + pow(in_ori(2), 2));
-    rot_z(0, 1) = -in_ori(1) / sqrt(pow(in_ori(0), 2) + pow(in_ori(1), 2) + pow(in_ori(2), 2));
+    rot_z(0, 0) = sgn(in_ori(0)) * sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.)) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(1), 2.) + pow(in_ori(2), 2.));
+    rot_z(0, 1) = -in_ori(1) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(1), 2.) + pow(in_ori(2), 2.));
     rot_z(1, 0) = -rot_z(0, 1);
     rot_z(1, 1) = rot_z(0, 0);
     rot_z(2, 2) = 1;
@@ -520,8 +520,8 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
                 if (cell_beg < nx_ly_beg)
                 {
                     probe_c2v(ct, 0) = cell_beg;
-                    probe_c2v(ct, 1) = cell_beg + nv_per_vlayer(il) + 1;
-                    probe_c2v(ct, 2) = cell_beg + nv_per_vlayer(il);
+                    probe_c2v(ct, 1) = cell_beg + nv_per_vlayer(il) + 1+is;
+                    probe_c2v(ct, 2) = cell_beg + nv_per_vlayer(il)+is;
                 }
                 else
                 {
@@ -534,9 +534,19 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
             for (int ic2 = 0; ic2 < il; ic2++) //for each upside triangle in that section
             {
                 int cell_beg = sec_beg + ic2;
-                probe_c2v(ct, 0) = cell_beg;
-                probe_c2v(ct, 1) = cell_beg + 1;
-                probe_c2v(ct, 2) = cell_beg + nv_per_vlayer(il) + 1;
+
+                if (cell_beg < nx_ly_beg-1)
+                {
+                    probe_c2v(ct, 0) = cell_beg;
+                    probe_c2v(ct, 1) = cell_beg + 1;
+                    probe_c2v(ct, 2) = cell_beg + nv_per_vlayer(il) + 1+is;
+                }
+                else
+                {
+                    probe_c2v(ct, 0) = cell_beg;
+                    probe_c2v(ct, 1) = ths_ly_beg;
+                    probe_c2v(ct, 2) = nx_ly_end;
+                }
                 ct++;
             }
         }
@@ -584,11 +594,11 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
 
 void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &in_ori, double r0, const double r1,
                                  const int n_layer_r, const double in_l,
-                                 const int n_layer_l, vector<hf_array<double>> &out_normal,
-                                 vector<double> &out_area, vector<hf_array<double>> &out_pos_cone)
+                                 const int n_layer_l, vector<hf_array<double> > &out_normal,
+                                 vector<double> &out_area, vector<hf_array<double> > &out_pos_cone)
 {
     //calculate number of cell center points for the face
-    int n_cell = n_layer_l * n_layer_r;
+    int n_cell = n_layer_l * n_layer_r * 2;
     //calculate number of vertex points on the face
     int n_v = n_layer_r * (n_layer_l + 1);
     //initialize connectivity
@@ -601,9 +611,9 @@ void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &i
     {
         for (int iv = 0; iv < n_layer_r; iv++) //for each circumference vertex
         {
-            probe_xv(ct, 0) = in_l * ivl / n_layer_l;
-            probe_xv(ct, 1) = sin(iv / n_layer_r * (2 * pi)) * (r0 + ivl / n_layer_l * (r1 - r0));
-            probe_xv(ct, 2) = cos(iv / n_layer_r * (2 * pi)) * (r0 + ivl / n_layer_l * (r1 - r0));
+            probe_xv(ct, 0) = in_l * (double)ivl / (double)n_layer_l;
+            probe_xv(ct, 1) = sin((double)iv / (double)n_layer_r * (2 * pi)) * (r0 + (double)ivl / (double)n_layer_l * (r1 - r0));
+            probe_xv(ct, 2) = cos((double)iv / (double)n_layer_r * (2 * pi)) * (r0 + (double)ivl / (double)n_layer_l * (r1 - r0));
             ct++;
         }
     }
@@ -613,15 +623,15 @@ void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &i
     hf_array<double> rot_y(n_dims, n_dims);
     hf_array<double> rot_z(n_dims, n_dims);
     rot_y.initialize_to_zero();
-    rot_y(0, 0) = in_ori(0) / sqrt(pow(in_ori(0), 2) + pow(in_ori(2), 2));
-    rot_y(0, 2) = in_ori(2) / sqrt(pow(in_ori(0), 2) + pow(in_ori(2), 2));
+    rot_y(0, 0) = in_ori(0) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
+    rot_y(0, 2) = in_ori(2) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
     rot_y(1, 1) = 1;
     rot_y(2, 0) = -rot_y(0, 2);
     rot_y(2, 2) = rot_y(0, 0);
 
     rot_z.initialize_to_zero();
-    rot_z(0, 0) = sgn(in_ori(0)) * sqrt(pow(in_ori(0), 2) + pow(in_ori(2), 2)) / sqrt(pow(in_ori(0), 2) + pow(in_ori(1), 2) + pow(in_ori(2), 2));
-    rot_z(0, 1) = -in_ori(1) / sqrt(pow(in_ori(0), 2) + pow(in_ori(1), 2) + pow(in_ori(2), 2));
+    rot_z(0, 0) = sgn(in_ori(0)) * sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.)) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(1), 2.) + pow(in_ori(2), 2.));
+    rot_z(0, 1) = -in_ori(1) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(1), 2.) + pow(in_ori(2), 2.));
     rot_z(1, 0) = -rot_z(0, 1);
     rot_z(1, 1) = rot_z(0, 0);
     rot_z(2, 2) = 1;
@@ -722,21 +732,21 @@ void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &i
 void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 2D planes and 3D volumes
 {
     mesh probe_msh;
-    if (filename.compare(filename.size()-3,3,"neu"))//for now only gambit is supported
+    if (filename.compare(filename.size() - 3, 3, "neu")) //for now only gambit is supported
         FatalError("Only gambit neutral file format is supported!");
 
     mesh_reader probe_mr(filename, &probe_msh);
 
-    probe_mr.partial_read_connectivity(0,probe_msh.num_cells_global);
+    probe_mr.partial_read_connectivity(0, probe_msh.num_cells_global);
     probe_msh.create_iv2ivg();
     probe_mr.read_vertices();
-    n_probe=probe_msh.num_cells;
-    ele_dims=probe_msh.n_ele_dims;//mesh element dimension(surf or volume)
-    mesh_dims=probe_msh.n_dims;//mesh dimension(2D/3D)
+    n_probe = probe_msh.num_cells;
+    ele_dims = probe_msh.n_ele_dims; //mesh element dimension(surf or volume)
+    mesh_dims = probe_msh.n_dims;    //mesh dimension(2D/3D)
 
     if (mesh_dims > n_dims)
         FatalError("Mesh for probe cannot have a higher dimension than simulation");
-        
+
     /*! calculate face centroid and copy it to pos_probe*/
     pos_probe.setup(n_dims, n_probe);
     for (int i = 0; i < n_probe; i++)
@@ -745,7 +755,7 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
         hf_array<double> temp_pos(n_dims, probe_msh.c2n_v(i));
         temp_pos.initialize_to_zero();
         for (int j = 0; j < probe_msh.c2n_v(i); j++)
-            for (int k = 0; k < mesh_dims; k++)//up to probe mesh coord dimension
+            for (int k = 0; k < mesh_dims; k++) //up to probe mesh coord dimension
                 temp_pos(k, j) = probe_msh.xv(probe_msh.c2v(i, j), k);
         hf_array<double> temp_pos_centroid;
         temp_pos_centroid = calc_centroid(temp_pos);
@@ -780,7 +790,7 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
         }
 
         //calculate face area
-        surf_area.assign(n_probe,0.0);
+        surf_area.assign(n_probe, 0.0);
         for (int i = 0; i < n_probe; i++)
         {
             hf_array<double> temp_vec(n_dims);
@@ -788,7 +798,7 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
             hf_array<double> temp_normal;
             for (int j = 0; j < probe_msh.ctype(i) + 1; j++) //1->2 part
             {
-                if ((probe_msh.ctype(i) == 1 && probe_msh.c2n_v(i) > 4)||(probe_msh.ctype(i) == 0 && probe_msh.c2n_v(i) > 3))
+                if ((probe_msh.ctype(i) == 1 && probe_msh.c2n_v(i) > 4) || (probe_msh.ctype(i) == 0 && probe_msh.c2n_v(i) > 3))
                     FatalError("2nd order surf not supported for area calculation");
                 for (int k = 0; k < n_dims; k++) //every dimension
                 {
