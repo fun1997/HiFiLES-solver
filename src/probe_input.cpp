@@ -482,14 +482,22 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
     hf_array<double> rot_y(n_dims, n_dims);
     hf_array<double> rot_z(n_dims, n_dims);
     rot_y.initialize_to_zero();
-    rot_y(0, 0) = in_ori(0) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
-    rot_y(0, 2) = in_ori(2) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
+    if (sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.)) == 0)
+    {
+        rot_y(0, 0) = 1;
+        rot_y(0, 2) = 0;
+    }
+    else
+    {
+        rot_y(0, 0) = in_ori(0) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
+        rot_y(0, 2) = -in_ori(2) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
+    }
     rot_y(1, 1) = 1;
     rot_y(2, 0) = -rot_y(0, 2);
     rot_y(2, 2) = rot_y(0, 0);
 
     rot_z.initialize_to_zero();
-    rot_z(0, 0) = sgn(in_ori(0)) * sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.)) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(1), 2.) + pow(in_ori(2), 2.));
+    rot_z(0, 0) = cos(asin(in_ori(1) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(1), 2.) + pow(in_ori(2), 2.))));
     rot_z(0, 1) = -in_ori(1) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(1), 2.) + pow(in_ori(2), 2.));
     rot_z(1, 0) = -rot_z(0, 1);
     rot_z(1, 1) = rot_z(0, 0);
@@ -623,14 +631,22 @@ void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &i
     hf_array<double> rot_y(n_dims, n_dims);
     hf_array<double> rot_z(n_dims, n_dims);
     rot_y.initialize_to_zero();
-    rot_y(0, 0) = in_ori(0) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
-    rot_y(0, 2) = in_ori(2) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
+    if (sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.)) == 0)
+    {
+        rot_y(0, 0) = 1;
+        rot_y(0, 2) = 0;
+    }
+    else
+    {
+        rot_y(0, 0) = in_ori(0) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
+        rot_y(0, 2) = -in_ori(2) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
+    }
     rot_y(1, 1) = 1;
     rot_y(2, 0) = -rot_y(0, 2);
     rot_y(2, 2) = rot_y(0, 0);
 
     rot_z.initialize_to_zero();
-    rot_z(0, 0) = sgn(in_ori(0)) * sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.)) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(1), 2.) + pow(in_ori(2), 2.));
+    rot_z(0, 0) = cos(asin(in_ori(1) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(1), 2.) + pow(in_ori(2), 2.))));
     rot_z(0, 1) = -in_ori(1) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(1), 2.) + pow(in_ori(2), 2.));
     rot_z(1, 0) = -rot_z(0, 1);
     rot_z(1, 1) = rot_z(0, 0);
