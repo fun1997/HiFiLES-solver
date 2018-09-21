@@ -1370,7 +1370,7 @@ void eles_tets::compute_filt_matrix_tet(hf_array<double>& Filt, int vcjh_scheme_
   //cout << endl;
 
   //Create identity matrix
-  zero_array(Identity);
+  Identity.initialize_to_zero();
 
   for (int i=0;i<n_upts_per_ele;i++)
     Identity(i,i) = 1.;
@@ -1386,7 +1386,7 @@ void eles_tets::compute_filt_matrix_tet(hf_array<double>& Filt, int vcjh_scheme_
     }
 
   // Initialize K to zero
-  zero_array(K);
+  K.initialize_to_zero();
 
   // Compute D_transpose*D
   D_high_order.setup(Ncoeff);

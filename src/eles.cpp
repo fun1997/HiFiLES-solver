@@ -204,18 +204,18 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
             wall_distance_mag.setup(n_upts_per_ele,n_eles);
-            zero_array(wall_distance);
-            zero_array(wall_distance_mag);
+            wall_distance.initialize_to_zero();
+            wall_distance_mag.initialize_to_zero();
             twall.setup(1);
         }
         else if (LES)//for all LES calculation of wall distance is necessary
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
-            zero_array(wall_distance);
+            wall_distance.initialize_to_zero();
             if (wall_model)
             {
                 twall.setup(n_upts_per_ele, n_eles, n_fields);
-                zero_array(twall);
+                twall.initialize_to_zero();
             }
             wall_distance_mag.setup(1);
         }
@@ -229,7 +229,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
 
         // Initialize source term
         src_upts.setup(n_upts_per_ele, n_eles, n_fields);
-        zero_array(src_upts);
+        src_upts.initialize_to_zero();
 
 
         set_shape(in_max_n_spts_per_ele);
@@ -2435,7 +2435,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     y = sqrt(y);
 
     // Initialize SGS flux hf_array to zero
-    zero_array(temp_sgsf);
+    temp_sgsf.initialize_to_zero();
 
     // Compute SGS flux using wall model if sufficiently close to solid boundary
     wall = 0;
@@ -2502,18 +2502,18 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
         twall(upt,ele,n_fields-1) = qw;  // energy flux
 
         // populate ndims*ndims rotated stress hf_array
-        zero_array(tau);
+        tau.initialize_to_zero();
 
         for(i=0; i<n_dims-1; i++) tau(i+1,0) = tau(0,i+1) = tw(i);
 
         // rotate stress hf_array back to Cartesian coordinates
-        zero_array(temp);
+        temp.initialize_to_zero();
         for(i=0; i<n_dims; ++i)
             for(j=0; j<n_dims; ++j)
                 for(k=0; k<n_dims; ++k)
                     temp(i,j) += tau(i,k)*Mrot(k,j);
 
-        zero_array(tau);
+        tau.initialize_to_zero();
         for(i=0; i<n_dims; ++i)
             for(j=0; j<n_dims; ++j)
                 for(k=0; k<n_dims; ++k)

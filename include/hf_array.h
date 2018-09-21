@@ -600,20 +600,16 @@ void hf_array<T>::rm_cpu(void)
 template <typename T>
 void hf_array<T>::initialize_to_zero()
 {
-
-  for(int i=0; i<dim_0*dim_1*dim_2*dim_3; i++)
-    {
-      cpu_data[i]=0;
-    }
-
+  int siz = dim_0 * dim_1 * dim_2 * dim_3;
+  for (int i = 0; i < siz; i++)
+    cpu_data[i] = 0;
 }
 
 // Initialize hf_array to given value
 template <typename T>
 void hf_array<T>::initialize_to_value(const T val)
 {
-  for(int i=0; i<dim_0*dim_1*dim_2*dim_3; i++)
-  {
-    cpu_data[i]=val;
-  }
+  int siz = dim_0 * dim_1 * dim_2 * dim_3;
+  for (int i = 0; i < siz; i++)
+    cpu_data[i] = val;
 }

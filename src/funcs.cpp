@@ -679,8 +679,8 @@ void compute_modal_filter_1d(hf_array <double>& filter_upts, hf_array<double>& v
 	double alpha, eta;
 	hf_array <double> modal(N,N), mtemp(N,N);
 
-	zero_array(modal);
-	zero_array(filter_upts);
+	modal.initialize_to_zero();
+	filter_upts.initialize_to_zero();
 
   // Exponential filter (SVV method) (similar to Meister et al 2009)
 
@@ -728,8 +728,8 @@ void compute_modal_filter_tri(hf_array <double>& filter_upts, hf_array<double>& 
 	double alpha, eta;
 	hf_array <double> modal(N,N), mtemp(N,N);
 
-	zero_array(modal);
-	zero_array(filter_upts);
+	modal.initialize_to_zero();
+	filter_upts.initialize_to_zero();
 
   // Exponential filter (SVV method) (similar to Meister et al 2009)
 
@@ -779,8 +779,8 @@ void compute_modal_filter_tet(hf_array <double>& filter_upts, hf_array<double>& 
 	double alpha, eta;
 	hf_array <double> modal(N,N), mtemp(N,N);
 
-	zero_array(modal);
-	zero_array(filter_upts);
+	modal.initialize_to_zero();
+	filter_upts.initialize_to_zero();
 
   // Exponential filter (SVV method) (similar to Meister et al 2009)
 
@@ -919,7 +919,7 @@ void compute_filt_matrix_tri(hf_array<double>& Filt, hf_array<double>& vandermon
   Ds = mult_arrays(temps,inv_vandermonde_tri);
 
   //Create identity matrix
-  zero_array(Identity);
+  Identity.initialize_to_zero();
 
   for (int i=0;i<n_upts_tri;++i)
     Identity(i,i) = 1.;
@@ -931,7 +931,7 @@ void compute_filt_matrix_tri(hf_array<double>& Filt, hf_array<double>& vandermon
     }
 
   // Initialize K to zero
-  zero_array(K);
+  K.initialize_to_zero();
 
   // Compute D_transpose*D
   D_high_order.setup(order+1);
@@ -2819,25 +2819,6 @@ double flt_res(int N, hf_array<double>& wf, hf_array<double>& B, double k_0, dou
   return flt_res;
 }
 
-// Set an hf_array to zero
-void zero_array(hf_array <double>& in_array)
-{
-  int dim_1_0 = in_array.get_dim(0);
-  int dim_1_1 = in_array.get_dim(1);
-  int dim_1_2 = in_array.get_dim(2);
-  int dim_1_3 = in_array.get_dim(3);
-
-  for (int i=0;i<dim_1_0;++i) {
-      for (int j=0;j<dim_1_1;++j) {
-          for (int k=0;k<dim_1_2;++k) {
-              for (int l=0;l<dim_1_3;++l) {
-                  in_array(i,j,k,l) = 0.0;
-                }
-            }
-        }
-    }
-}
-
 // Add arrays M1 and M2
 hf_array <double> add_arrays(hf_array <double>& M1, hf_array <double>& M2)
 {
@@ -2852,18 +2833,13 @@ hf_array <double> add_arrays(hf_array <double>& M1, hf_array <double>& M2)
   int dim_2_2 = M2.get_dim(2);
   int dim_2_3 = M2.get_dim(3);
 
-  if(dim_1_0==dim_2_0 and dim_1_1==dim_2_1 and dim_1_2==dim_2_2 and dim_1_3==dim_2_3) {
-      hf_array <double> sum(dim_1_0,dim_1_1,dim_1_2,dim_1_3);
-      for (int i=0;i<dim_1_0;++i) {
-          for (int j=0;j<dim_1_1;++j) {
-              for (int k=0;k<dim_1_2;++k) {
-                  for (int l=0;l<dim_1_3;++l) {
-                      sum(i,j,k,l) = M1(i,j,k,l) + M2(i,j,k,l);
-                    }
-                }
-            }
-        }
-    }
+  if (dim_1_0 == dim_2_0 and dim_1_1 == dim_2_1 and dim_1_2 == dim_2_2 and dim_1_3 == dim_2_3)
+  {
+    int siz = dim_1_0 * dim_1_1 * dim_1_2 * dim_1_3;
+    hf_array<double> sum(dim_1_0, dim_1_1, dim_1_2, dim_1_3);
+    for (int i = 0; i < siz; ++i)
+      sum(i) = M1(i) + M2(i);
+  }
   else
     {
       FatalError("hf_array dimensions are not compatible in sum function");

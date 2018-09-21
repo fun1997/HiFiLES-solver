@@ -232,8 +232,6 @@ double eval_grad_jacobi(double in_r, int in_alpha, int in_beta, int in_mode);
 //--------------------
 //Array manipulations
 //--------------------
-/*! Set an hf_array to zero*/
-void zero_array(hf_array <double>& in_array);
 
 /*! method to add together two arrays M1 and M2*/
 hf_array <double> add_arrays(hf_array <double>& M1, hf_array <double>& M2);
