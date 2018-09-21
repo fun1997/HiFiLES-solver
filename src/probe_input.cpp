@@ -330,8 +330,10 @@ void probe_input::read_probe_script(string filename)
                 }
 
                 SKIP_SPACE(script_f, dlm);
-                if (dlm=='}') //test if end of block
+                if (dlm == '}') //test if end of block
                     break;
+                else
+                script_f.seekg(-1,script_f.cur);
             } //end of block
 
             surf_kstart = pos_surf.size();              //update the start index of surf
@@ -518,43 +520,23 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
         int ths_ly_beg = ((il == 0) ? 0 : 1) + (6 * (il - 1) * il / 2);
         int ths_ly_end = ths_ly_beg + nv_per_vlayer(il) - 1;
         int nx_ly_beg = ths_ly_end + 1;
-        int nx_ly_end = nx_ly_beg + nv_per_vlayer(il + 1) - 1;
         for (int is = 0; is < 6; is++) //for each section
         {
             int sec_beg = ths_ly_beg + is * il;      //beginning of the section
             for (int ic1 = 0; ic1 < (1 + il); ic1++) //for each downside triangle in that section
             {
                 int cell_beg = sec_beg + ic1;
-                if (cell_beg < nx_ly_beg)
-                {
-                    probe_c2v(ct, 0) = cell_beg;
-                    probe_c2v(ct, 1) = cell_beg + nv_per_vlayer(il) + 1+is;
-                    probe_c2v(ct, 2) = cell_beg + nv_per_vlayer(il)+is;
-                }
-                else
-                {
-                    probe_c2v(ct, 0) = ths_ly_beg;
-                    probe_c2v(ct, 1) = nx_ly_beg;
-                    probe_c2v(ct, 2) = nx_ly_end;
-                }
+                probe_c2v(ct, 0) = ths_ly_beg + ((cell_beg - ths_ly_beg) % nv_per_vlayer(il));
+                probe_c2v(ct, 1) = nx_ly_beg + ((cell_beg + nv_per_vlayer(il) + 1 + is - nx_ly_beg) % nv_per_vlayer(il + 1));
+                probe_c2v(ct, 2) = cell_beg + nv_per_vlayer(il) + is;
                 ct++;
             }
             for (int ic2 = 0; ic2 < il; ic2++) //for each upside triangle in that section
             {
                 int cell_beg = sec_beg + ic2;
-
-                if (cell_beg < nx_ly_beg-1)
-                {
-                    probe_c2v(ct, 0) = cell_beg;
-                    probe_c2v(ct, 1) = cell_beg + 1;
-                    probe_c2v(ct, 2) = cell_beg + nv_per_vlayer(il) + 1+is;
-                }
-                else
-                {
-                    probe_c2v(ct, 0) = cell_beg;
-                    probe_c2v(ct, 1) = ths_ly_beg;
-                    probe_c2v(ct, 2) = nx_ly_end;
-                }
+                probe_c2v(ct, 0) = cell_beg;
+                probe_c2v(ct, 1) = ths_ly_beg + ((cell_beg + 1 - ths_ly_beg) % nv_per_vlayer(il));
+                probe_c2v(ct, 2) = cell_beg + nv_per_vlayer(il) + 1 + is;
                 ct++;
             }
         }
@@ -667,40 +649,21 @@ void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &i
         int ths_ly_beg = il * n_layer_r;
         int ths_ly_end = ths_ly_beg + n_layer_r - 1;
         int nx_ly_beg = ths_ly_end + 1;
-        int nx_ly_end = nx_ly_beg + n_layer_r - 1;
 
         for (int ic1 = 0; ic1 < n_layer_r; ic1++) //for each downside triangle
         {
             int cell_beg = ths_ly_beg + ic1;
-            if (cell_beg == ths_ly_end) //last one
-            {
-                probe_c2v(ct, 0) = cell_beg;
-                probe_c2v(ct, 1) = nx_ly_end;
-                probe_c2v(ct, 2) = nx_ly_beg;
-            }
-            else
-            {
-                probe_c2v(ct, 0) = cell_beg;
-                probe_c2v(ct, 1) = cell_beg + n_layer_r;
-                probe_c2v(ct, 2) = cell_beg + n_layer_r + 1;
-            }
+            probe_c2v(ct, 0) = cell_beg;
+            probe_c2v(ct, 1) = cell_beg + n_layer_r;
+            probe_c2v(ct, 2) = nx_ly_beg + ((cell_beg + n_layer_r + 1 - nx_ly_beg) % n_layer_r);
             ct++;
         }
         for (int ic2 = 0; ic2 < n_layer_r; ic2++) //for each upside triangle
         {
             int cell_beg = ths_ly_beg + ic2;
-            if (cell_beg == ths_ly_end) //last one
-            {
-                probe_c2v(ct, 0) = cell_beg;
-                probe_c2v(ct, 1) = nx_ly_beg;
-                probe_c2v(ct, 2) = ths_ly_beg;
-            }
-            else
-            {
-                probe_c2v(ct, 0) = cell_beg;
-                probe_c2v(ct, 1) = cell_beg + n_layer_r + 1;
-                probe_c2v(ct, 2) = cell_beg + 1;
-            }
+            probe_c2v(ct, 0) = cell_beg;
+            probe_c2v(ct, 1) = nx_ly_beg + ((cell_beg + n_layer_r + 1 - nx_ly_beg) % n_layer_r);
+            probe_c2v(ct, 2) = ths_ly_beg + ((cell_beg + 1 - ths_ly_beg) % n_layer_r);
             ct++;
         }
     }
