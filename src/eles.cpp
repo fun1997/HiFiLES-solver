@@ -121,8 +121,8 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             dt_local.setup(n_eles);
 
         // Initialize to zero
-        for (int m=0; m<n_adv_levels; m++)
-            disu_upts(m).initialize_to_zero();
+        //for (int m=0; m<n_adv_levels; m++)
+        //  disu_upts(m).initialize_to_zero();
 
         // Set no. of diagnostic fields
         n_diagnostic_fields = run_input.n_diagnostic_fields;
@@ -142,7 +142,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         {
 
             sgsf_upts.setup(n_upts_per_ele,n_eles,n_fields,n_dims);
-            sgsf_upts.initialize_to_zero();
+            //sgsf_upts.initialize_to_zero();
             sgsf_fpts.setup(n_fpts_per_ele,n_eles,n_fields,n_dims);
             sgsf_fpts.initialize_to_zero();
              // SVV model requires filtered solution
@@ -204,18 +204,18 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
             wall_distance_mag.setup(n_upts_per_ele,n_eles);
-            wall_distance.initialize_to_zero();
+            //wall_distance.initialize_to_zero();
             wall_distance_mag.initialize_to_zero();
             twall.setup(1);
         }
         else if (LES)//for all LES calculation of wall distance is necessary
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
-            wall_distance.initialize_to_zero();
+            //wall_distance.initialize_to_zero();
             if (wall_model)
             {
                 twall.setup(n_upts_per_ele, n_eles, n_fields);
-                twall.initialize_to_zero();
+                //twall.initialize_to_zero();
             }
             wall_distance_mag.setup(1);
         }
@@ -2808,14 +2808,13 @@ void eles::calc_wall_distance(int n_seg_noslip_inters, int n_tri_noslip_inters, 
 {
     if(n_eles!=0)
     {
-        int i,j,k,m,n,p;
+        int i,j,k,m,n;
         int n_fpts_per_inter_seg = order+1;
         int n_fpts_per_inter_tri = (order+2)*(order+1)/2;
         int n_fpts_per_inter_quad = (order+1)*(order+1);
         double dist;
         double distmin;
         hf_array<double> pos(n_dims);
-        hf_array<double> pos_bdy(n_dims);
         hf_array<double> vec(n_dims);
         hf_array<double> vecmin(n_dims);
 
@@ -2842,8 +2841,7 @@ void eles::calc_wall_distance(int n_seg_noslip_inters, int n_tri_noslip_inters, 
                         // get coords of boundary flux point
                         for (n=0; n<n_dims; ++n)
                         {
-                            pos_bdy(n) = loc_noslip_bdy(0)(m,k,n);
-                            vec(n) = pos(n) - pos_bdy(n);
+                            vec(n) = pos(n) - loc_noslip_bdy(0)(n,m,k);
                             dist += vec(n)*vec(n);
                         }
                         dist = sqrt(dist);
@@ -2868,8 +2866,7 @@ void eles::calc_wall_distance(int n_seg_noslip_inters, int n_tri_noslip_inters, 
                         // get coords of boundary flux point
                         for (n=0; n<n_dims; ++n)
                         {
-                            pos_bdy(n) = loc_noslip_bdy(1)(m,k,n);
-                            vec(n) = pos(n) - pos_bdy(n);
+                            vec(n) = pos(n) - loc_noslip_bdy(1)(n,m,k);
                             dist += vec(n)*vec(n);
                         }
                         dist = sqrt(dist);
@@ -2894,8 +2891,7 @@ void eles::calc_wall_distance(int n_seg_noslip_inters, int n_tri_noslip_inters, 
                         // get coords of boundary flux point
                         for (n=0; n<n_dims; ++n)
                         {
-                            pos_bdy(n) = loc_noslip_bdy(2)(m,k,n);
-                            vec(n) = pos(n) - pos_bdy(n);
+                            vec(n) = pos(n) - loc_noslip_bdy(2)(n,m,k);
                             dist += vec(n)*vec(n);
                         }
                         dist = sqrt(dist);
@@ -2918,131 +2914,6 @@ void eles::calc_wall_distance(int n_seg_noslip_inters, int n_tri_noslip_inters, 
         }
     }
 }
-
-#ifdef _MPI
-
-void eles::calc_wall_distance_parallel(hf_array<int> n_seg_inters_array, hf_array<int> n_tri_inters_array, hf_array<int> n_quad_inters_array, hf_array< hf_array<double> > loc_noslip_bdy_global, int nproc)
-{
-    if(n_eles!=0)
-    {
-        int i,j,k,m,n,p;
-        int n_fpts_per_inter_seg = order+1;
-        int n_fpts_per_inter_tri = (order+2)*(order+1)/2;
-        int n_fpts_per_inter_quad = (order+1)*(order+1);
-        double dist;
-        double distmin;
-        hf_array<double> pos(n_dims);
-        hf_array<double> pos_bdy(n_dims);
-        hf_array<double> vec(n_dims);
-        hf_array<double> vecmin(n_dims);
-
-        // hold our breath and go round the brute-force loop...
-        for (i=0; i<n_eles; ++i)
-        {
-            for (j=0; j<n_upts_per_ele; ++j)
-            {
-
-                // get coords of current solution point
-                calc_pos_upt(j,i,pos);
-
-                // initialize wall distance
-                distmin = 1e20;
-
-                // loop over all partitions
-                for (p=0; p<nproc; ++p)
-                {
-
-                    // line segment boundaries
-                    for (k=0; k<n_seg_inters_array(p); ++k)
-                    {
-
-                        for (m=0; m<n_fpts_per_inter_seg; ++m)
-                        {
-
-                            dist = 0.0;
-                            // get coords of boundary flux point
-                            for (n=0; n<n_dims; ++n)
-                            {
-                                pos_bdy(n) = loc_noslip_bdy_global(0)(m,k,p*n_dims+n);
-                                vec(n) = pos(n) - pos_bdy(n);
-                                dist += vec(n)*vec(n);
-                            }
-                            dist = sqrt(dist);
-
-                            // update shortest vector
-                            if (dist < distmin)
-                            {
-                                for (n=0; n<n_dims; ++n) vecmin(n) = vec(n);
-                                distmin = dist;
-                            }
-                        }
-                    }
-
-                    // tri boundaries
-                    for (k=0; k<n_tri_inters_array(p); ++k)
-                    {
-
-                        for (m=0; m<n_fpts_per_inter_tri; ++m)
-                        {
-
-                            dist = 0.0;
-                            // get coords of boundary flux point
-                            for (n=0; n<n_dims; ++n)
-                            {
-                                pos_bdy(n) = loc_noslip_bdy_global(1)(m,k,p*n_dims+n);
-                                vec(n) = pos(n) - pos_bdy(n);
-                                dist += vec(n)*vec(n);
-                            }
-                            dist = sqrt(dist);
-
-                            // update shortest vector
-                            if (dist < distmin)
-                            {
-                                for (n=0; n<n_dims; ++n) vecmin(n) = vec(n);
-                                distmin = dist;
-                            }
-                        }
-                    }
-
-                    // quad boundaries
-                    for (k=0; k<n_quad_inters_array(p); ++k)
-                    {
-
-                        for (m=0; m<n_fpts_per_inter_quad; ++m)
-                        {
-
-                            dist = 0.0;
-                            // get coords of boundary flux point
-                            for (n=0; n<n_dims; ++n)
-                            {
-                                pos_bdy(n) = loc_noslip_bdy_global(2)(m,k,p*n_dims+n);
-                                vec(n) = pos(n) - pos_bdy(n);
-                                dist += vec(n)*vec(n);
-                            }
-                            dist = sqrt(dist);
-
-                            // update shortest vector
-                            if (dist < distmin)
-                            {
-                                for (n=0; n<n_dims; ++n) vecmin(n) = vec(n);
-                                distmin = dist;
-                            }
-                        }
-                    }
-                }
-
-                for (n=0; n<n_dims; ++n) wall_distance(j,i,n) = vecmin(n);
-
-                if (run_input.turb_model > 0)
-                {
-                    wall_distance_mag(j,i) = distmin;
-                }
-            }
-        }
-    }
-}
-
-#endif
 
 hf_array<double> eles::calc_rotation_matrix(hf_array<double>& norm)
 {

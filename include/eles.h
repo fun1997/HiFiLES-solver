@@ -288,9 +288,6 @@ public:
 	/*! Calculate distance of solution points to no-slip wall */
 	void calc_wall_distance(int n_seg_noslip_inters, int n_tri_noslip_inters, int n_quad_noslip_inters, hf_array< hf_array<double> > loc_noslip_bdy);
 
-	/*! Calculate distance of solution points to no-slip wall in parallel */
-	void calc_wall_distance_parallel(hf_array<int> n_seg_noslip_inters, hf_array<int> n_tri_noslip_inters, hf_array<int> n_quad_noslip_inters, hf_array< hf_array<double> > loc_noslip_bdy_global, int nproc);
-
   /*! calculate position */
   void calc_pos(hf_array<double> in_loc, int in_ele, hf_array<double>& out_pos);
     /*! calculate position at a solution point */
