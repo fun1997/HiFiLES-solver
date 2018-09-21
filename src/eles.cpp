@@ -1629,7 +1629,7 @@ void eles::calculate_corrected_divergence(void)
             {
                 for (int k=0; k<n_fields; k++)
                 {
-                    if (isnan(div_tconf_upts(0)(j,i,k)))
+                    if (std::isnan(div_tconf_upts(0)(j,i,k)))
                     {
                         printf("Residual is NaN at element No.%2d, field No.%2d, position: \n",j,k);
                         for (int intd=0; intd<n_dims; intd++)
@@ -2056,7 +2056,7 @@ void eles::calc_sgs_terms(void)
         for(i=0; i<n_upts_per_ele; i++)
             for(j=0; j<n_eles; j++)
                 for(k=0; k<n_fields; k++)
-                    if(isnan(disuf_upts(i,j,k)))
+                    if(std::isnan(disuf_upts(i,j,k)))
                         FatalError("nan in filtered solution");
 
         /*! If SVV model, copy filtered solution back to solution */
@@ -2229,7 +2229,7 @@ void eles::calc_sgs_terms(void)
         for(i=0; i<n_upts_per_ele; i++)
             for(j=0; j<n_eles; j++)
                 for(k=0; k<n_fields; k++)
-                    if(isnan(disuf_upts(i,j,k)))
+                    if(std::isnan(disuf_upts(i,j,k)))
                         FatalError("nan in filtered solution");
 
         /*! If Similarity model */
@@ -4722,7 +4722,7 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppt
                 cout << "plot_quantity = " << run_input.diagnostic_fields(k) << ": " << flush;
                 FatalError("plot_quantity not recognized");
             }
-            if (isnan(diagfield_upt))
+            if (std::isnan(diagfield_upt))
             {
                 cout << "In calculation of plot_quantitiy " << run_input.diagnostic_fields(k) << ": " << flush;
                 FatalError("NaN");
@@ -6089,7 +6089,7 @@ void eles::evaluate_body_force(int in_file_num)
             }
         }
         // error checking
-        if(isnan(body_force(1)))
+        if(std::isnan(body_force(1)))
         {
             FatalError("ERROR: NaN body force, exiting");
         }
@@ -6331,7 +6331,7 @@ void eles::CalcTimeAverageQuantities(double& time)
 
                 // Set new average value for next timestep
                 disu_average_upts(j,k,i) = a*average_value + b*current_value;
-                if(isnan(disu_average_upts(j,k,i))) FatalError("NaN in average value, exiting...")
+                if(std::isnan(disu_average_upts(j,k,i))) FatalError("NaN in average value, exiting...")
             }
         }
     }

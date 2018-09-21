@@ -1185,7 +1185,7 @@ double eles_tets::eval_div_dg_tet(int in_index, hf_array<double>& loc)
   mtemp_0 = inv_array(mtemp_0);
   coeff_gdotn = mult_arrays(mtemp_0,gdotn);
 
-  if (isnan(coeff_gdotn(0,0)))
+  if (std::isnan(coeff_gdotn(0,0)))
     exit(1);
 
   // 2. Perform the edge integrals to obtain coefficients sigma_i

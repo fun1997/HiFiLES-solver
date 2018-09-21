@@ -31,7 +31,6 @@
 #include <cstdlib>
 #include <sstream>
 #include <algorithm>
-#include <math.h>
 // Used for making sub-directories
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -427,7 +426,7 @@ void probe_input::set_probe_line(hf_array<double> &in_p0, hf_array<double> &in_p
             growth_rate += fx_n / jacob;
         }
 
-        if (isnan(growth_rate))
+        if (std::isnan(growth_rate))
             FatalError("Growth rate NaN!");
         //calculate probe coordiantes
         for (int i = 0; i < in_n_pts; i++)
