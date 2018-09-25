@@ -32,6 +32,7 @@
 #include <iostream>
 #include <fstream>
 #include <typeinfo>
+#include <algorithm>
 #include "error.h"
 
 #ifdef _GPU
@@ -155,7 +156,7 @@ protected:
   int dim_1;
   int dim_2;
   int dim_3;
-
+  
   T* cpu_data;
   T* gpu_data;
 
@@ -217,12 +218,11 @@ hf_array<T>::hf_array(const hf_array<T>& in_array)
   dim_2=in_array.dim_2;
   dim_3=in_array.dim_3;
 
-  cpu_data = new T[dim_0*dim_1*dim_2*dim_3];
+  int temp_size = dim_0 * dim_1 * dim_2 * dim_3;
+  cpu_data = new T[temp_size];
 
-  for(i=0; i<dim_0*dim_1*dim_2*dim_3; i++)
-    {
-      cpu_data[i]=in_array.cpu_data[i];
-    }
+  for (i = 0; i < temp_size; i++)
+    cpu_data[i] = in_array.cpu_data[i];
 }
 
 // assignment
@@ -245,12 +245,11 @@ hf_array<T>& hf_array<T>::operator=(const hf_array<T>& in_array)
       dim_2=in_array.dim_2;
       dim_3=in_array.dim_3;
 
-      cpu_data = new T[dim_0*dim_1*dim_2*dim_3];
+      int temp_size=dim_0*dim_1*dim_2*dim_3;
+      cpu_data = new T[temp_size];
 
-      for(i=0; i<dim_0*dim_1*dim_2*dim_3; i++)
-        {
+      for(i=0; i<temp_size; i++)
           cpu_data[i]=in_array.cpu_data[i];
-        }
 
       cpu_flag=1;
       gpu_flag=0;
@@ -401,15 +400,7 @@ int hf_array<T>::get_dim(int in_dim)
 template <typename T>
 T hf_array<T>::get_max(void)
 {
-  int i;
-  T max = 0;
-
-  for(i=0; i<dim_0*dim_1*dim_2*dim_3; i++)
-    {
-      if( ((*this).get_ptr_cpu())[i] > max)
-        max = ((*this).get_ptr_cpu())[i];
-    }
-  return max;
+  return *max_element(cpu_data, cpu_data + dim_0 * dim_1 * dim_2 * dim_3);
 }
 
 // method to calculate minimum value of hf_array
@@ -417,15 +408,7 @@ T hf_array<T>::get_max(void)
 template <typename T>
 T hf_array<T>::get_min(void)
 {
-  int i;
-  T min = 1e16;
-
-  for(i=0; i<dim_0*dim_1*dim_2*dim_3; i++)
-    {
-      if( ((*this).get_ptr_cpu())[i] < min)
-        min = ((*this).get_ptr_cpu())[i];
-    }
-  return min;
+  return *min_element(cpu_data, cpu_data + dim_0 * dim_1 * dim_2 * dim_3);
 }
 // print
 
@@ -600,16 +583,12 @@ void hf_array<T>::rm_cpu(void)
 template <typename T>
 void hf_array<T>::initialize_to_zero()
 {
-  int siz = dim_0 * dim_1 * dim_2 * dim_3;
-  for (int i = 0; i < siz; i++)
-    cpu_data[i] = 0;
+  std::fill_n(this->cpu_data, dim_0 * dim_1 * dim_2 * dim_3, 0);
 }
 
 // Initialize hf_array to given value
 template <typename T>
 void hf_array<T>::initialize_to_value(const T val)
 {
-  int siz = dim_0 * dim_1 * dim_2 * dim_3;
-  for (int i = 0; i < siz; i++)
-    cpu_data[i] = val;
+  std::fill_n(this->cpu_data, dim_0 * dim_1 * dim_2 * dim_3, val);
 }

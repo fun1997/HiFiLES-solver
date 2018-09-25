@@ -1342,7 +1342,10 @@ void eles::evaluate_invFlux(void)
 #ifdef _CPU
 
         int i,j,k,l,m;
-
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS //pre initialize array for blas
+        hf_array<double> temp_tdisf_upts(n_fields, n_dims);
+        temp_tdisf_upts.initialize_to_zero();
+#endif
         for(i=0; i<n_eles; i++)
         {
             for(j=0; j<n_upts_per_ele; j++)
@@ -1366,6 +1369,13 @@ void eles::evaluate_invFlux(void)
                 }
 
                 // Transform from static physical space to computational space
+
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n_fields, n_dims, n_dims, 1.0, temp_f.get_ptr_cpu(), n_fields, JGinv_upts.get_ptr_cpu(0, 0, j, i), n_dims, 0.0, temp_tdisf_upts.get_ptr_cpu(), n_fields);
+                for (k = 0; k < n_fields; k++)
+                    for (l = 0; l < n_dims; l++)
+                        tdisf_upts(j, i, k, l) = temp_tdisf_upts(k, l);
+#elif defined _NO_BLAS
                 for(k=0; k<n_fields; k++)
                 {
                     for(l=0; l<n_dims; l++)
@@ -1377,6 +1387,7 @@ void eles::evaluate_invFlux(void)
                         }
                     }
                 }
+#endif
             }
         }
 
@@ -1623,25 +1634,24 @@ void eles::calculate_corrected_divergence(void)
             cout << "ERROR: Unknown storage for opp_3 ... " << endl;
         }
 
-        for (int i=0; i<n_upts_per_ele; i++)
+        int temp_size = n_eles * n_upts_per_ele * n_fields;
+        for (int ct = 0; ct < temp_size; ct++)
         {
-            for (int j=0; j<n_eles; j++)
+            if (std::isnan(div_tconf_upts(0)[ct]))
             {
-                for (int k=0; k<n_fields; k++)
-                {
-                    if (std::isnan(div_tconf_upts(0)(j,i,k)))
-                    {
-                        printf("Residual is NaN at element No.%2d, field No.%2d, position: \n",j,k);
-                        for (int intd=0; intd<n_dims; intd++)
-                            printf("%5.5f, ",pos_upts(i,j,intd));
-                        printf("\n");
+                int i, j, k;
+                j = ct % n_eles;
+                i = (ct / n_eles) % n_upts_per_ele;
+                k = ct / (n_eles * n_upts_per_ele);
+                printf("Residual is NaN at element No.%2d, field No.%2d, position: \n",j,k);
+                for (int intd=0; intd<n_dims; intd++)
+                    printf("%5.5f, ",pos_upts(i,j,intd));
+                printf("\n");
 #ifdef _MPI
-                        cout<<"Rank: "<<rank<<" is failing,aborting..."<<endl;
-                        MPI_Abort(MPI_COMM_WORLD,1);
+                cout<<"Rank: "<<rank<<" is failing,aborting..."<<endl;
+                MPI_Abort(MPI_COMM_WORLD,1);
 #endif // _MPI
-                        FatalError("NaN in residual, exiting.");
-                    }
-                }
+                FatalError("NaN in residual, exiting.");
             }
         }
 #endif
@@ -2053,11 +2063,10 @@ void eles::calc_sgs_terms(void)
 #endif
 
         /*! Check for NaNs */
-        for(i=0; i<n_upts_per_ele; i++)
-            for(j=0; j<n_eles; j++)
-                for(k=0; k<n_fields; k++)
-                    if(std::isnan(disuf_upts(i,j,k)))
-                        FatalError("nan in filtered solution");
+        int temp_size = n_upts_per_ele * n_eles * n_fields;
+        for (i = 0; i < temp_size; i++)
+            if (std::isnan(disuf_upts[i]))
+                FatalError("nan in filtered solution");
 
         /*! If SVV model, copy filtered solution back to solution */
         if(sgs_model==3)
@@ -2288,7 +2297,10 @@ void eles::evaluate_viscFlux(void)
 
         int i,j,k,l,m;
         double detjac;
-
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS//pre initialize the array for blas
+        hf_array<double> temp_sgsf_upts(n_fields, n_dims);
+        temp_sgsf_upts.initialize_to_zero();
+#endif
         for(i=0; i<n_eles; i++)
         {
 
@@ -2351,6 +2363,13 @@ void eles::evaluate_viscFlux(void)
                 if(LES > 0)
                 {
                     // Transfer back to computational domain
+
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+                    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n_fields, n_dims, n_dims, 1.0, temp_sgsf.get_ptr_cpu(), n_fields, JGinv_upts.get_ptr_cpu(0, 0, j, i), n_dims, 0.0, temp_sgsf_upts.get_ptr_cpu(), n_fields);
+                    for (k = 0; k < n_fields; k++)
+                        for (l = 0; l < n_dims; l++)
+                            sgsf_upts(j, i, k, l) = temp_sgsf_upts(k, l);
+#elif defined _NO_BLAS
                     for(k=0; k<n_fields; k++)
                     {
                         for(l=0; l<n_dims; l++)
@@ -2362,6 +2381,7 @@ void eles::evaluate_viscFlux(void)
                             }
                         }
                     }
+#endif
                 }
 
                 // Transform viscous flux
