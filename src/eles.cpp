@@ -2298,8 +2298,8 @@ void eles::evaluate_viscFlux(void)
         int i,j,k,l,m;
         double detjac;
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS//pre initialize the array for blas
-        hf_array<double> temp_sgsf_upts(n_fields, n_dims);
-        temp_sgsf_upts.initialize_to_zero();
+        hf_array<double> temp_tdisf_upts(n_fields, n_dims);
+        temp_tdisf_upts.initialize_to_zero();
 #endif
         for(i=0; i<n_eles; i++)
         {
@@ -2321,7 +2321,6 @@ void eles::evaluate_viscFlux(void)
                     }
                 }
 
-                // Transform to dynamic-physical domain
 
                 if(n_dims==2)
                 {
@@ -2365,10 +2364,10 @@ void eles::evaluate_viscFlux(void)
                     // Transfer back to computational domain
 
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-                    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n_fields, n_dims, n_dims, 1.0, temp_sgsf.get_ptr_cpu(), n_fields, JGinv_upts.get_ptr_cpu(0, 0, j, i), n_dims, 0.0, temp_sgsf_upts.get_ptr_cpu(), n_fields);
+                    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n_fields, n_dims, n_dims, 1.0, temp_sgsf.get_ptr_cpu(), n_fields, JGinv_upts.get_ptr_cpu(0, 0, j, i), n_dims, 0.0, temp_tdisf_upts.get_ptr_cpu(), n_fields);
                     for (k = 0; k < n_fields; k++)
                         for (l = 0; l < n_dims; l++)
-                            sgsf_upts(j, i, k, l) = temp_sgsf_upts(k, l);
+                            sgsf_upts(j, i, k, l) = temp_tdisf_upts(k, l);
 #elif defined _NO_BLAS
                     for(k=0; k<n_fields; k++)
                     {
@@ -2384,17 +2383,24 @@ void eles::evaluate_viscFlux(void)
 #endif
                 }
 
-                // Transform viscous flux
-                for(k=0; k<n_fields; k++)
+// Transform viscous flux
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n_fields, n_dims, n_dims, 1.0, temp_f.get_ptr_cpu(), n_fields, JGinv_upts.get_ptr_cpu(0, 0, j, i), n_dims, 0.0, temp_tdisf_upts.get_ptr_cpu(), n_fields);
+                for (k = 0; k < n_fields; k++)
+                    for (l = 0; l < n_dims; l++)
+                        tdisf_upts(j, i, k, l) += temp_tdisf_upts(k, l);
+#elif defined _NO_BLAS
+                for (k = 0; k < n_fields; k++)
                 {
-                    for(l=0; l<n_dims; l++)
+                    for (l = 0; l < n_dims; l++)
                     {
-                        for(m=0; m<n_dims; m++)
+                        for (m = 0; m < n_dims; m++)
                         {
-                            tdisf_upts(j,i,k,l)+=JGinv_upts(l,m,j,i)*temp_f(k,m);
+                            tdisf_upts(j, i, k, l) += JGinv_upts(l, m, j, i) * temp_f(k, m);
                         }
                     }
                 }
+#endif
             }
         }
 #endif
