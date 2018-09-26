@@ -202,7 +202,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
             wall_distance_mag.setup(n_upts_per_ele,n_eles);
-            wall_distance_mag.initialize_to_zero();
             twall.setup(1);
         }
         else if (LES)//for all LES calculation of wall distance is necessary
