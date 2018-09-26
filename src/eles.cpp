@@ -120,9 +120,8 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         if(run_input.dt_type == 2)
             dt_local.setup(n_eles);
 
-        // Initialize to zero
-        //for (int m=0; m<n_adv_levels; m++)
-        //  disu_upts(m).initialize_to_zero();
+        //initialize the second register for solution value to 0
+        disu_upts(1).initialize_to_zero();
 
         // Set no. of diagnostic fields
         n_diagnostic_fields = run_input.n_diagnostic_fields;
@@ -142,7 +141,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         {
 
             sgsf_upts.setup(n_upts_per_ele,n_eles,n_fields,n_dims);
-            //sgsf_upts.initialize_to_zero();
             sgsf_fpts.setup(n_fpts_per_ele,n_eles,n_fields,n_dims);
             sgsf_fpts.initialize_to_zero();
              // SVV model requires filtered solution
@@ -204,18 +202,16 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
             wall_distance_mag.setup(n_upts_per_ele,n_eles);
-            //wall_distance.initialize_to_zero();
             wall_distance_mag.initialize_to_zero();
             twall.setup(1);
         }
         else if (LES)//for all LES calculation of wall distance is necessary
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
-            //wall_distance.initialize_to_zero();
             if (wall_model)
             {
                 twall.setup(n_upts_per_ele, n_eles, n_fields);
-                //twall.initialize_to_zero();
+                twall.initialize_to_zero();
             }
             wall_distance_mag.setup(1);
         }
