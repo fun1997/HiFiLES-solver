@@ -97,7 +97,7 @@ class output
     //helper methods
 
     /*! compute integral diagnostic quantities */
-    void CalcIntegralQuantities(int in_file_num);
+    void CalcIntegralQuantities(void);
 
     /*! Calculate time averaged diagnostic quantities */
     void CalcTimeAverageQuantities(void);

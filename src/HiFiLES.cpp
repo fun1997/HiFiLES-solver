@@ -137,18 +137,18 @@ int main(int argc, char *argv[]) {
 
   /*! Initialize forces, integral quantities, and residuals. */
 
-  if (FlowSol.rank == 0) {
-
+  if (FlowSol.rank == 0)
+  {
     FlowSol.inv_force.setup(5);
     FlowSol.vis_force.setup(5);
     FlowSol.norm_residual.setup(6);
-    FlowSol.integral_quantities.setup(run_input.n_integral_quantities);
     //initialize to 0
     FlowSol.inv_force.initialize_to_zero();
     FlowSol.vis_force.initialize_to_zero();
     FlowSol.norm_residual.initialize_to_zero();
-    FlowSol.integral_quantities.initialize_to_zero();
   }
+  if (run_input.n_integral_quantities)
+    FlowSol.integral_quantities.setup(run_input.n_integral_quantities);
 
   /*! Copy solution and gradients from GPU to CPU, ready for the following routines */
 #ifdef _GPU
@@ -235,10 +235,8 @@ int main(int argc, char *argv[]) {
 
       /*! Compute integral quantities. */
 
-      if (run_input.n_integral_quantities!=0)//if calculate integral quantities
-         run_output. CalcIntegralQuantities(FlowSol.ini_iter+i_steps);
-
-
+      if (run_input.n_integral_quantities) //if calculate integral quantities
+        run_output.CalcIntegralQuantities();
 
       /*! Compute the norm of the residual. */
 

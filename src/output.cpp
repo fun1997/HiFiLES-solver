@@ -1786,35 +1786,26 @@ void output::CalcForces(int in_file_num) {
 }
 
 // Calculate integral diagnostic quantities
-void output::CalcIntegralQuantities(int in_file_num) {
+void output::CalcIntegralQuantities(void) {
 
   int nintq = run_input.n_integral_quantities;
 
-     // initialize to zero
-    for(int j=0; j<nintq; ++j)
-    {
-        FlowSol->integral_quantities(j) = 0.0;
-    }
-  // Loop over element types
+  // initialize to zero
+  FlowSol->integral_quantities.initialize_to_zero();
+
+  // Loop over local elements
   for(int i=0;i<FlowSol->n_ele_types;i++)
-    {
       if (FlowSol->mesh_eles(i)->get_n_eles()!=0)
-        {
           FlowSol->mesh_eles(i)->CalcIntegralQuantities(nintq, FlowSol->integral_quantities);
-        }
-    }
 
 #ifdef _MPI
 
   hf_array<double> integral_quantities_global(nintq);
-  for(int j=0;j<nintq;++j)
-    {
-      integral_quantities_global(j) = 0.0;
-      MPI_Reduce(&FlowSol->integral_quantities(j),&integral_quantities_global(j),1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
-      FlowSol->integral_quantities(j) = integral_quantities_global(j);
-    }
-#endif
+  MPI_Reduce(FlowSol->integral_quantities.get_ptr_cpu(), integral_quantities_global.get_ptr_cpu(), nintq, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+  //copy back to integral_quantities
+  FlowSol->integral_quantities = integral_quantities_global;
+#endif
 }
 
 // Calculate time averaged diagnostic quantities
