@@ -2838,6 +2838,7 @@ void eles::calc_wall_distance(int n_seg_noslip_inters, int n_tri_noslip_inters, 
         hf_array<double> pos(n_dims);
         hf_array<double> vec(n_dims);
         hf_array<double> vecmin(n_dims);
+        vecmin.initialize_to_value(1e20);
 
         // hold our breath and go round the brute-force loop...
         for (i=0; i<n_eles; ++i)
