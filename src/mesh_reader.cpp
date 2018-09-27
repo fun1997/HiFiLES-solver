@@ -399,8 +399,14 @@ void mesh_reader::read_header_gmsh(void)
     for (int i = 0; i < mesh_ptr->n_bdy + 1; i++)
     {
         mesh_file >> mesh_ptr->n_dims >> bcid >> bc_txt_temp;
+        bc_txt_temp.erase(bc_txt_temp.find_last_not_of(" \n\r\t") + 1);
+        bc_txt_temp.erase(bc_txt_temp.find_last_not_of("\"") + 1);
+        if (bc_txt_temp.find_first_not_of("\"") != 0)
+            bc_txt_temp.erase(bc_txt_temp.find_first_not_of("\"") - 1, 1);
         if (bc_txt_temp == "FLUID")
             break;
+        if (i == mesh_ptr->n_bdy)
+            FatalError("Cant find fluid group in mesh file");
         mesh_file.getline(buf, BUFSIZ); // clear rest of line
     }
 
@@ -494,9 +500,13 @@ void mesh_reader::partial_read_connectivity_gmsh(int kstart, int in_num_cells)
     for (int i = 0; i < mesh_ptr->n_bdy + 1; i++)
     {
         mesh_file >> dummy >> bcid >> bc_txt_temp;
-        mesh_file.getline(buf, BUFSIZ); // clear rest of line
+        bc_txt_temp.erase(bc_txt_temp.find_last_not_of(" \n\r\t") + 1);
+        bc_txt_temp.erase(bc_txt_temp.find_last_not_of("\"") + 1);
+        if (bc_txt_temp.find_first_not_of("\"") != 0)
+            bc_txt_temp.erase(bc_txt_temp.find_first_not_of("\"") - 1, 1);
         if (bc_txt_temp == "FLUID")
             break;
+        mesh_file.getline(buf, BUFSIZ); // clear rest of line
     }
 
     // Move cursor to $Elements
@@ -719,6 +729,8 @@ void mesh_reader::read_boundary_gmsh(void)
         mesh_file.getline(buf, BUFSIZ); //clear the rest of line
         bc_txt_temp.erase(bc_txt_temp.find_last_not_of(" \n\r\t") + 1);
         bc_txt_temp.erase(bc_txt_temp.find_last_not_of("\"") + 1);
+        if(bc_txt_temp.find_first_not_of("\"")!=0)
+                bc_txt_temp.erase(bc_txt_temp.find_first_not_of("\"")-1,1);
         if (bc_txt_temp != "FLUID")
         {
             run_input.bc_list(bc_counter).setup(bc_txt_temp);
@@ -749,7 +761,7 @@ void mesh_reader::read_boundary_gmsh(void)
     // Read number of elements and bdys
     mesh_file >> n_entities;        // num cells in mesh
     mesh_file.getline(buf, BUFSIZ); // clear rest of line
-
+    
     int num_v_per_f;
     int num_face_vert;
     hf_array<int> vlist_bound,vlist_cell;
@@ -821,7 +833,7 @@ void mesh_reader::read_boundary_gmsh(void)
             // loop over the vertex on the face to find out the common cell they share
             vector<int> intersection = mesh_ptr->v2c(vlist_bound(0));
             std::vector<int>::iterator it_intersect;
-            for (int i = 1; i < num_v_per_f; i++)
+            for (int i = 1; i < num_face_vert; i++)
             {
                 it_intersect = set_intersection(mesh_ptr->v2c(vlist_bound(i)).begin(), mesh_ptr->v2c(vlist_bound(i)).end(), intersection.begin(), intersection.end(), intersection.begin()); //get the intersection of 2 sorted data
                 intersection.resize(it_intersect - intersection.begin());
