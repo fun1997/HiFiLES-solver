@@ -73,11 +73,10 @@ void int_inters::setup(int in_n_inters,int in_inter_type)
       detjac_fpts_r.setup(n_fpts_per_inter,n_inters);
       tdA_fpts_r.setup(n_fpts_per_inter,n_inters);
 
-      delta_disu_fpts_r.setup(n_fpts_per_inter,n_inters,n_fields);
-
       if(viscous)
         {
           grad_disu_fpts_r.setup(n_fpts_per_inter,n_inters,n_fields,n_dims);
+          delta_disu_fpts_r.setup(n_fpts_per_inter,n_inters,n_fields);
         }
 }
 

@@ -4540,6 +4540,8 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppt
             // turbulence metrics
             else if (run_input.diagnostic_fields(k)=="vorticity" || run_input.diagnostic_fields(k)=="q_criterion")
             {
+                if (!viscous)
+                    FatalError("Trying to calculate diagnostic field only supported by viscous simualtion");
                 u = in_disu_ppts(j,1)*irho;
                 v = in_disu_ppts(j,2)*irho;
 

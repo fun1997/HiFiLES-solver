@@ -118,10 +118,9 @@ void inters::setup_inters(int in_n_inters, int in_inters_type)
       norm_fpts.setup(n_fpts_per_inter,n_inters,n_dims);
       pos_fpts.setup(n_fpts_per_inter,n_inters,n_dims);
 
-      delta_disu_fpts_l.setup(n_fpts_per_inter,n_inters,n_fields);
-
       if(viscous)
         {
+          delta_disu_fpts_l.setup(n_fpts_per_inter,n_inters,n_fields);
           grad_disu_fpts_l.setup(n_fpts_per_inter,n_inters,n_fields,n_dims);
           normal_disu_fpts_l.setup(n_fpts_per_inter,n_inters,n_fields);
           pos_disu_fpts_l.setup(n_fpts_per_inter,n_inters,n_dims);

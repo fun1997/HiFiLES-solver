@@ -301,13 +301,22 @@ void output::write_tec(int in_file_num)
           pos_ppts_temp.setup(n_ppts_per_ele,n_dims);
           disu_ppts_temp.setup(n_ppts_per_ele,n_fields);
           disu_ppts_temp.initialize_to_zero();
-          grad_disu_ppts_temp.setup(n_ppts_per_ele,n_fields,n_dims);
-          grad_disu_ppts_temp.initialize_to_zero();
-          diag_ppts_temp.setup(n_ppts_per_ele,n_diag_fields);
-          disu_average_ppts_temp.setup(n_ppts_per_ele,n_average_fields);
-          disu_average_ppts_temp.initialize_to_zero();
-          /*! Temporary field for sensor hf_array at plot points */
-          sensor_ppts_temp.setup(n_ppts_per_ele);
+          if (n_average_fields > 0)
+          {
+            disu_average_ppts_temp.setup(n_ppts_per_ele,n_average_fields);
+            disu_average_ppts_temp.initialize_to_zero();
+          }
+          if (n_diag_fields > 0)
+          {
+            if (FlowSol->viscous)
+            {
+              grad_disu_ppts_temp.setup(n_ppts_per_ele,n_fields,n_dims);
+              grad_disu_ppts_temp.initialize_to_zero();
+            }
+            diag_ppts_temp.setup(n_ppts_per_ele, n_diag_fields);
+            if (run_input.shock_cap)
+              sensor_ppts_temp.setup(n_ppts_per_ele);
+          }
 
 
           // write element specific header
@@ -348,13 +357,6 @@ void output::write_tec(int in_file_num)
             {
               FlowSol->mesh_eles(i)->calc_pos_ppts(j,pos_ppts_temp);
               FlowSol->mesh_eles(i)->calc_disu_ppts(j,disu_ppts_temp);
-              FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j,grad_disu_ppts_temp);
-
-              if(run_input.shock_cap)
-              {
-                /*! Calculate the sensor at the plot points */
-                FlowSol->mesh_eles(i)->calc_sensor_ppts(j,sensor_ppts_temp);
-              }
 
               /*! Calculate the time averaged fields at the plot points */
               if(n_average_fields > 0)
@@ -363,12 +365,16 @@ void output::write_tec(int in_file_num)
                 }
 
               /*! Calculate the diagnostic fields at the plot points */
-              if(n_diag_fields > 0)
+                if(n_diag_fields > 0)
                 {
+                  if (FlowSol->viscous)
+                    FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
+                  if (run_input.shock_cap)
+                    FlowSol->mesh_eles(i)->calc_sensor_ppts(j, sensor_ppts_temp);
                   FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, diag_ppts_temp, FlowSol->time);
                 }
 
-              for(k=0;k<n_ppts_per_ele;k++)
+                for(k=0;k<n_ppts_per_ele;k++)
                 {
                   for(l=0;l<n_dims;l++)
                     {
@@ -485,8 +491,6 @@ void output::write_vtu(int in_file_num)
   hf_array<double> diag_ppts_temp;
   /*! Time-averaged diagnostic field data at plot points */
   hf_array<double> disu_average_ppts_temp;
-  /*! Grid velocity at plot points */
-  hf_array<double> grid_vel_ppts_temp;
   /*! Sensor data for shock capturing at plot points */
   hf_array<double> sensor_ppts_temp;
 
@@ -666,14 +670,18 @@ void output::write_vtu(int in_file_num)
 
           if(n_diag_fields > 0) {
             /*! Temporary solution hf_array at plot points */
-            grad_disu_ppts_temp.setup(n_points,n_fields,n_dims);
-            grad_disu_ppts_temp.initialize_to_zero();
+            if (FlowSol->viscous)
+            {
+              grad_disu_ppts_temp.setup(n_points,n_fields,n_dims);
+              grad_disu_ppts_temp.initialize_to_zero();
+            }
             /*! Temporary diagnostic field hf_array at plot points */
             diag_ppts_temp.setup(n_points,n_diag_fields);
 
             /*! Temporary field for sensor hf_array at plot points */
-            sensor_ppts_temp.setup(n_points);
-
+            if (run_input.shock_cap)
+              sensor_ppts_temp.setup(n_points);
+              
           }
 
 
@@ -696,7 +704,8 @@ void output::write_vtu(int in_file_num)
 
               if(n_diag_fields > 0) {
                 /*! Calculate the gradient of the prognostic fields at the plot points */
-                FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j,grad_disu_ppts_temp);
+                if (FlowSol->viscous)
+                  FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
 
                 if(run_input.shock_cap)
                 {
@@ -1028,21 +1037,26 @@ void output::write_CGNS(int in_file_num)
       pos_ppts_temp.setup(n_ppts_per_ele, n_dims);
       pos_ppts_wt.setup(n_ppts_per_ele, n_eles, n_dims);
       disu_ppts_temp.setup(n_ppts_per_ele, n_fields);
+      disu_ppts_temp.initialize_to_zero();
       disu_ppts_wt.setup(n_ppts_per_ele, n_eles, n_fields);
-      grad_disu_ppts_temp.setup(n_ppts_per_ele, n_fields, n_dims);
-      if (n_diag_fields)
-      {
-        diag_ppts_temp.setup(n_ppts_per_ele, n_diag_fields);
-        diag_ppts_wt.setup(n_ppts_per_ele, n_eles, n_diag_fields);
-      }
       if (n_average_fields)
       {
         disu_average_ppts_temp.setup(n_ppts_per_ele, n_average_fields);
+        disu_average_ppts_temp.initialize_to_zero();
         disu_average_ppts_wt.setup(n_ppts_per_ele, n_eles, n_average_fields);
       }
-
-      if (run_input.shock_cap)
-        sensor_ppts_temp.setup(n_ppts_per_ele);
+      if (n_diag_fields)
+      {
+        if (FlowSol->viscous)
+        {
+          grad_disu_ppts_temp.setup(n_ppts_per_ele, n_fields, n_dims);
+          grad_disu_ppts_temp.initialize_to_zero();
+        }
+        diag_ppts_temp.setup(n_ppts_per_ele, n_diag_fields);
+        diag_ppts_wt.setup(n_ppts_per_ele, n_eles, n_diag_fields);
+        if (run_input.shock_cap)
+          sensor_ppts_temp.setup(n_ppts_per_ele);
+      }
 
       for (int j = 0; j < n_eles; j++) //for each element
       {
@@ -1058,14 +1072,14 @@ void output::write_CGNS(int in_file_num)
           for(int l=0;l<n_fields;l++)
           disu_ppts_wt(k,j,l)=disu_ppts_temp(k,l);
 
-        if (run_input.shock_cap)
-          /*! Calculate the sensor at the plot points */
-          FlowSol->mesh_eles(i)->calc_sensor_ppts(j, sensor_ppts_temp);
-
         /*! Calculate the diagnostic fields at the plot points */
         if (n_diag_fields > 0)
         {
-          FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
+          if (FlowSol->viscous)
+            FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
+          if (run_input.shock_cap)
+            /*! Calculate the sensor at the plot points */
+            FlowSol->mesh_eles(i)->calc_sensor_ppts(j, sensor_ppts_temp);
           FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, diag_ppts_temp, FlowSol->time);//get diagnostic field
           for (int k = 0; k < n_ppts_per_ele; k++) //copy to array
             for (int l = 0; l < n_diag_fields; l++)
@@ -1257,13 +1271,23 @@ void output::write_CGNS(int in_file_num)
       n_fields = FlowSol->mesh_eles(i)->get_n_fields();
       pos_ppts_temp.setup(n_ppts_per_ele, n_dims);
       disu_ppts_temp.setup(n_ppts_per_ele, n_fields);
-      grad_disu_ppts_temp.setup(n_ppts_per_ele, n_fields, n_dims);
-      if (n_diag_fields)
-        diag_ppts_temp.setup(n_ppts_per_ele, n_diag_fields);
+      disu_ppts_temp.initialize_to_zero();
       if (n_average_fields)
+      {
         disu_average_ppts_temp.setup(n_ppts_per_ele, n_average_fields);
-      if (run_input.shock_cap)
-        sensor_ppts_temp.setup(n_ppts_per_ele);
+        disu_average_ppts_temp.initialize_to_zero();
+      }
+      if (n_diag_fields)
+      {
+        if (FlowSol->viscous)
+        {
+          grad_disu_ppts_temp.setup(n_ppts_per_ele, n_fields, n_dims);
+          grad_disu_ppts_temp.initialize_to_zero();
+        }
+        diag_ppts_temp.setup(n_ppts_per_ele, n_diag_fields);
+        if (run_input.shock_cap)
+          sensor_ppts_temp.setup(n_ppts_per_ele);
+      }
 
       for (int j = 0; j < n_eles; j++) //for each element
       {
@@ -1302,14 +1326,14 @@ void output::write_CGNS(int in_file_num)
               cg_error_exit();
         }
 
-        if (run_input.shock_cap)
-          /*! Calculate the sensor at the plot points */
-          FlowSol->mesh_eles(i)->calc_sensor_ppts(j, sensor_ppts_temp);
-
         /*! Calculate the diagnostic fields at the plot points */
         if (n_diag_fields > 0)
         {
-          FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
+          if (FlowSol->viscous)
+            FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
+          if (run_input.shock_cap)
+            /*! Calculate the sensor at the plot points */
+            FlowSol->mesh_eles(i)->calc_sensor_ppts(j, sensor_ppts_temp);
           FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, diag_ppts_temp, FlowSol->time);
           for (int k = 0; k < n_diag_fields; k++)
             if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), run_input.diagnostic_fields(i).c_str(), &temp_ptr, &temp_ptr2, diag_ppts_temp.get_ptr_cpu(k * n_ppts_per_ele), Fs_diag.get_ptr_cpu(k)))
@@ -1325,7 +1349,7 @@ void output::write_CGNS(int in_file_num)
               cg_error_exit();
         }
         temp_ptr += n_ppts_per_ele; //move pointer to next element
-      }
+        }
     }
   }
 

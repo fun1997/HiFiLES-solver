@@ -53,10 +53,6 @@
 
 using namespace std;
 
-// used to switch between single- and multi-zone tecplot binary output
-#define MULTI_ZONE
-//#define SINGLE_ZONE
-
 void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
 
   int i;                            /*!< Loop iterator */
@@ -204,16 +200,16 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
   for(i=0; i<FlowSol->n_ele_types; i++)
     FlowSol->mesh_eles(i)->calculate_corrected_divergence();
 
-  /*! De-aliasing using over-integration*/
-  if (run_input.over_int)
-    for (i = 0; i < FlowSol->n_ele_types; i++)
-      FlowSol->mesh_eles(i)->dealias_over_integration();
-
   /*! Compute source term */
   if (run_input.turb_model==1) {
     for (i=0; i<FlowSol->n_ele_types; i++)
       FlowSol->mesh_eles(i)->calc_src_upts_SA();
   }
+
+  /*! De-aliasing using over-integration*/
+  if (run_input.over_int)
+    for (i = 0; i < FlowSol->n_ele_types; i++)
+      FlowSol->mesh_eles(i)->dealias_over_integration();
 }
 
 #ifdef _MPI

@@ -368,6 +368,8 @@ void input::read_boundary_param(void)
         }
         else if (bc_list(i).get_bc_flag() == ISOTHERM_FIX)
         {
+            if (!viscous)
+                FatalError("Isothermal wall boundary only available to viscous simulation");
             bdy_r.getScalarValue(bc_paramS + "T_static", bc_list(i).T_static);
         }
         else if (bc_list(i).get_bc_flag() == CHAR)
@@ -379,6 +381,11 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "nz", bc_list(i).nz, 0.);
             bdy_r.getScalarValue(bc_paramS + "T_static", bc_list(i).T_static);
             bc_list(i).rho = bc_list(i).p_static / (R_gas * bc_list(i).T_static);
+        }
+        else if (bc_list(i).get_bc_flag() == ADIABAT_FIX)
+        {
+            if (!viscous)
+                FatalError("Adiabatic wall boundary only available to viscous simulation");
         }
     }
 
