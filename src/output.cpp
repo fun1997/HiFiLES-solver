@@ -231,11 +231,11 @@ void output::write_tec(int in_file_num)
     {
       if(n_dims==2)
         {
-          fields += "Variables = \"x\", \"y\", \"rho\", \"mom_x\", \"mom_y\", \"ene\"";
+          fields += "Variables = \"x\", \"y\", \"rho\", \"mom_x\", \"mom_y\", \"rhoe\"";
         }
       else if(n_dims==3)
         {
-          fields += "Variables = \"x\", \"y\", \"z\", \"rho\", \"mom_x\", \"mom_y\", \"mom_z\", \"ene\"";
+          fields += "Variables = \"x\", \"y\", \"z\", \"rho\", \"mom_x\", \"mom_y\", \"mom_z\", \"rhoe\"";
         }
       else
         {
@@ -573,7 +573,7 @@ void output::write_vtu(int in_file_num)
       write_pvtu << "		<PPointData Scalars=\"Density\" Vectors=\"Velocity\">" << endl;
       write_pvtu << "			<PDataArray type=\"Float32\" Name=\"Density\" />" << endl;
       write_pvtu << "			<PDataArray type=\"Float32\" Name=\"Velocity\" NumberOfComponents=\"3\" />" << endl;
-      write_pvtu << "			<PDataArray type=\"Float32\" Name=\"Energy\" />" << endl;
+      write_pvtu << "			<PDataArray type=\"Float32\" Name=\"SpecificEnergy\" />" << endl;
 
       /*! write out modified turbulent viscosity */
       if (run_input.turb_model==1) {
@@ -751,7 +751,7 @@ void output::write_vtu(int in_file_num)
               write_vtu << "				</DataArray>" << endl;
 
               /*! energy */
-              write_vtu << "				<DataArray type= \"Float32\" Name=\"Energy\" format=\"ascii\">" << endl;
+              write_vtu << "				<DataArray type= \"Float32\" Name=\"SpecificEnergy\" format=\"ascii\">" << endl;
               for(k=0;k<n_points;k++)
                 {
                   /*! In 2D energy is the 4th solution component */

@@ -134,6 +134,15 @@ void probe_input::read_probe_input(int rank)
     {
         probf.getScalarValue("probe_source_file", probe_source_file);
         read_probe_script(probe_source_file);
+
+        if (rank == 0)
+        {
+            for (auto nm : surf_name)
+                cout << "Surface: " << nm << " loaded." << endl;
+
+            for (auto nm : line_name)
+                cout << "Line: " << nm << " loaded." << endl;
+        }
     }
     else if (run_input.probe == 3) //probes on mesh surface/in volume
     {
