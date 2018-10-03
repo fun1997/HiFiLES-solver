@@ -1501,7 +1501,7 @@ void output::write_probe(void)
         //check if file exist
         bool exist = true;
         struct stat st = {0};
-        sprintf(probe_data, "%s/%s_%.04d.dat", folder.c_str(), folder.c_str(), file_idx); //generate file name
+        sprintf(probe_data, "%s/%s_%.06d.dat", folder.c_str(), folder.c_str(), file_idx); //generate file name
         if (stat(probe_data, &st) == -1)
           exist = false;
 

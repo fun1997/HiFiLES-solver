@@ -290,7 +290,7 @@ void inters::right_flux(hf_array<double> &f_r, hf_array<double> &norm, hf_array<
     }
 }
 
-// Rusanov inviscid numerical flux
+// Rusanov inviscid numerical flux(conservative form Riemann solver)
 void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
 {
   double vx_l,vy_l,vx_r,vy_r,vz_l,vz_r,vn_l,vn_r,p_l,p_r,vn_av_mag,c_av,eig;
@@ -335,7 +335,7 @@ void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array
   else
     FatalError("ERROR: Invalid number of dimensions ... ");
 
-  vn_av_mag=sqrt(0.25*(vn_l+vn_r)*(vn_l+vn_r));
+  vn_av_mag=0.5*fabs(vn_l+vn_r);
   c_av=sqrt((gamma*(p_l+p_r))/(u_l(0)+u_r(0)));
   eig = fabs(vn_av_mag  + c_av);
 
