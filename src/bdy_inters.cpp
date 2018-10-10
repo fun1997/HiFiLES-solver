@@ -252,6 +252,10 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(double time_bound)
                 {
                     roe_flux(temp_u_l,temp_u_r,norm,fn,n_dims,n_fields,run_input.gamma);
                 }
+                else if(run_input.riemann_solve_type==3)//HLLC
+                {
+                    hllc_flux(temp_u_l,temp_u_r,temp_f_l,temp_f_r,norm,fn,n_dims,n_fields,run_input.gamma);
+                }
                 else
                     FatalError("Riemann solver not implemented");
             }
@@ -693,19 +697,13 @@ void bdy_inters::set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r
             // extrapolate density
             rho_r = rho_l; // only useful part
 
-            // extrapolate pressure
-            p_r = p_l;
-
             // no-slip
             for (int i=0; i<n_dims; i++)
                 v_r[i] = -v_l[i];
 
             // energy
-            v_sq = 0.;
-            for (int i=0; i<n_dims; i++)
-                v_sq += (v_r[i]*v_r[i]);
 
-            e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
+            e_r = e_l;
 
             // SA model
             if (run_input.turb_model == 1)

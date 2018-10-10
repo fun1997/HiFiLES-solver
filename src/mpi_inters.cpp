@@ -443,7 +443,7 @@ void mpi_inters::calculate_common_invFlux(void)
               norm(m) = *norm_fpts(j,i,m);
           
 
-          if (run_input.riemann_solve_type==0)
+          if (run_input.riemann_solve_type==0||run_input.riemann_solve_type==3)
             {
               // calculate flux from discontinuous solution at flux points
               if(n_dims==2) {
@@ -458,7 +458,10 @@ void mpi_inters::calculate_common_invFlux(void)
                 FatalError("ERROR: Invalid number of dimensions ... ");
 
               // Calling Riemann solver
-              rusanov_flux(temp_u_l,temp_u_r,temp_f_l,temp_f_r,norm,fn,n_dims,n_fields,run_input.gamma);
+              if (run_input.riemann_solve_type == 0)
+                rusanov_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
+              else
+                hllc_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
             }
           else if (run_input.riemann_solve_type==1)
             {
@@ -470,7 +473,6 @@ void mpi_inters::calculate_common_invFlux(void)
           else
             FatalError("Riemann solver not implemented");
 
-          // Transform back to computational space from dynamic physical space
             // Transform back to reference space from static physical space
             for(int k=0;k<n_fields;k++) {
               (*norm_tconf_fpts_l(j,i,k))= fn(k)*(*tdA_fpts_l(j,i));

@@ -60,6 +60,8 @@ public:
   /*! Compute common inviscid flux using Roe flux */
   void roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma);
 
+  void hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma);
+
   /*! Compute common inviscid flux using Lax-Friedrich flux (works only for wave equation) */
   void lax_friedrich(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double lambda, hf_array<double>& wave_speed);
 
@@ -130,7 +132,7 @@ public:
 
   hf_array<int> lut;
 
-  hf_array<double> v_l, v_r, um, du;
+
 
 
 };

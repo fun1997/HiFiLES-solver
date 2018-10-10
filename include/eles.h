@@ -656,14 +656,8 @@ protected:
 	/*! temporary flux storage */
 	hf_array<double> temp_f;
 
-  /*! temporary flux storage */
-  hf_array<double> temp_f_ref;
-
 	/*! temporary subgrid-scale flux storage */
 	hf_array<double> temp_sgsf;
-
-  /*! temporary subgrid-scale flux storage for dynamic->static transformation */
-  hf_array<double> temp_sgsf_ref;
 
 	/*! storage for distance of solution points to nearest no-slip boundary */
 	hf_array<double> wall_distance;

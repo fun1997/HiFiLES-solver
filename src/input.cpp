@@ -485,14 +485,14 @@ void input::setup_params(int rank)
 
     if (equation == 0)
     {
-        if (riemann_solve_type == 1) //TODO: HLLC type flux for NS/Euler equation
+        if (riemann_solve_type == 1) 
             FatalError("Lax-Friedrich flux not supported with NS/RANS equation");
         if (ic_form == 2 || ic_form == 3 || ic_form == 4)
             FatalError("Initial condition not supported with NS/RANS equation");
     }
     else if (equation == 1)
     {
-        if (riemann_solve_type == 0) //TODO
+        if (riemann_solve_type == 0)
             FatalError("Rusanov flux not supported with Advection-Diffusion equation");
         if (ic_form != 2 && ic_form != 3 && ic_form != 4 && ic_form != 5)
             FatalError("Initial condition not supported with Advection-Diffusion equation");

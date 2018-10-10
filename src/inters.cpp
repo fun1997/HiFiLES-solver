@@ -158,12 +158,6 @@ void inters::setup_inters(int in_n_inters, int in_inters_type)
       temp_loc.setup(n_dims);
 
       lut.setup(n_fpts_per_inter);
-
-      // For Roe flux computation
-      v_l.setup(n_dims);
-      v_r.setup(n_dims);
-      um.setup(n_dims);
-      du.setup(n_fields);
 }
 
 // get look up table for flux point connectivity based on rotation tag
@@ -297,17 +291,21 @@ void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array
   hf_array<double> fn_l(n_fields),fn_r(n_fields);
 
   // calculate normal flux from discontinuous solution at flux points
-  for(int k=0;k<n_fields;k++) {
-
-      fn_l(k)=0.;
-      fn_r(k)=0.;
-
-      for(int l=0;l<n_dims;l++) {
-          fn_l(k)+=f_l(k,l)*norm(l);
-          fn_r(k)+=f_r(k,l)*norm(l);
-        }
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  fn_l.initialize_to_zero();
+  fn_r.initialize_to_zero();
+  cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_l.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_l.get_ptr_cpu(), 1);
+  cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_r.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_r.get_ptr_cpu(), 1);
+#else
+  for (int k = 0; k < n_fields; k++)
+  {
+    for (int l = 0; l < n_dims; l++)
+    {
+      fn_l(k) += f_l(k, l) * norm(l);
+      fn_r(k) += f_r(k, l) * norm(l);
     }
-
+  }
+#endif
   // calculate wave speeds
   vx_l=u_l(1)/u_l(0);
   vx_r=u_r(1)/u_r(0);
@@ -375,33 +373,39 @@ void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<dou
   double sq_rho,rrho,hm,usq,am,am_sq,unm;
   double lambda0,lambdaP,lambdaM;
   double rhoun_l, rhoun_r,eps;
-  double a1,a2,a3,a4,a5,a6,aL1,bL1;
-  //hf_array<double> um(n_dims);
+  double a1, a2, a3, a4, a5, a6, aL1, bL1;
+  hf_array<double> v_l, v_r, um, du;
+
+  v_l.setup(n_dims);
+  v_r.setup(n_dims);
+  um.setup(n_dims);
+  du.setup(n_fields);
+
+  double vsq_l = 0.0;
+  double vsq_r = 0.0;
 
   // velocities
-  for (int i=0;i<n_dims;i++)  {
-      v_l(i) = u_l(i+1)/u_l(0);
-      v_r(i) = u_r(i+1)/u_r(0);
-    }
+  for (int i = 0; i < n_dims; i++)
+  {
+    v_l(i) = u_l(i + 1) / u_l(0);
+    vsq_l += pow(v_l(i), 2);
+    v_r(i) = u_r(i + 1) / u_r(0);
+    vsq_r += pow(v_r(i), 2);
+  }
 
-  if (n_dims==2) {
-      p_l=(gamma-1.0)*(u_l(3)-(0.5*u_l(0)*((v_l(0)*v_l(0))+(v_l(1)*v_l(1)))));
-      p_r=(gamma-1.0)*(u_r(3)-(0.5*u_r(0)*((v_r(0)*v_r(0))+(v_r(1)*v_r(1)))));
-    }
-  else
-    FatalError("Roe not implemented in 3D");
+  p_l = (gamma - 1.0) * (u_l(n_dims + 1) - 0.5 * u_l(0) * vsq_l);
+  p_r = (gamma - 1.0) * (u_r(n_dims + 1) - 0.5 * u_r(0) * vsq_r);
 
-  h_l = (u_l(n_dims+1)+p_l)/u_l(0);
+  h_l = (u_l(n_dims+1)+p_l)/u_l(0);//total enthalpy
   h_r = (u_r(n_dims+1)+p_r)/u_r(0);
 
   sq_rho = sqrt(u_r(0)/u_l(0));
   rrho = 1./(sq_rho+1.);
 
+//roe average velocity and total enthalpy
   for (int i=0;i<n_dims;i++)
     um(i) = rrho*(v_l(i)+sq_rho*v_r(i));
-
-  hm      = rrho*(h_l     +sq_rho*h_r);
-
+  hm = rrho * (h_l + sq_rho * h_r);
 
   usq=0.;
   for (int i=0;i<n_dims;i++)
@@ -415,6 +419,7 @@ void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<dou
   }
 
   // Compute Euler flux (first part)
+  //normal mass flux
   rhoun_l = 0.;
   rhoun_r = 0.;
   for (int i=0;i<n_dims;i++)
@@ -423,41 +428,38 @@ void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<dou
       rhoun_r += u_r(i+1)*norm(i);
     }
 
-  if (n_dims==2)
-    {
-      fn(0) = rhoun_l + rhoun_r;
-      fn(1) = rhoun_l*v_l(0) + rhoun_r*v_r(0) + (p_l+p_r)*norm(0);
-      fn(2) = rhoun_l*v_l(1) + rhoun_r*v_r(1) + (p_l+p_r)*norm(1);
-      fn(3) = rhoun_l*h_l   +rhoun_r*h_r;
+    fn(0) = rhoun_l + rhoun_r; //mass flux
+    fn(1) = rhoun_l * v_l(0) + rhoun_r * v_r(0) + (p_l + p_r) * norm(0);
+    fn(2) = rhoun_l * v_l(1) + rhoun_r * v_r(1) + (p_l + p_r) * norm(1);
+    if (n_dims == 3)
+      fn(3) = rhoun_l * v_l(2) + rhoun_r * v_r(2) + (p_l + p_r) * norm(2);
+    fn(n_dims + 1) = rhoun_l * h_l + rhoun_r * h_r;
 
-    }
-  else
-    FatalError("Roe not implemented in 3D");
-
-  for (int i=0;i<n_fields;i++)
+    //jump of variables
+    for (int i = 0; i < n_fields; i++)
     {
-      du(i) = u_r(i)-u_l(i);
+      du(i) = u_r(i) - u_l(i);
     }
 
-  lambda0 = abs(unm);
-  lambdaP = abs(unm+am);
-  lambdaM = abs(unm-am);
+    lambda0 = abs(unm);
+    lambdaP = abs(unm + am);
+    lambdaM = abs(unm - am);
 
-  // Entropy fix
-  eps = 0.5*(abs(rhoun_l/u_l(0)-rhoun_r/u_r(0))+ abs(sqrt(gamma*p_l/u_l(0))-sqrt(gamma*p_r/u_r(0))));
-  if(lambda0 < 2.*eps)
-    lambda0 = 0.25*lambda0*lambda0/eps + eps;
-  if(lambdaP < 2.*eps)
-    lambdaP = 0.25*lambdaP*lambdaP/eps + eps;
-  if(lambdaM < 2.*eps)
-    lambdaM = 0.25*lambdaM*lambdaM/eps + eps;
+    // Entropy fix
+    eps = 0.5 * (abs(rhoun_l / u_l(0) - rhoun_r / u_r(0)) + abs(sqrt(gamma * p_l / u_l(0)) - sqrt(gamma * p_r / u_r(0))));
+    if (lambda0 < 2. * eps)
+      lambda0 = 0.25 * lambda0 * lambda0 / eps + eps;
+    if (lambdaP < 2. * eps)
+      lambdaP = 0.25 * lambdaP * lambdaP / eps + eps;
+    if (lambdaM < 2. * eps)
+      lambdaM = 0.25 * lambdaM * lambdaM / eps + eps;
 
-  a2 = 0.5*(lambdaP+lambdaM)-lambda0;
-  a3 = 0.5*(lambdaP-lambdaM)/am;
-  a1 = a2*(gamma-1.)/am_sq;
-  a4 = a3*(gamma-1.);
+    a2 = 0.5 * (lambdaP + lambdaM) - lambda0;
+    a3 = 0.5 * (lambdaP - lambdaM) / am;
+    a1 = a2 * (gamma - 1.) / am_sq;
+    a4 = a3 * (gamma - 1.);
 
-  if (n_dims==2)
+    if (n_dims == 2)
     {
 
       a5 = usq*du(0)-um(0)*du(1)-um(1)*du(2)+du(3);
@@ -498,6 +500,125 @@ void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<dou
 
 }
 
+
+void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
+{
+  //declare arrays and variables
+  hf_array<double> fn_l(n_fields),fn_r(n_fields);//normal fluxes
+  double S_L,S_R,S_star;//wave speeds
+  hf_array<double> v_l(n_dims), v_r(n_dims);
+  double p_l,p_r,a_l,a_r;//pressure, speed of sound
+  double vn_l,vn_r,vsq_l,vsq_r;//normal velocities and velocity squared
+  double rho_m,a_m,rhoa_m,p_pvrs;//pvrs
+  double p_min,p_max,p_star,v_star;//approximate state
+
+  //calculate normal velocities and velocity squares
+  vn_l = 0.;
+  vsq_l = 0.;
+  vn_r = 0.;
+  vsq_r = 0.;
+  for (int i = 0; i < n_dims; i++)
+  {
+    v_l(i) = u_l(i+1) / u_l(0);
+    v_r(i) = u_r(i+1) / u_r(0);
+    vn_l += v_l(i) * norm(i);
+    vn_r += v_r(i) * norm(i);
+    vsq_l += pow(v_l(i), 2.);
+    vsq_r += pow(v_r(i), 2.);
+  }
+
+//calculate pressure and speed of sound of both sides
+  p_l = (gamma - 1.0) * (u_l(n_dims + 1) - 0.5 * u_l(0) * vsq_l);
+  p_r = (gamma - 1.0) * (u_r(n_dims + 1) - 0.5 * u_r(0) * vsq_r);
+  a_l=sqrt(gamma * p_l / u_l(0));
+  a_r=sqrt(gamma * p_r / u_r(0));
+
+  // calculate normal flux from discontinuous solution at flux points
+  fn_l.initialize_to_zero();
+  fn_r.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_l.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_l.get_ptr_cpu(), 1);
+  cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_r.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_r.get_ptr_cpu(), 1);
+#else
+  for (int k = 0; k < n_fields; k++)
+  {
+    for (int l = 0; l < n_dims; l++)
+    {
+      fn_l(k) += f_l(k, l) * norm(l);
+      fn_r(k) += f_r(k, l) * norm(l);
+    }
+  }
+#endif
+
+  //calculate wave speed
+  p_min = min(p_l, p_r);
+  p_max = max(p_l, p_r);
+  //1. PVRS
+  rho_m = 0.5 * (u_l(0) + u_r(0));
+  a_m = 0.5 * (a_l + a_r);
+  rhoa_m = rho_m * a_m;
+  p_pvrs = 0.5 * (p_l + p_r) - 0.5 * (vn_r - vn_l) * rhoa_m;
+
+  if (p_pvrs >= p_min && p_pvrs <= p_max) //pvrs
+  {
+    p_star = p_pvrs;
+    v_star = 0.5 * (vn_r + vn_l) - 0.5 * (p_r - p_l) / rhoa_m;
+  }
+  else if (p_pvrs < p_min) //two rarefraction
+  {
+    double z = (gamma - 1.0) / (2.0 * gamma);
+    double p_lr = pow(p_l / p_r, z);
+    v_star = (p_lr * vn_l / a_l + vn_r / a_r + 2 * (p_lr - 1) / (gamma - 1)) / (p_lr / a_l + 1.0 / a_r);
+    p_star = 0.5 * (p_l * pow(1.0 + (gamma - 1.0) / (2.0 * a_l) * (vn_l - v_star), 1.0 / z) + p_r * pow(1.0 + (gamma - 1.0) / (2.0 * a_r) * (v_star - vn_r), 1.0 / z));
+  }
+  else //two shock
+  {
+    double A_l = 2.0 / ((gamma + 1.0) * u_l(0));
+    double B_l = (gamma - 1.0) / (gamma + 1.0) * p_l;
+    double A_r = 2 / ((gamma + 1.0) * u_r(0));
+    double B_r = (gamma - 1.0) / (gamma + 1.0) * p_r;
+    double p_0 = max(0.0, p_pvrs);
+    double g_l = sqrt(A_l / (p_0 + B_l));
+    double g_r = sqrt(A_r / (p_0 + B_r));
+    p_star = (g_l * p_l + g_r * p_r - (vn_r - vn_l)) / (g_l + g_r);
+    v_star = 0.5 * (vn_l + vn_r) + 0.5 * ((p_star - p_r) * g_r - (p_star - p_l) * g_l);
+  }
+
+  S_R = vn_r + a_r * (p_star > p_r ? sqrt(1 + (gamma + 1) / (2 * gamma) * (p_star / p_r - 1)) : 1.0);
+  S_L = vn_l - a_l * (p_star > p_l ? sqrt(1 + (gamma + 1) / (2 * gamma) * (p_star / p_l - 1)) : 1.0);
+  S_star=v_star;
+  //S_star=(p_r-p_l+u_l(0)*vn_l*(S_L-vn_l)-u_r(0)*vn_r*(S_R-vn_r))/(u_l(0)*(S_L-vn_l)-u_r(0)*(S_R-vn_r));
+
+  //calculate flux
+  if (S_L >= 0) //left flux
+    fn = fn_l;
+  else
+  {
+    if (S_star >= 0) //left star flux
+    {
+      double rcp_star = S_L - S_star;
+      fn(0) = S_star * (S_L * u_l(0) - fn_l(0)) / rcp_star;
+      for (int i = 0; i < n_dims; i++)
+        fn(i + 1) = (S_star * (S_L * u_l(i + 1) - fn_l(i + 1)) + S_L * (p_l + u_l(0) * (S_L - vn_l) * (S_star - vn_l)) * norm(i)) / rcp_star;
+      fn(n_dims + 1) = (S_star * (S_L * u_l(n_dims + 1) - fn_l(n_dims + 1)) + S_L * (p_l + u_l(0) * (S_L - vn_l) * (S_star - vn_l)) * S_star) / rcp_star;
+    }
+    else //right star flux or left flux
+    {
+      if (S_R > 0) //right star flux
+      {
+        double rcp_star = S_R - S_star;
+        fn(0) = S_star * (S_R * u_r(0) - fn_r(0)) / rcp_star;
+        for (int i = 0; i < n_dims; i++)
+          fn(i + 1) = (S_star * (S_R * u_r(i + 1) - fn_r(i + 1)) + S_R * (p_r + u_r(0) * (S_R - vn_r) * (S_star - vn_r)) * norm(i)) / rcp_star;
+        fn(n_dims + 1) = (S_star * (S_R * u_r(n_dims + 1) - fn_r(n_dims + 1)) + S_R * (p_r + u_r(0) * (S_R - vn_r) * (S_star - vn_r)) * S_star) / rcp_star;
+      }
+      else //righ flux
+      {
+        fn = fn_r;
+      }
+    }
+  }
+}
 
 // Rusanov inviscid numerical flux
 void inters::lax_friedrich(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double lambda, hf_array<double>& wave_speed)
