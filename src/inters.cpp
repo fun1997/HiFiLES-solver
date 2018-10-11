@@ -500,7 +500,6 @@ void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<dou
 
 }
 
-
 void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
 {
   //declare arrays and variables
@@ -509,7 +508,7 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
   hf_array<double> v_l(n_dims), v_r(n_dims);
   double p_l, p_r, a_l, a_r, h_l, h_r; //pressure, speed of sound, total enthalpy
   double vn_l, vn_r, vsq_l, vsq_r;     //normal velocities and velocity squared
-  double sq_rho, rrho, h_m, a_m, vn_m;//roe average
+  double sq_rho, rrho, h_m, a_m, vn_m; //roe average
 
   //calculate normal velocities and velocity squares
   vn_l = 0.;
@@ -518,21 +517,21 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
   vsq_r = 0.;
   for (int i = 0; i < n_dims; i++)
   {
-    v_l(i) = u_l(i+1) / u_l(0);
-    v_r(i) = u_r(i+1) / u_r(0);
+    v_l(i) = u_l(i + 1) / u_l(0);
+    v_r(i) = u_r(i + 1) / u_r(0);
     vn_l += v_l(i) * norm(i);
     vn_r += v_r(i) * norm(i);
     vsq_l += pow(v_l(i), 2.);
     vsq_r += pow(v_r(i), 2.);
   }
 
-//calculate pressure and speed of sound and total enthalpy of both sides
+  //calculate pressure and speed of sound and total enthalpy of both sides
   p_l = (gamma - 1.0) * (u_l(n_dims + 1) - 0.5 * u_l(0) * vsq_l);
   p_r = (gamma - 1.0) * (u_r(n_dims + 1) - 0.5 * u_r(0) * vsq_r);
-  a_l=sqrt(gamma * p_l / u_l(0));//speed of sound
-  a_r=sqrt(gamma * p_r / u_r(0));
-  h_l = (u_l(n_dims+1)+p_l)/u_l(0);//total enthalpy
-  h_r = (u_r(n_dims+1)+p_r)/u_r(0);
+  a_l = sqrt(gamma * p_l / u_l(0)); //speed of sound
+  a_r = sqrt(gamma * p_r / u_r(0));
+  h_l = (u_l(n_dims + 1) + p_l) / u_l(0); //total enthalpy
+  h_r = (u_r(n_dims + 1) + p_r) / u_r(0);
 
   // calculate normal flux from discontinuous solution at flux points
   fn_l.initialize_to_zero();
@@ -552,17 +551,17 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
 #endif
 
   //calculate wave speed using roe average
-  sq_rho = sqrt(u_r(0)/u_l(0));
-  rrho = 1./(sq_rho+1.);
+  sq_rho = sqrt(u_r(0) / u_l(0));
+  rrho = 1. / (sq_rho + 1.);
 
   //roe average velocity and total enthalpy
   vn_m = rrho * (vn_l + sq_rho * vn_r);
   h_m = rrho * (h_l + sq_rho * h_r);
   a_m = sqrt((gamma - 1.) * (h_m - 0.5 * vn_m * vn_m));
 
-  S_R = max(vn_r+a_r,vn_m+a_m);
-  S_L = min(vn_l-a_l,vn_m-a_m);
-  S_star=(p_r-p_l+u_l(0)*vn_l*(S_L-vn_l)-u_r(0)*vn_r*(S_R-vn_r))/(u_l(0)*(S_L-vn_l)-u_r(0)*(S_R-vn_r));
+  S_R = max(vn_r + a_r, vn_m + a_m);
+  S_L = min(vn_l - a_l, vn_m - a_m);
+  S_star = (p_r - p_l + u_l(0) * vn_l * (S_L - vn_l) - u_r(0) * vn_r * (S_R - vn_r)) / (u_l(0) * (S_L - vn_l) - u_r(0) * (S_R - vn_r));
 
   //calculate flux
   if (S_L >= 0) //left flux
@@ -579,7 +578,7 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
     }
     else //right star flux or left flux
     {
-      if (S_R > 0) //right star flux
+      if (S_R >= 0) //right star flux
       {
         double rcp_star = S_R - S_star;
         fn(0) = S_star * (S_R * u_r(0) - fn_r(0)) / rcp_star;
