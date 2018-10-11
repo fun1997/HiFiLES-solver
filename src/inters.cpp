@@ -504,13 +504,12 @@ void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<dou
 void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
 {
   //declare arrays and variables
-  hf_array<double> fn_l(n_fields),fn_r(n_fields);//normal fluxes
-  double S_L,S_R,S_star;//wave speeds
+  hf_array<double> fn_l(n_fields), fn_r(n_fields); //normal fluxes
+  double S_L, S_R, S_star;                         //wave speeds
   hf_array<double> v_l(n_dims), v_r(n_dims);
-  double p_l,p_r,a_l,a_r;//pressure, speed of sound
-  double vn_l,vn_r,vsq_l,vsq_r;//normal velocities and velocity squared
-  double rho_m,a_m,rhoa_m,p_pvrs;//pvrs
-  double p_min,p_max,p_star,v_star;//approximate state
+  double p_l, p_r, a_l, a_r, h_l, h_r; //pressure, speed of sound, total enthalpy
+  double vn_l, vn_r, vsq_l, vsq_r;     //normal velocities and velocity squared
+  double sq_rho, rrho, h_m, a_m, vn_m;//roe average
 
   //calculate normal velocities and velocity squares
   vn_l = 0.;
@@ -527,11 +526,13 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
     vsq_r += pow(v_r(i), 2.);
   }
 
-//calculate pressure and speed of sound of both sides
+//calculate pressure and speed of sound and total enthalpy of both sides
   p_l = (gamma - 1.0) * (u_l(n_dims + 1) - 0.5 * u_l(0) * vsq_l);
   p_r = (gamma - 1.0) * (u_r(n_dims + 1) - 0.5 * u_r(0) * vsq_r);
-  a_l=sqrt(gamma * p_l / u_l(0));
+  a_l=sqrt(gamma * p_l / u_l(0));//speed of sound
   a_r=sqrt(gamma * p_r / u_r(0));
+  h_l = (u_l(n_dims+1)+p_l)/u_l(0);//total enthalpy
+  h_r = (u_r(n_dims+1)+p_r)/u_r(0);
 
   // calculate normal flux from discontinuous solution at flux points
   fn_l.initialize_to_zero();
@@ -550,44 +551,18 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
   }
 #endif
 
-  //calculate wave speed
-  p_min = min(p_l, p_r);
-  p_max = max(p_l, p_r);
-  //1. PVRS
-  rho_m = 0.5 * (u_l(0) + u_r(0));
-  a_m = 0.5 * (a_l + a_r);
-  rhoa_m = rho_m * a_m;
-  p_pvrs = 0.5 * (p_l + p_r) - 0.5 * (vn_r - vn_l) * rhoa_m;
+  //calculate wave speed using roe average
+  sq_rho = sqrt(u_r(0)/u_l(0));
+  rrho = 1./(sq_rho+1.);
 
-  if (p_pvrs >= p_min && p_pvrs <= p_max) //pvrs
-  {
-    p_star = p_pvrs;
-    v_star = 0.5 * (vn_r + vn_l) - 0.5 * (p_r - p_l) / rhoa_m;
-  }
-  else if (p_pvrs < p_min) //two rarefraction
-  {
-    double z = (gamma - 1.0) / (2.0 * gamma);
-    double p_lr = pow(p_l / p_r, z);
-    v_star = (p_lr * vn_l / a_l + vn_r / a_r + 2 * (p_lr - 1) / (gamma - 1)) / (p_lr / a_l + 1.0 / a_r);
-    p_star = 0.5 * (p_l * pow(1.0 + (gamma - 1.0) / (2.0 * a_l) * (vn_l - v_star), 1.0 / z) + p_r * pow(1.0 + (gamma - 1.0) / (2.0 * a_r) * (v_star - vn_r), 1.0 / z));
-  }
-  else //two shock
-  {
-    double A_l = 2.0 / ((gamma + 1.0) * u_l(0));
-    double B_l = (gamma - 1.0) / (gamma + 1.0) * p_l;
-    double A_r = 2 / ((gamma + 1.0) * u_r(0));
-    double B_r = (gamma - 1.0) / (gamma + 1.0) * p_r;
-    double p_0 = max(0.0, p_pvrs);
-    double g_l = sqrt(A_l / (p_0 + B_l));
-    double g_r = sqrt(A_r / (p_0 + B_r));
-    p_star = (g_l * p_l + g_r * p_r - (vn_r - vn_l)) / (g_l + g_r);
-    v_star = 0.5 * (vn_l + vn_r) + 0.5 * ((p_star - p_r) * g_r - (p_star - p_l) * g_l);
-  }
+  //roe average velocity and total enthalpy
+  vn_m = rrho * (vn_l + sq_rho * vn_r);
+  h_m = rrho * (h_l + sq_rho * h_r);
+  a_m = sqrt((gamma - 1.) * (h_m - 0.5 * vn_m * vn_m));
 
-  S_R = vn_r + a_r * (p_star > p_r ? sqrt(1 + (gamma + 1) / (2 * gamma) * (p_star / p_r - 1)) : 1.0);
-  S_L = vn_l - a_l * (p_star > p_l ? sqrt(1 + (gamma + 1) / (2 * gamma) * (p_star / p_l - 1)) : 1.0);
-  S_star=v_star;
-  //S_star=(p_r-p_l+u_l(0)*vn_l*(S_L-vn_l)-u_r(0)*vn_r*(S_R-vn_r))/(u_l(0)*(S_L-vn_l)-u_r(0)*(S_R-vn_r));
+  S_R = max(vn_r+a_r,vn_m+a_m);
+  S_L = min(vn_l-a_l,vn_m-a_m);
+  S_star=(p_r-p_l+u_l(0)*vn_l*(S_L-vn_l)-u_r(0)*vn_r*(S_R-vn_r))/(u_l(0)*(S_L-vn_l)-u_r(0)*(S_R-vn_r));
 
   //calculate flux
   if (S_L >= 0) //left flux
