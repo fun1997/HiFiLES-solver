@@ -2425,8 +2425,8 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     double karman=0.41;//von_karman constant 
     double delta, mu, mu_t, vol;
     double rho, inte, rt_ratio;
-    hf_array<double> u(n_dims);
-    hf_array<double> drho(n_dims), dene(n_dims), dke(n_dims), de(n_dims);
+    hf_array<double> u(n_dims);//resolved velocity
+    hf_array<double> drho(n_dims), dene(n_dims), dke(n_dims), de(n_dims);//gradients
     hf_array<double> dmom(n_dims,n_dims), du(n_dims,n_dims), S(n_dims,n_dims);
 
     // quantities for wall model
@@ -2442,7 +2442,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     rho = temp_u(0);
     for (i=0; i<n_dims; i++)
     {
-        u(i) = temp_u(i)/rho;
+        u(i) = temp_u(i+1)/rho;
         ke += 0.5*pow(u(i),2);
     }
     inte = temp_u(n_fields-1)/rho - ke;
@@ -2623,27 +2623,27 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             // Filtered solution gradient
             for (i=0; i<n_dims; i++)
             {
-                drho(i) = temp_grad_u(0,i); // density gradient
-                dene(i) = temp_grad_u(n_fields-1,i); // energy gradient
+                drho(i) = temp_grad_u(0,i); // drho/dx_i
+                dene(i) = temp_grad_u(n_fields-1,i); // dE/dx_i
 
                 for (j=1; j<n_fields-1; j++)
                 {
-                    dmom(i,j-1) = temp_grad_u(j,i); // momentum gradients
+                    dmom(i,j-1) = temp_grad_u(j,i); // drhou_j/dx_i
                 }
             }
 
             // Velocity and energy gradients
             for (i=0; i<n_dims; i++)
             {
-                dke(i) = ke*drho(i);
+                dke(i) = ke*drho(i);//dke/dx_i=ke*drho/dx_i+rho*u_j*du_j/dx_i
 
                 for (j=0; j<n_dims; j++)
                 {
-                    du(i,j) = (dmom(i,j)-u(j)*drho(j))/rho;
+                    du(i,j) = (dmom(i,j)-u(j)*drho(i))/rho;//du_j/dx_i=(drhou_j/dx_i-u_j*drho/dx_i)/rho
                     dke(i) += rho*u(j)*du(i,j);
                 }
 
-                de(i) = (dene(i)-dke(i)-drho(i)*inte)/rho;
+                de(i) = (dene(i)-dke(i)-drho(i)*inte)/rho;//de/dx_i=(dE/dx_i-dke/dx_i-e*drho/dx_i)/rho
             }
 
             /*! calculate traceless strain rate */
@@ -2653,7 +2653,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             {
                 for (j=0; j<n_dims; j++)
                 {
-                    S(i,j) = (du(i,j)+du(j,i))/2.0;
+                    S(i,j) = (du(i,j)+du(j,i))/2.0;//S_ij=0.5*(du_j/dx_i+du_i/dx_j)
                 }
                 diag += S(i,i)/3.0;
             }
@@ -2696,25 +2696,28 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
                 double denom=0.0;
                 double eps=1.e-12;
                 hf_array<double> Sq(n_dims,n_dims);
+                hf_array<double> g_bar,g_bar_transpose(n_dims,n_dims);
                 diag = 0.0;
 
                 // Square of gradient tensor
-                // This needs optimising!
-                for (i=0; i<n_dims; i++)
-                {
-                    for (j=0; j<n_dims; j++)
-                    {
-                        Sq(i,j) = 0.0;
-                        for (k=0; k<n_dims; ++k)
-                        {
-                            Sq(i,j) += (du(i,k)*du(k,j)+du(j,k)*du(k,i))/2.0;
-                        }
-                        diag += du(i,j)*du(j,i)/3.0;
-                    }
-                }
-
-                // Subtract diag
-                for (i=0; i<n_dims; i++) Sq(i,i) -= diag;
+                Sq.initialize_to_zero();
+                g_bar_transpose.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_dims, n_dims, n_dims, 1.0, du.get_ptr_cpu(), n_dims, du.get_ptr_cpu(), n_dims, 0.0, g_bar_transpose.get_ptr_cpu(), n_dims);
+                g_bar = transpose_array(g_bar_transpose);
+                cblas_daxpy(n_dims * n_dims, 0.5, g_bar.get_ptr_cpu(), 1, Sq.get_ptr_cpu(), 1);
+                cblas_daxpy(n_dims * n_dims, 0.5, g_bar_transpose.get_ptr_cpu(), 1, Sq.get_ptr_cpu(), 1);
+#elif defined _NO_BLAS
+                dgemm(n_dims, n_dims, n_dims, 1.0, 0.0, du.get_ptr_cpu(), du.get_ptr_cpu(), g_bar_transpose.get_ptr_cpu());
+                g_bar = transpose_array(g_bar_transpose);
+                daxpy_wrapper(n_dims * n_dims, 0.5, g_bar.get_ptr_cpu(), 1, Sq.get_ptr_cpu(), 1);
+                daxpy_wrapper(n_dims * n_dims, 0.5, g_bar_transpose.get_ptr_cpu(), 1, Sq.get_ptr_cpu(), 1);
+#endif
+                //subract diagonal
+                for (i = 0; i < n_dims; i++)
+                    diag += g_bar(i, i) / 3.0;
+                for (i = 0; i < n_dims; i++)
+                    Sq(i, i) -= diag;
 
                 // Numerator and denominator
                 for (i=0; i<n_dims; i++)
@@ -2736,7 +2739,8 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             {
                 temp_sgsf(0,j) = 0.0; // Density flux
                 temp_sgsf(n_fields-1,j) = -1.0*run_input.gamma*mu_t/Pr_t*de(j); // Energy flux
-
+                for (k = 0; k < n_dims; k++)
+                    temp_sgsf(n_fields - 1, j) -= u(k) * 2.0 * mu_t * S(k, j);
                 for (i=1; i<n_fields-1; i++)
                 {
                     temp_sgsf(i,j) = -2.0*mu_t*S(i-1,j); // Velocity flux

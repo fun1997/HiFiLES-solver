@@ -58,7 +58,7 @@ public:
   void set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r, double *norm, double *loc,double gamma, double R_ref, double time_bound, int equation);
 
   /*! Compute right hand side gradient at boundaries */
-  void set_vis_boundary_conditions(int bc_id, double* u_l, double* u_r, double* grad_u, double *norm, double *loc, double gamma, double R_ref, double time_bound, int equation);
+  void set_vis_boundary_conditions(int bc_id, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &grad_u, hf_array<double> &norm, hf_array<double> &loc, double gamma, double R_ref, double time_bound, int equation);
 
   /*! move all from cpu to gpu */
   void mv_all_cpu_gpu(void);

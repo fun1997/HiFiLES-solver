@@ -287,7 +287,7 @@ void inters::right_flux(hf_array<double> &f_r, hf_array<double> &norm, hf_array<
 // Rusanov inviscid numerical flux(conservative form Riemann solver)
 void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
 {
-  double vx_l,vy_l,vx_r,vy_r,vz_l,vz_r,vn_l,vn_r,p_l,p_r,vn_av_mag,c_av,eig;
+  double vx_l,vy_l,vx_r,vy_r,vz_l,vz_r,vn_l,vn_r,p_l,p_r,vn_av_mag,a_l,a_r,eig;
   hf_array<double> fn_l(n_fields),fn_r(n_fields);
 
   // calculate normal flux from discontinuous solution at flux points
@@ -333,9 +333,9 @@ void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array
   else
     FatalError("ERROR: Invalid number of dimensions ... ");
 
-  vn_av_mag=0.5*fabs(vn_l+vn_r);
-  c_av=sqrt((gamma*(p_l+p_r))/(u_l(0)+u_r(0)));
-  eig = fabs(vn_av_mag  + c_av);
+  a_l = sqrt(gamma * p_l / u_l(0)); //speed of sound
+  a_r = sqrt(gamma * p_r / u_r(0));
+  eig = max(fabs(vn_l) + a_l, fabs(vn_r) + a_r);
 
   // calculate the normal continuous flux at the flux points
 
@@ -559,8 +559,8 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
   h_m = rrho * (h_l + sq_rho * h_r);
   a_m = sqrt((gamma - 1.) * (h_m - 0.5 * vn_m * vn_m));
 
-  S_R = max(vn_r + a_r, vn_m + a_m);
-  S_L = min(vn_l - a_l, vn_m - a_m);
+  S_R = vn_m + a_m;
+  S_L = vn_m - a_m;
   S_star = (p_r - p_l + u_l(0) * vn_l * (S_L - vn_l) - u_r(0) * vn_r * (S_R - vn_r)) / (u_l(0) * (S_L - vn_l) - u_r(0) * (S_R - vn_r));
 
   //calculate flux

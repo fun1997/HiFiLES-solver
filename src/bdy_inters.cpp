@@ -914,7 +914,7 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
                     }
                 }
 
-                set_vis_boundary_conditions(boundary_id(i),temp_u_l.get_ptr_cpu(),temp_u_r.get_ptr_cpu(),temp_grad_u_r.get_ptr_cpu(),norm.get_ptr_cpu(),temp_loc.get_ptr_cpu(),run_input.gamma,run_input.R_ref,time_bound,run_input.equation);
+                set_vis_boundary_conditions(boundary_id(i), temp_u_l, temp_u_r, temp_grad_u_r, norm, temp_loc, run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
             }
 
             /*! calculate flux from discontinuous solution at flux points */
@@ -989,75 +989,43 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
 }
 
 
-void bdy_inters::set_vis_boundary_conditions(int bc_id, double* u_l, double* u_r, double* grad_u, double *norm, double *loc, double gamma, double R_ref, double time_bound, int equation)
+void bdy_inters::set_vis_boundary_conditions(int bc_id, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &grad_u, hf_array<double> &norm, hf_array<double> &loc, double gamma, double R_ref, double time_bound, int equation)
 {
-    int cpu_flag;
-    cpu_flag = 1;
-
-
     double v_sq;
     double inte;
     double p_l, p_r;
 
-    double grad_vel[n_dims*n_dims];
+    hf_array<double> grad_vel(n_dims,n_dims);//component,dim
 
     int bc_flag=run_input.bc_list(bc_id).get_bc_flag();
 
     // Adiabatic wall
-    if(bc_flag == ADIABAT_FIX)
+    if (bc_flag == ADIABAT_FIX)
     {
         v_sq = 0.;
-        for (int i=0; i<n_dims; i++)
-            v_sq += (u_l[i+1]*u_l[i+1]);
-        p_l   = (gamma-1.0)*( u_l[n_dims+1] - 0.5*v_sq/u_l[0]);
+        for (int i = 0; i < n_dims; i++)
+            v_sq += (u_l(i + 1) * u_l(i + 1));
+        p_l = (gamma - 1.0) * (u_l(n_dims + 1) - 0.5 * v_sq / u_l(0));
         p_r = p_l;
 
-        inte = p_r/((gamma-1.0)*u_r[0]);
+        inte = p_r / ((gamma - 1.0) * u_r(0));
 
-        if(cpu_flag) // execute always
+        // Velocity gradients
+        for (int j = 0; j < n_dims; j++) //direction
+            for (int i = 0; i < n_dims; i++)//velocity component
+                grad_vel(i, j) = (grad_u(i + 1, j) - grad_u(0, j) * u_r(i + 1) / u_r(0)) / u_r(0); //drhou_i/dx_j-u_i*drho/dx_j)/rho
+
+        // Energy gradients (set grad T = 0) inte*drho/dx_i+0.5*u^2drho/dx_i+rhou*du/dx_i
+        if (n_dims == 2)
         {
-            // Velocity gradients
-            for (int j=0; j<n_dims; j++)
-            {
-                for (int i=0; i<n_dims; i++)
-                    grad_vel[j*n_dims + i] = (grad_u[i*n_fields + (j+1)] - grad_u[i*n_fields + 0]*u_r[j+1]/u_r[0])/u_r[0];
-            }
-
-            // Energy gradients (grad T = 0)
-            if(n_dims == 2)
-            {
-                for (int i=0; i<n_dims; i++)
-                    grad_u[i*n_fields + 3] = inte*grad_u[i*n_fields + 0] + 0.5*((u_r[1]*u_r[1]+u_r[2]*u_r[2])/(u_r[0]*u_r[0]))*grad_u[i*n_fields + 0] + u_r[0]*((u_r[1]/u_r[0])*grad_vel[0*n_dims + i]+(u_r[2]/u_r[0])*grad_vel[1*n_dims + i]);
-            }
-            else if(n_dims == 3)
-            {
-                for (int i=0; i<n_dims; i++)
-                    grad_u[i*n_fields + 4] = inte*grad_u[i*n_fields + 0] + 0.5*((u_r[1]*u_r[1]+u_r[2]*u_r[2]+u_r[3]*u_r[3])/(u_r[0]*u_r[0]))*grad_u[i*n_fields + 0] + u_r[0]*((u_r[1]/u_r[0])*grad_vel[0*n_dims + i]+(u_r[2]/u_r[0])*grad_vel[1*n_dims + i]+(u_r[3]/u_r[0])*grad_vel[2*n_dims + i]);
-            }
+            for (int i = 0; i < n_dims; i++)
+                grad_u(3, i) = inte * grad_u(0, i) + 0.5 * v_sq / (u_r[0] * u_r[0]) * grad_u(0, i) + u_r[1] * grad_vel(0, i) + u_r[2] * grad_vel(1, i);
         }
-        else
+        else if (n_dims == 3)
         {
-            // Velocity gradients
-            for (int j=0; j<n_dims; j++)
-            {
-                for (int i=0; i<n_dims; i++)
-                    grad_vel[j*n_dims + i] = (grad_u[(j+1)*n_dims + i] - grad_u[0*n_dims + i]*u_r[j+1]/u_r[0])/u_r[0];
-            }
-
-            if(n_dims == 2)
-            {
-                // Total energy gradient
-                for (int i=0; i<n_dims; i++)
-                    grad_u[3*n_dims + i] = inte*grad_u[0*n_dims + i] + 0.5*((u_r[1]*u_r[1]+u_r[2]*u_r[2])/(u_r[0]*u_r[0]))*grad_u[0*n_dims + i] + u_r[0]*((u_r[1]/u_r[0])*grad_vel[0*n_dims + i]+(u_r[2]/u_r[0])*grad_vel[1*n_dims + i]);
-            }
-            else if(n_dims == 3)
-            {
-                for (int i=0; i<n_dims; i++)
-                    grad_u[4*n_dims + i] = inte*grad_u[0*n_dims + i] + 0.5*((u_r[1]*u_r[1]+u_r[2]*u_r[2]+u_r[3]*u_r[3])/(u_r[0]*u_r[0]))*grad_u[0*n_dims + i] + u_r[0]*((u_r[1]/u_r[0])*grad_vel[0*n_dims + i]+(u_r[2]/u_r[0])*grad_vel[1*n_dims + i]+(u_r[3]/u_r[0])*grad_vel[2*n_dims + i]);
-            }
+            for (int i = 0; i < n_dims; i++)
+                grad_u(4, i) = inte * grad_u(0, i) + 0.5 * v_sq / (u_r[0] * u_r[0]) * grad_u(0, i) + u_r[1] * grad_vel(0, i) + u_r[2] * grad_vel(1, i) + u_r[3] * grad_vel(2, i);
         }
-
     }
-
 }
 
