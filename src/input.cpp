@@ -328,7 +328,7 @@ void input::read_boundary_param(void)
         if (bc_list(i).get_bc_flag() == SUB_IN_SIMP) //given mass flow rate
         {
             bdy_r.getScalarValue(bc_paramS + "mach", bc_list(i).mach);
-            bdy_r.getScalarValue(bc_paramS + "rho", bc_list(i).rho);
+            bdy_r.getScalarValue(bc_paramS + "T_static", bc_list(i).T_static);
             bdy_r.getScalarValue(bc_paramS + "nx", bc_list(i).nx, 1.);
             bdy_r.getScalarValue(bc_paramS + "ny", bc_list(i).ny, 0.);
             bdy_r.getScalarValue(bc_paramS + "nz", bc_list(i).nz, 0.);
@@ -364,7 +364,6 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "ny", bc_list(i).ny, 0.);
             bdy_r.getScalarValue(bc_paramS + "nz", bc_list(i).nz, 0.);
             bdy_r.getScalarValue(bc_paramS + "T_static", bc_list(i).T_static);
-            bc_list(i).rho = bc_list(i).p_static / (R_gas * bc_list(i).T_static);
         }
         else if (bc_list(i).get_bc_flag() == ISOTHERM_FIX)
         {
@@ -380,7 +379,6 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "ny", bc_list(i).ny, 0.);
             bdy_r.getScalarValue(bc_paramS + "nz", bc_list(i).nz, 0.);
             bdy_r.getScalarValue(bc_paramS + "T_static", bc_list(i).T_static);
-            bc_list(i).rho = bc_list(i).p_static / (R_gas * bc_list(i).T_static);
         }
         else if (bc_list(i).get_bc_flag() == ADIABAT_FIX)
         {
@@ -395,15 +393,15 @@ void input::read_boundary_param(void)
     for (int i = 0; i < bc_list.get_dim(0); i++)
     {
 
-        if (bc_list(i).get_bc_flag() == SUB_IN_SIMP) //HACK: only the velocity is specified and must stay subsonic when the simulation goes on
+        if (bc_list(i).get_bc_flag() == SUB_IN_SIMP)
         {
             bc_list(i).velocity.setup(3);
-            bc_list(i).velocity(0) = bc_list(i).mach * sqrt(gamma * R_gas * T_free_stream) * bc_list(i).nx;
-            bc_list(i).velocity(1) = bc_list(i).mach * sqrt(gamma * R_gas * T_free_stream) * bc_list(i).ny;
-            bc_list(i).velocity(2) = bc_list(i).mach * sqrt(gamma * R_gas * T_free_stream) * bc_list(i).nz;
+            bc_list(i).velocity(0) = bc_list(i).mach * sqrt(gamma * R_gas * bc_list(i).T_static) * bc_list(i).nx;
+            bc_list(i).velocity(1) = bc_list(i).mach * sqrt(gamma * R_gas * bc_list(i).T_static) * bc_list(i).ny;
+            bc_list(i).velocity(2) = bc_list(i).mach * sqrt(gamma * R_gas * bc_list(i).T_static) * bc_list(i).nz;
             if (viscous)
             {
-                bc_list(i).rho /= rho_ref;
+                bc_list(i).T_static /= T_ref;
                 for (int j = 0; j < 3; j++)
                     bc_list(i).velocity(j) /= uvw_ref;
             }
@@ -432,6 +430,7 @@ void input::read_boundary_param(void)
         }
         else if (bc_list(i).get_bc_flag() == SUP_IN)
         {
+            bc_list(i).rho = bc_list(i).p_static / (R_gas * bc_list(i).T_static);
             bc_list(i).velocity.setup(3);
             bc_list(i).velocity(0) = bc_list(i).mach * sqrt(gamma * R_gas * bc_list(i).T_static) * bc_list(i).nx;
             bc_list(i).velocity(1) = bc_list(i).mach * sqrt(gamma * R_gas * bc_list(i).T_static) * bc_list(i).ny;
@@ -440,6 +439,7 @@ void input::read_boundary_param(void)
             {
                 bc_list(i).rho /= rho_ref;
                 bc_list(i).p_static /= p_ref;
+                bc_list(i).T_static /= T_ref;
                 for (int j = 0; j < 3; j++)
                     bc_list(i).velocity(j) /= uvw_ref;
             }
@@ -451,6 +451,7 @@ void input::read_boundary_param(void)
         }
         else if (bc_list(i).get_bc_flag() == CHAR)
         {
+            bc_list(i).rho = bc_list(i).p_static / (R_gas * bc_list(i).T_static);
             bc_list(i).velocity.setup(3);
             bc_list(i).velocity(0) = bc_list(i).mach * sqrt(gamma * R_gas * bc_list(i).T_static) * bc_list(i).nx;
             bc_list(i).velocity(1) = bc_list(i).mach * sqrt(gamma * R_gas * bc_list(i).T_static) * bc_list(i).ny;
@@ -459,6 +460,7 @@ void input::read_boundary_param(void)
             {
                 bc_list(i).rho /= rho_ref;
                 bc_list(i).p_static /= p_ref;
+                bc_list(i).T_static /= T_ref;
                 for (int j = 0; j < 3; j++)
                     bc_list(i).velocity(j) /= uvw_ref;
             }

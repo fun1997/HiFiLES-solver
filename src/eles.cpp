@@ -206,7 +206,10 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         }
         else if (LES)//for all LES calculation of wall distance is necessary
         {
-            wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
+            if ((sgs_model != 1 && sgs_model != 2) || wall_model) //not WALE or wall model
+                wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
+            else
+                wall_distance.setup(1);
             if (wall_model)
             {
                 twall.setup(n_upts_per_ele, n_eles, n_fields);
@@ -2449,12 +2452,14 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     mu = (run_input.mu_inf)*pow(rt_ratio,1.5)*(1+(run_input.c_sth))/(rt_ratio+(run_input.c_sth));
     mu = mu + run_input.fix_vis*(run_input.mu_inf - mu);
 
-    // Magnitude of wall distance vector
-    y = 0.0;
-    for (i = 0; i < n_dims; i++)
-        y += wall_distance(upt, ele, i) * wall_distance(upt, ele, i);
-    y = sqrt(y);
-
+    if ((sgs_model != 1 && sgs_model != 2) || wall_model)
+    {
+        // Magnitude of wall distance vector
+        y = 0.0;
+        for (i = 0; i < n_dims; i++)
+            y += wall_distance(upt, ele, i) * wall_distance(upt, ele, i);
+        y = sqrt(y);
+    }
     // Initialize SGS flux hf_array to zero
     temp_sgsf.initialize_to_zero();
 
@@ -2723,7 +2728,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
 
                 denom = pow(denom,2.5) + pow(num,1.25);
                 num = pow(num,1.5);
-                mu_t = rho*min(y*y*karman*karman,C_s*C_s*delta*delta)*num/(denom+eps);
+                mu_t = rho*C_s*C_s*delta*delta*num/(denom+eps);
             }
 
             // Add eddy-viscosity term to SGS fluxes

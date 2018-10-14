@@ -335,19 +335,18 @@ void bdy_inters::set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r
         // Subsonic inflow simple (free pressure)
         if(bc_flag == SUB_IN_SIMP)
         {
-            // fix density and velocity
-            rho_r = run_input.bc_list(bc_id).rho;
-            for (int i=0; i<n_dims; i++)
-                v_r[i] =  run_input.bc_list(bc_id).velocity[i];
+            // extrapolate density
+            rho_r = rho_l;
 
-            // extrapolate pressure
-            p_r = p_l;
+            // fix velocity
+            for (int i = 0; i < n_dims; i++)
+                v_r[i] = run_input.bc_list(bc_id).velocity[i];
 
             // compute energy
             v_sq = 0.;
-            for (int i=0; i<n_dims; i++)
-                v_sq += (v_r[i]*v_r[i]);
-            e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
+            for (int i = 0; i < n_dims; i++)
+                v_sq += (v_r[i] * v_r[i]);
+            e_r = rho_r * (R_ref / (gamma - 1.0) * run_input.bc_list(bc_id).T_static + 0.5 * v_sq);
 
             // SA model
             if (run_input.turb_model == 1)
