@@ -287,8 +287,9 @@ void inters::right_flux(hf_array<double> &f_r, hf_array<double> &norm, hf_array<
 // Rusanov inviscid numerical flux(conservative form Riemann solver)
 void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
 {
-  double vx_l,vy_l,vx_r,vy_r,vz_l,vz_r,vn_l,vn_r,p_l,p_r,vn_av_mag,a_l,a_r,eig;
-  hf_array<double> fn_l(n_fields),fn_r(n_fields);
+  double vn_l, vn_r, vsq_l, vsq_r, p_l, p_r, eig;
+  hf_array<double> v_l(n_dims), v_r(n_dims);      //velocities
+  hf_array<double> fn_l(n_fields), fn_r(n_fields);//noraml fluxes
 
   // calculate normal flux from discontinuous solution at flux points
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
@@ -306,36 +307,26 @@ void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array
     }
   }
 #endif
+
+  vn_l = 0;
+  vn_r = 0;
+  vsq_l = 0;
+  vsq_r = 0;
+
   // calculate wave speeds
-  vx_l=u_l(1)/u_l(0);
-  vx_r=u_r(1)/u_r(0);
+  for (int i = 0; i < n_dims; i++)
+  {
+    v_l(i) = u_l(i + 1) / u_l(0);
+    v_r(i) = u_r(i + 1) / u_r(0);
+    vn_l += v_l(i) * norm(i);
+    vn_r += v_r(i) * norm(i);
+    vsq_l += pow(v_l(i), 2.);
+    vsq_r += pow(v_r(i), 2.);
+  }
+  p_l = (gamma - 1.0) * (u_l(n_fields - 1) - 0.5 * u_l(0) * vsq_l);
+  p_r = (gamma - 1.0) * (u_r(n_fields - 1) - 0.5 * u_r(0) * vsq_r);
 
-  vy_l=u_l(2)/u_l(0);
-  vy_r=u_r(2)/u_r(0);
-
-  if(n_dims==2) {
-      vn_l=vx_l*norm(0)+vy_l*norm(1);
-      vn_r=vx_r*norm(0)+vy_r*norm(1);
-
-      p_l=(gamma-1.0)*(u_l(3)-(0.5*u_l(0)*((vx_l*vx_l)+(vy_l*vy_l))));
-      p_r=(gamma-1.0)*(u_r(3)-(0.5*u_r(0)*((vx_r*vx_r)+(vy_r*vy_r))));
-    }
-  else if(n_dims==3) {
-      vz_l=u_l(3)/u_l(0);
-      vz_r=u_r(3)/u_r(0);
-
-      vn_l=vx_l*norm(0)+vy_l*norm(1)+vz_l*norm(2);
-      vn_r=vx_r*norm(0)+vy_r*norm(1)+vz_r*norm(2);
-
-      p_l=(gamma-1.0)*(u_l(4)-(0.5*u_l(0)*((vx_l*vx_l)+(vy_l*vy_l)+(vz_l*vz_l))));
-      p_r=(gamma-1.0)*(u_r(4)-(0.5*u_r(0)*((vx_r*vx_r)+(vy_r*vy_r)+(vz_r*vz_r))));
-    }
-  else
-    FatalError("ERROR: Invalid number of dimensions ... ");
-
-  a_l = sqrt(gamma * p_l / u_l(0)); //speed of sound
-  a_r = sqrt(gamma * p_r / u_r(0));
-  eig = max(fabs(vn_l) + a_l, fabs(vn_r) + a_r);
+  eig = sqrt(gamma * (p_l + p_r) / (u_l(0) + u_r(0))) + 0.5 * fabs(vn_l + vn_r);
 
   // calculate the normal continuous flux at the flux points
 
@@ -505,7 +496,7 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
   //declare arrays and variables
   hf_array<double> fn_l(n_fields), fn_r(n_fields); //normal fluxes
   double S_L, S_R, S_star;                         //wave speeds
-  hf_array<double> v_l(n_dims), v_r(n_dims);
+  hf_array<double> v_l(n_dims), v_r(n_dims);  //velocities
   double p_l, p_r, a_l, a_r, h_l, h_r; //pressure, speed of sound, total enthalpy
   double vn_l, vn_r, vsq_l, vsq_r;     //normal velocities and velocity squared
   double sq_rho, rrho, h_m, a_m, vn_m; //roe average
@@ -594,7 +585,7 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
   }
 }
 
-// Rusanov inviscid numerical flux
+// Lax-Friedrich inviscid numerical flux
 void inters::lax_friedrich(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double lambda, hf_array<double>& wave_speed)
 {
 

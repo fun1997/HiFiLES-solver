@@ -573,7 +573,7 @@ void output::write_vtu(int in_file_num)
       write_pvtu << "		<PPointData Scalars=\"Density\" Vectors=\"Velocity\">" << endl;
       write_pvtu << "			<PDataArray type=\"Float32\" Name=\"Density\" />" << endl;
       write_pvtu << "			<PDataArray type=\"Float32\" Name=\"Velocity\" NumberOfComponents=\"3\" />" << endl;
-      write_pvtu << "			<PDataArray type=\"Float32\" Name=\"SpecificEnergy\" />" << endl;
+      write_pvtu << "			<PDataArray type=\"Float32\" Name=\"SpecificTotalEnergy\" />" << endl;
 
       /*! write out modified turbulent viscosity */
       if (run_input.turb_model==1) {
@@ -751,7 +751,7 @@ void output::write_vtu(int in_file_num)
               write_vtu << "				</DataArray>" << endl;
 
               /*! energy */
-              write_vtu << "				<DataArray type= \"Float32\" Name=\"SpecificEnergy\" format=\"ascii\">" << endl;
+              write_vtu << "				<DataArray type= \"Float32\" Name=\"SpecificTotalEnergy\" format=\"ascii\">" << endl;
               for(k=0;k<n_points;k++)
                 {
                   /*! In 2D energy is the 4th solution component */
@@ -1594,7 +1594,7 @@ void output::write_probe(void)
             else
               FatalError("2 dimensional elements don't have z velocity");
           }
-          else if (run_probe.probe_fields(j) == "specific_energy") //e
+          else if (run_probe.probe_fields(j) == "specific_total_energy") //e
           {
             if (run_input.viscous)
               write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(n_dims + 1) / disu_probe_point_temp(0) * run_input.uvw_ref * run_input.uvw_ref;

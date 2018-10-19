@@ -233,9 +233,6 @@ double eval_grad_jacobi(double in_r, int in_alpha, int in_beta, int in_mode);
 //Array manipulations
 //--------------------
 
-/*! method to add together two arrays M1 and M2*/
-hf_array <double> add_arrays(hf_array <double>& M1, hf_array <double>& M2);
-
 /*! method to multiply together two 2-dimensional arrays M1(L*M) by M2(M*N)*/
 hf_array <double> mult_arrays(hf_array <double>& M1, hf_array <double>& M2);
 

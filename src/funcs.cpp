@@ -2819,33 +2819,6 @@ double flt_res(int N, hf_array<double>& wf, hf_array<double>& B, double k_0, dou
   return flt_res;
 }
 
-// Add arrays M1 and M2
-hf_array <double> add_arrays(hf_array <double>& M1, hf_array <double>& M2)
-{
-  // Get dimensions of arrays
-  int dim_1_0 = M1.get_dim(0);
-  int dim_1_1 = M1.get_dim(1);
-  int dim_1_2 = M1.get_dim(2);
-  int dim_1_3 = M1.get_dim(3);
-
-  int dim_2_0 = M2.get_dim(0);
-  int dim_2_1 = M2.get_dim(1);
-  int dim_2_2 = M2.get_dim(2);
-  int dim_2_3 = M2.get_dim(3);
-
-  if (dim_1_0 == dim_2_0 and dim_1_1 == dim_2_1 and dim_1_2 == dim_2_2 and dim_1_3 == dim_2_3)
-  {
-    int siz = dim_1_0 * dim_1_1 * dim_1_2 * dim_1_3;
-    hf_array<double> sum(dim_1_0, dim_1_1, dim_1_2, dim_1_3);
-    for (int i = 0; i < siz; ++i)
-      sum(i) = M1(i) + M2(i);
-  }
-  else
-    {
-      FatalError("hf_array dimensions are not compatible in sum function");
-    }
-}
-
 // Multiply M1(L*M) by M2(M*N)
 hf_array <double> mult_arrays(hf_array <double>& M1, hf_array <double>& M2)
 {
