@@ -74,9 +74,6 @@ public:
 	/*! get look up table for flux point connectivity based on rotation tag */
 	void get_lut(int in_rot_tag);
 
-  /*! Compute common flux at boundaries using convective flux formulation */
-  void convective_flux_boundary(hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields);
-
 	protected:
 
 	// #### members ####

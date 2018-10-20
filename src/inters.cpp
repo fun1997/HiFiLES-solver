@@ -334,33 +334,6 @@ void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array
     fn(k) = 0.5*( (fn_l(k)+fn_r(k)) - eig*(u_r(k)-u_l(k)) );
 }
 
-// Central-difference inviscid numerical flux at the boundaries
-void inters::convective_flux_boundary( hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields)
-{
-  hf_array<double> fn_l(n_fields),fn_r(n_fields);
-
-  // calculate normal flux from discontinuous solution at flux points
-  fn_l.initialize_to_zero();
-  fn_r.initialize_to_zero();
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-  cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_l.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_l.get_ptr_cpu(), 1);
-  cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_r.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_r.get_ptr_cpu(), 1);
-#else
-  for (int k = 0; k < n_fields; k++)
-  {
-    for (int l = 0; l < n_dims; l++)
-    {
-      fn_l(k) += f_l(k, l) * norm(l);
-      fn_r(k) += f_r(k, l) * norm(l);
-    }
-  }
-#endif
-
-  // calculate the normal continuous flux at the flux points
-  for(int k=0;k<n_fields;k++)
-    fn(k)=0.5*(fn_l(k)+fn_r(k));
-}
-
 // Roe inviscid numerical flux
 void inters::roe_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double gamma)
 {

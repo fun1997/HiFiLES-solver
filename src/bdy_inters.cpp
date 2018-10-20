@@ -243,7 +243,7 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(double time_bound)
                 /*! Calling Riemann solver */
                 if (run_input.riemann_solve_type==0)   //Rusanov
                 {
-                    convective_flux_boundary(temp_f_l,temp_f_r,norm,fn,n_dims,n_fields);
+                    rusanov_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
                 }
                 else if (run_input.riemann_solve_type==1)   // Lax-Friedrich
                 {
