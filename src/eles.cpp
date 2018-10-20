@@ -114,14 +114,17 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         {
             disu_upts(i).setup(n_upts_per_ele,n_eles,n_fields);
         }
+        //initialize the second register for solution value to 0
+        if (n_adv_levels != 1)
+        {
+            for (int m = 1; m < disu_upts.get_dim(0); m++)
+                disu_upts(m).initialize_to_zero();
+        }
 
         // Allocate storage for timestep
         // If using local, one timestep per element
         if(run_input.dt_type == 2)
             dt_local.setup(n_eles);
-
-        //initialize the second register for solution value to 0
-        disu_upts(1).initialize_to_zero();
 
         // Set no. of diagnostic fields
         n_diagnostic_fields = run_input.n_diagnostic_fields;
@@ -249,8 +252,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         }
 
         // Initialize to zero
-        for (int m=0; m<div_tconf_upts.get_dim(0); m++)
-            div_tconf_upts(m).initialize_to_zero();
+        div_tconf_upts(0).initialize_to_zero();
 
         disu_fpts.setup(n_fpts_per_ele,n_eles,n_fields);
         disu_fpts.initialize_to_zero();
