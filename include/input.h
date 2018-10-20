@@ -63,8 +63,8 @@ public:
     /*--- basic solver parameters ---*/
     int viscous;
     int equation;
-    double tau;
-    double pen_fact;
+    double ldg_tau;
+    double ldg_beta;
     double fix_vis;
     double const_src;
     int order;

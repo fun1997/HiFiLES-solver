@@ -195,7 +195,6 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(double time_bound)
     hf_array<double> norm(n_dims), fn(n_fields);
 
     //viscous
-    int flux_spec;
     hf_array<double> u_c(n_fields);
 
 
@@ -204,18 +203,20 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(double time_bound)
         int temp_bc_flag=run_input.bc_list(boundary_id(i)).get_bc_flag();
         for(int j=0; j<n_fpts_per_inter; j++)//loop over flux pts on that interface
         {
-                for (int m=0; m<n_dims; m++)
-                    norm(m) = *norm_fpts(j,i,m);
+            for (int m=0; m<n_dims; m++)
+                norm(m) = *norm_fpts(j,i,m);
 
             /*! calculate discontinuous solution at flux points */
             for(int k=0; k<n_fields; k++)
                 temp_u_l(k)=(*disu_fpts_l(j,i,k));
 
-                // Get static-physical flux point location
-                for (int m=0; m<n_dims; m++)
-                    temp_loc(m) = *pos_fpts(j,i,m);            
+            // Get static-physical flux point location
+            for (int m=0; m<n_dims; m++)
+                temp_loc(m) = *pos_fpts(j,i,m);
 
-            set_inv_boundary_conditions(boundary_id(i),temp_u_l.get_ptr_cpu(),temp_u_r.get_ptr_cpu(),norm.get_ptr_cpu(),temp_loc.get_ptr_cpu(),run_input.gamma,run_input.R_ref,time_bound,run_input.equation);
+            //calculate inviscid boundary solution
+            set_boundary_conditions(0, boundary_id(i), temp_u_l.get_ptr_cpu(), temp_u_r.get_ptr_cpu(),
+                                    norm.get_ptr_cpu(), temp_loc.get_ptr_cpu(), run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
 
             /*! calculate flux from discontinuous solution at flux points */
             if(n_dims==2)
@@ -261,44 +262,40 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(double time_bound)
             }
 
             /*! Transform back to reference space */
-                for(int k=0; k<n_fields; k++)
-                {
-                    (*norm_tconf_fpts_l(j,i,k))=fn(k)*(*tdA_fpts_l(j,i));
-                }
-            
-            if(viscous)
+            for(int k=0; k<n_fields; k++)
             {
-                /*! boundary specification */
-
-                if(temp_bc_flag == ADIABAT_FIX)//adiabatic
-                    flux_spec = 2;
-                else
-                    flux_spec = 1;
-
-                // Calling viscous riemann solver
-                if (run_input.vis_riemann_solve_type==0)
-                    ldg_solution(flux_spec,temp_u_l,temp_u_r,u_c,run_input.pen_fact,norm);
-                else
-                    FatalError("Viscous Riemann solver not implemented");
-
-                    for(int k=0; k<n_fields; k++)
-                    {
-                        *delta_disu_fpts_l(j,i,k) = (u_c(k) - temp_u_l(k));
-                    } 
+                (*norm_tconf_fpts_l(j,i,k))=fn(k)*(*tdA_fpts_l(j,i));
             }
 
+            if(viscous)
+            {
+            //calculate viscous boundary solution if is wall boundary
+            if (temp_bc_flag == SLIP_WALL || temp_bc_flag == ISOTHERM_WALL || temp_bc_flag == ADIABAT_WALL || temp_bc_flag == AD_WALL || temp_bc_flag == SLIP_WALL_DUAL)
+                set_boundary_conditions(1, boundary_id(i), temp_u_l.get_ptr_cpu(), temp_u_r.get_ptr_cpu(),
+                                        norm.get_ptr_cpu(), temp_loc.get_ptr_cpu(), run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
+            // Calling viscous riemann solver
+            if (run_input.vis_riemann_solve_type==0)
+                ldg_solution(1,temp_u_l,temp_u_r,u_c,run_input.ldg_beta,norm);
+            else
+                FatalError("Viscous Riemann solver not implemented");
+
+            for(int k=0; k<n_fields; k++)
+            {
+                *delta_disu_fpts_l(j,i,k) = (u_c(k) - temp_u_l(k));
+            }
+            }
         }
     }
 
 #endif
 
 #ifdef _GPU
-    if (n_inters!=0)
-        evaluate_boundaryConditions_invFlux_gpu_kernel_wrapper(n_fpts_per_inter,n_dims,n_fields,n_inters,disu_fpts_l.get_ptr_gpu(),norm_tconf_fpts_l.get_ptr_gpu(),tdA_fpts_l.get_ptr_gpu(),ndA_dyn_fpts_l.get_ptr_gpu(),J_dyn_fpts_l.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),pos_fpts.get_ptr_gpu(),pos_dyn_fpts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu(),boundary_type.get_ptr_gpu(),bdy_params.get_ptr_gpu(),run_input.riemann_solve_type,delta_disu_fpts_l.get_ptr_gpu(),run_input.gamma,run_input.R_ref,viscous,motion,run_input.vis_riemann_solve_type, time_bound, run_input.wave_speed(0),run_input.wave_speed(1),run_input.wave_speed(2),run_input.lambda,run_input.equation,run_input.turb_model);
+    if (n_inters != 0)
+        evaluate_boundaryConditions_invFlux_gpu_kernel_wrapper(n_fpts_per_inter, n_dims, n_fields, n_inters, disu_fpts_l.get_ptr_gpu(), norm_tconf_fpts_l.get_ptr_gpu(), tdA_fpts_l.get_ptr_gpu(), ndA_dyn_fpts_l.get_ptr_gpu(), J_dyn_fpts_l.get_ptr_gpu(), norm_fpts.get_ptr_gpu(), norm_dyn_fpts.get_ptr_gpu(), pos_fpts.get_ptr_gpu(), pos_dyn_fpts.get_ptr_gpu(), grid_vel_fpts.get_ptr_gpu(), boundary_type.get_ptr_gpu(), bdy_params.get_ptr_gpu(), run_input.riemann_solve_type, delta_disu_fpts_l.get_ptr_gpu(), run_input.gamma, run_input.R_ref, viscous, motion, run_input.vis_riemann_solve_type, time_bound, run_input.wave_speed(0), run_input.wave_speed(1), run_input.wave_speed(2), run_input.lambda, run_input.equation, run_input.turb_model);
 #endif
 }
 
-void bdy_inters::set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r, double *norm, double *loc,double gamma, double R_ref, double time_bound, int equation)
+void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, double *u_r, double *norm, double *loc, double gamma, double R_ref, double time_bound, int equation)
 {
     double rho_l, rho_r;
     double v_l[n_dims], v_r[n_dims];
@@ -335,8 +332,8 @@ void bdy_inters::set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r
         // Subsonic inflow simple (free pressure)
         if(bc_flag == SUB_IN_SIMP)
         {
-            // extrapolate density
-            rho_r = rho_l;
+            // fix density
+            rho_r = run_input.bc_list(bc_id).rho;
 
             // fix velocity
             for (int i = 0; i < n_dims; i++)
@@ -346,7 +343,7 @@ void bdy_inters::set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r
             v_sq = 0.;
             for (int i = 0; i < n_dims; i++)
                 v_sq += (v_r[i] * v_r[i]);
-            e_r = rho_r * (R_ref / (gamma - 1.0) * run_input.bc_list(bc_id).T_static + 0.5 * v_sq);
+            e_r = p_l / (gamma - 1.0) + 0.5 * rho_r * v_sq;
 
             // SA model
             if (run_input.turb_model == 1)
@@ -638,9 +635,6 @@ void bdy_inters::set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r
             // extrapolate density
             rho_r = rho_l;
 
-            // extrapolate pressure
-            p_r = p_l;
-
             // Compute normal velocity on left side
             vn_l = 0.;
             for (int i=0; i<n_dims; i++)
@@ -651,36 +645,36 @@ void bdy_inters::set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r
                 v_r[i] = v_l[i] - 2*vn_l*norm[i];
 
             // energy
-            v_sq = 0.;
-            for (int i=0; i<n_dims; i++)
-                v_sq += (v_r[i]*v_r[i]);
-
-            e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
+            e_r = e_l;
         }
 
-        // Isothermal, no-slip wall (fixed)
-        else if(bc_flag == ISOTHERM_FIX)
+        // Isothermal, no-slip wall 
+        else if(bc_flag == ISOTHERM_WALL)
         {
-            // Set state for the right side
-            // extrapolate pressure
-            p_r = p_l;
-
             // isothermal temperature
             T_r = run_input.bc_list(bc_id).T_static;
 
-            // density
-            rho_r = p_r/(R_ref*T_r);
+            // extrapolate density
+            rho_r = rho_l;
 
             // no-slip
+            if(sol_spec==0)//inviscid solution
+            {
             for (int i=0; i<n_dims; i++)
-                v_r[i] = -v_l[i];
+                v_r[i] = 2 * run_input.bc_list(bc_id).velocity(i) - v_l[i];
+            }
+            else//viscous solution
+            {
+                for (int i = 0; i < n_dims; i++)
+                    v_r[i] = run_input.bc_list(bc_id).velocity(i);
+            }
 
             // energy
             v_sq = 0.;
             for (int i=0; i<n_dims; i++)
                 v_sq += (v_r[i]*v_r[i]);
 
-            e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
+            e_r = rho_r * (R_ref / (gamma - 1.0) * T_r) + 0.5 * rho_r * v_sq;
 
             // SA model
             if (run_input.turb_model == 1)
@@ -691,18 +685,29 @@ void bdy_inters::set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r
         }
 
         // Adiabatic, no-slip wall (fixed)
-        else if(bc_flag == ADIABAT_FIX)
+        else if(bc_flag == ADIABAT_WALL)
         {
             // extrapolate density
             rho_r = rho_l; // only useful part
 
             // no-slip
-            for (int i=0; i<n_dims; i++)
-                v_r[i] = -v_l[i];
+            if (sol_spec == 0) //inviscid solution
+            {
+                for (int i = 0; i < n_dims; i++)
+                    v_r[i] = 2 * run_input.bc_list(bc_id).velocity(i) - v_l[i];
+            }
+            else //viscous solution
+            {
+                for (int i = 0; i < n_dims; i++)
+                    v_r[i] = run_input.bc_list(bc_id).velocity(i);
+            }
 
             // energy
+            v_sq = 0.;
+            for (int i=0; i<n_dims; i++)
+                v_sq += (v_r[i]*v_r[i]);
 
-            e_r = e_l;
+            e_r = p_l / (gamma - 1.0) + 0.5 * rho_r * v_sq;
 
             // SA model
             if (run_input.turb_model == 1)
@@ -827,7 +832,7 @@ void bdy_inters::set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r
             // set v = v - (vn_l)ny
             // set w = w - (vn_l)nz
             for (int i=0; i<n_dims; i++)
-                v_r[i] = v_l[i] - vn_l*norm[i];
+                v_r[i] = v_l[i] - 2 * vn_l * norm[i];
 
             // extrapolate energy
             e_r = e_l;
@@ -865,18 +870,12 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
 {
 
 #ifdef _CPU
-    int  flux_spec;
     hf_array<double> norm(n_dims), fn(n_fields);
 
     for(int i=0; i<n_inters; i++)
     {
         /*! boundary specification */
         int temp_bc_flag=run_input.bc_list(boundary_id(i)).get_bc_flag();
-
-        if(temp_bc_flag == ADIABAT_FIX)//adiabatic
-            flux_spec = 2;
-        else
-            flux_spec = 1;
 
         for(int j=0; j<n_fpts_per_inter; j++)
         {
@@ -889,94 +888,47 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
                 {
                     norm(m) = *norm_fpts(j,i,m);
                     temp_loc(m) = *pos_fpts(j,i,m);
-                }            
-
-            set_inv_boundary_conditions(boundary_id(i),temp_u_l.get_ptr_cpu(),temp_u_r.get_ptr_cpu(),norm.get_ptr_cpu(),temp_loc.get_ptr_cpu(),run_input.gamma,run_input.R_ref,time_bound,run_input.equation);
-
-            /*! obtain physical gradient of discontinuous solution at flux points */
-            for(int k=0; k<n_dims; k++)
-            {
-                for(int l=0; l<n_fields; l++)
-                {
-                    temp_grad_u_l(l,k) = *grad_disu_fpts_l(j,i,l,k);
                 }
-            }
-
-            /*! Right gradient */
-            if(flux_spec == 2)
-            {
-                // Extrapolate
-                for(int k=0; k<n_dims; k++)
+                if (temp_bc_flag != SLIP_WALL)//if not slip wall(slip wall dont need to calculate viscous flux)
                 {
-                    for(int l=0; l<n_fields; l++)
+                    //calculate viscous boundary solution
+                    set_boundary_conditions(1, boundary_id(i), temp_u_l.get_ptr_cpu(), temp_u_r.get_ptr_cpu(),
+                                            norm.get_ptr_cpu(), temp_loc.get_ptr_cpu(), run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
+
+                    /*! obtain physical gradient of discontinuous solution at flux points */
+                    for(int k=0; k<n_dims; k++)
                     {
-                        temp_grad_u_r(l,k) = temp_grad_u_l(l,k);
+                        for(int l=0; l<n_fields; l++)
+                        {
+                            temp_grad_u_l(l,k) = *grad_disu_fpts_l(j,i,l,k);
+                        }
                     }
-                }
 
-                set_vis_boundary_conditions(boundary_id(i), temp_u_l, temp_u_r, temp_grad_u_r, norm, temp_loc, run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
-            }
+                    set_boundary_gradients(boundary_id(i), temp_u_l, temp_u_r, temp_grad_u_l, temp_grad_u_r,
+                                           norm, temp_loc, run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
 
-            /*! calculate flux from discontinuous solution at flux points */
-            if(n_dims==2)
-            {
-
-                if(flux_spec == 1)
-                {
-                    calc_visf_2d(temp_u_l,temp_grad_u_l,temp_f_l);
-                }
-                else if(flux_spec == 2)
-                {
-                    calc_visf_2d(temp_u_r,temp_grad_u_r,temp_f_r);
-                }
-                else
-                    FatalError("Invalid viscous flux specification");
-            }
-            else if(n_dims==3)
-            {
-
-                if(flux_spec == 1)
-                {
-                    calc_visf_3d(temp_u_l,temp_grad_u_l,temp_f_l);
-                }
-                else if(flux_spec == 2)
-                {
-                    calc_visf_3d(temp_u_r,temp_grad_u_r,temp_f_r);
-                }
-                else
-                    FatalError("Invalid viscous flux specification");
-            }
-            else
-                FatalError("ERROR: Invalid number of dimensions ... ");
-
-
-            // If LES (but no wall model?), get SGS flux and add to viscous flux
-            if(LES)
-            {
-
-                for(int k=0; k<n_dims; k++)
-                {
-                    for(int l=0; l<n_fields; l++)
+                    /*! calculate flux from discontinuous solution at flux points */
+                    if(n_dims==2)
                     {
-
-                        // pointer to subgrid-scale flux
-                        temp_sgsf_l(l,k) = *sgsf_fpts_l(j,i,l,k);
-
-                        // Add SGS flux to viscous flux
-                        temp_f_l(l,k) += temp_sgsf_l(l,k);
+                        calc_visf_2d(temp_u_r,temp_grad_u_r,temp_f_r);
                     }
+                    else if(n_dims==3)
+                    {
+                        calc_visf_3d(temp_u_r,temp_grad_u_r,temp_f_r);
+                    }
+                    else
+                        FatalError("ERROR: Invalid number of dimensions ... ");
+
+                    /*! Calling viscous riemann solver */
+                    if (run_input.vis_riemann_solve_type == 0)
+                        ldg_flux(1, temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.ldg_tau, run_input.ldg_beta);
+                    else
+                        FatalError("Viscous Riemann solver not implemented");
+
+                    /*! Transform back to reference space. */
+                    for(int k=0; k<n_fields; k++)
+                        (*norm_tconf_fpts_l(j,i,k))+=fn(k)*(*tdA_fpts_l(j,i));
                 }
-            }
-
-            /*! Calling viscous riemann solver */
-            if (run_input.vis_riemann_solve_type==0)
-                ldg_flux(flux_spec,temp_u_l,temp_u_r,temp_f_l,temp_f_r,norm,fn,n_dims,n_fields,run_input.tau,run_input.pen_fact);
-            else
-                FatalError("Viscous Riemann solver not implemented");
-
-            /*! Transform back to reference space. */
-                for(int k=0; k<n_fields; k++)
-                    (*norm_tconf_fpts_l(j,i,k))+=fn(k)*(*tdA_fpts_l(j,i));
         }
     }
     
@@ -984,47 +936,64 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
 
 #ifdef _GPU
     if (n_inters!=0)
-        evaluate_boundaryConditions_viscFlux_gpu_kernel_wrapper(n_fpts_per_inter,n_dims,n_fields,n_inters,disu_fpts_l.get_ptr_gpu(),grad_disu_fpts_l.get_ptr_gpu(),norm_tconf_fpts_l.get_ptr_gpu(),tdA_fpts_l.get_ptr_gpu(),ndA_dyn_fpts_l.get_ptr_gpu(),J_dyn_fpts_l.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu(),pos_fpts.get_ptr_gpu(),pos_dyn_fpts.get_ptr_gpu(),sgsf_fpts_l.get_ptr_gpu(),boundary_type.get_ptr_gpu(),bdy_params.get_ptr_gpu(),delta_disu_fpts_l.get_ptr_gpu(),run_input.riemann_solve_type,run_input.vis_riemann_solve_type,run_input.R_ref,run_input.pen_fact,run_input.tau,run_input.gamma,run_input.prandtl,run_input.rt_inf,run_input.mu_inf,run_input.c_sth,run_input.fix_vis, time_bound, run_input.equation, run_input.diff_coeff, LES, motion, run_input.turb_model, run_input.c_v1, run_input.omega, run_input.prandtl_t);
+        evaluate_boundaryConditions_viscFlux_gpu_kernel_wrapper(n_fpts_per_inter,n_dims,n_fields,n_inters,disu_fpts_l.get_ptr_gpu(),grad_disu_fpts_l.get_ptr_gpu(),norm_tconf_fpts_l.get_ptr_gpu(),tdA_fpts_l.get_ptr_gpu(),ndA_dyn_fpts_l.get_ptr_gpu(),J_dyn_fpts_l.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu(),pos_fpts.get_ptr_gpu(),pos_dyn_fpts.get_ptr_gpu(),sgsf_fpts_l.get_ptr_gpu(),boundary_type.get_ptr_gpu(),bdy_params.get_ptr_gpu(),delta_disu_fpts_l.get_ptr_gpu(),run_input.riemann_solve_type,run_input.vis_riemann_solve_type,run_input.R_ref,run_input.ldg_beta,run_input.ldg_tau,run_input.gamma,run_input.prandtl,run_input.rt_inf,run_input.mu_inf,run_input.c_sth,run_input.fix_vis, time_bound, run_input.equation, run_input.diff_coeff, LES, motion, run_input.turb_model, run_input.c_v1, run_input.omega, run_input.prandtl_t);
 #endif
 }
 
-
-void bdy_inters::set_vis_boundary_conditions(int bc_id, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &grad_u, hf_array<double> &norm, hf_array<double> &loc, double gamma, double R_ref, double time_bound, int equation)
+void bdy_inters::set_boundary_gradients(int bc_id, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &grad_ul, hf_array<double> &grad_ur, hf_array<double> &norm, hf_array<double> &loc, double gamma, double R_ref, double time_bound, int equation)
 {
     double v_sq;
     double inte;
-    double p_l, p_r;
+    double p_l;
 
-    hf_array<double> grad_vel(n_dims,n_dims);//component,dim
+    hf_array<double> grad_vel(n_dims,n_dims),grad_inte(n_dims);//component,dim
 
     int bc_flag=run_input.bc_list(bc_id).get_bc_flag();
 
-    // Adiabatic wall
-    if (bc_flag == ADIABAT_FIX)
+    if (bc_flag == CHAR || bc_flag == SUP_IN || bc_flag == SUB_IN_SIMP || bc_flag == SUB_OUT_SIMP)//zero gradients
+        grad_ur.initialize_to_zero();
+    else//extrapolate gradients
+        grad_ur = grad_ul;
+
+    if (bc_flag == ADIABAT_WALL) //adiabatic wall substract norm temperature gradient from energy gradients
     {
+        //left state
         v_sq = 0.;
         for (int i = 0; i < n_dims; i++)
             v_sq += (u_l(i + 1) * u_l(i + 1));
-        p_l = (gamma - 1.0) * (u_l(n_dims + 1) - 0.5 * v_sq / u_l(0));
-        p_r = p_l;
-
-        inte = p_r / ((gamma - 1.0) * u_r(0));
+        inte = (u_l(n_dims + 1) - 0.5 * v_sq / u_l(0)) / u_l(0);//inte=cvT=(rhoE-0.5*rho*u^2)/rho
 
         // Velocity gradients
-        for (int j = 0; j < n_dims; j++) //direction
-            for (int i = 0; i < n_dims; i++)//velocity component
-                grad_vel(i, j) = (grad_u(i + 1, j) - grad_u(0, j) * u_r(i + 1) / u_r(0)) / u_r(0); //drhou_i/dx_j-u_i*drho/dx_j)/rho
+        for (int j = 0; j < n_dims; j++)                                                             //direction
+            for (int i = 0; i < n_dims; i++)                                                         //velocity component
+                grad_vel(i, j) = (grad_ur(i + 1, j) - grad_ur(0, j) * u_r(i + 1) / u_r(0)) / u_r(0); //du_i/dx_j=drhou_i/dx_j-u_i*drho/dx_j)/rho
 
-        // Energy gradients (set grad T = 0) inte*drho/dx_i+0.5*u^2drho/dx_i+rhou*du/dx_i
+        //internal energy gradients
+        v_sq = 0.;
+        for (int i = 0; i < n_dims; i++)
+            v_sq += (u_r(i + 1) * u_r(i + 1));
+        if(n_dims==2)
+        {
+            for (int i = 0; i < n_dims; i++) //dinte/dx_i=drhoE/dx_i-(inte*drho/dx_i+0.5*u^2drho/dx_i+rhou*du/dx_i)
+                grad_inte(i) = grad_ur(3, i) - (inte * grad_ur(0, i) + 0.5 * v_sq / (u_r[0] * u_r[0]) * grad_ur(0, i) + u_r[1] * grad_vel(0, i) + u_r[2] * grad_vel(1, i));
+        }
+        else
+        {
+            for (int i = 0; i < n_dims; i++) //dinte/dx_i=drhoE/dx_i-(inte*drho/dx_i+0.5*u^2drho/dx_i+rhou*du/dx_i)
+                grad_inte(i) = grad_ur(4, i) - (inte * grad_ur(0, i) + 0.5 * v_sq / (u_r[0] * u_r[0]) * grad_ur(0, i) + u_r[1] * grad_vel(0, i) + u_r[2] * grad_vel(1, i) + u_r[3] * grad_vel(2, i));
+        }
+
+        // Energy gradients (set grad dT/dn = 0)
+
         if (n_dims == 2)
         {
             for (int i = 0; i < n_dims; i++)
-                grad_u(3, i) = inte * grad_u(0, i) + 0.5 * v_sq / (u_r[0] * u_r[0]) * grad_u(0, i) + u_r[1] * grad_vel(0, i) + u_r[2] * grad_vel(1, i);
+                grad_ur(3, i) -= (grad_inte(0) * norm(0) + grad_inte(1) * norm(1)) * norm(i);//dinte/dn(i)=(dinte/dx_j*n_j)*n_i
         }
         else if (n_dims == 3)
         {
             for (int i = 0; i < n_dims; i++)
-                grad_u(4, i) = inte * grad_u(0, i) + 0.5 * v_sq / (u_r[0] * u_r[0]) * grad_u(0, i) + u_r[1] * grad_vel(0, i) + u_r[2] * grad_vel(1, i) + u_r[3] * grad_vel(2, i);
+                grad_ur(4, i) = (grad_inte(0) * norm(0) + grad_inte(1) * norm(1) + grad_inte(2) * norm(2)) * norm(i);//dinte/dn(i)=(dinte/dx_j*n_j)*n_i
         }
     }
 }

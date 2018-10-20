@@ -55,10 +55,10 @@ public:
   void set_boundary(int in_inter, int bc_id, int in_ele_type_l, int in_ele_l, int in_local_inter_l, struct solution* FlowSol);
 
   /*! Compute right hand side state at boundaries */
-  void set_inv_boundary_conditions(int bc_id, double* u_l, double* u_r, double *norm, double *loc,double gamma, double R_ref, double time_bound, int equation);
+  void set_boundary_conditions(int sol_spec,int bc_id, double* u_l, double* u_r, double *norm, double *loc,double gamma, double R_ref, double time_bound, int equation);
 
   /*! Compute right hand side gradient at boundaries */
-  void set_vis_boundary_conditions(int bc_id, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &grad_u, hf_array<double> &norm, hf_array<double> &loc, double gamma, double R_ref, double time_bound, int equation);
+void set_boundary_gradients(int bc_id, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &grad_ul, hf_array<double> &grad_ur, hf_array<double> &norm, hf_array<double> &loc, double gamma, double R_ref, double time_bound, int equation);
 
   /*! move all from cpu to gpu */
   void mv_all_cpu_gpu(void);

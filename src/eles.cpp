@@ -6108,11 +6108,11 @@ void eles::CalcIntegralQuantities(int n_integral_quantities, hf_array <double>& 
                 {
                     // Kinetic energy
                     tke = 0.0;
-                    for (int n=1; n<n_fields-1; n++)
+                    for (int n=1; n<n_dims+1; n++)
                         tke += 0.5*disu_cubpt(n)*disu_cubpt(n);
 
                     // Compute pressure
-                    pressure = (run_input.gamma-1.0)*(disu_cubpt(n_fields-1) - irho*tke);
+                    pressure = (run_input.gamma-1.0)*(disu_cubpt(n_dims+1) - irho*tke);
 
                     // Multiply pressure by divergence of velocity
                     if (n_dims==2)
@@ -6304,8 +6304,8 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
         for (int l=0; l<n_inters_per_ele; l++)
         {
 
-            if (run_input.bc_list(bcid(ele,l)).get_bc_flag() == SLIP_WALL || run_input.bc_list(bcid(ele,l)).get_bc_flag() == ISOTHERM_FIX ||
-             run_input.bc_list(bcid(ele,l)).get_bc_flag() == ADIABAT_FIX || run_input.bc_list(bcid(ele,l)).get_bc_flag()==SLIP_WALL_DUAL)
+            if (run_input.bc_list(bcid(ele,l)).get_bc_flag() == SLIP_WALL || run_input.bc_list(bcid(ele,l)).get_bc_flag() == ISOTHERM_WALL ||
+             run_input.bc_list(bcid(ele,l)).get_bc_flag() == ADIABAT_WALL || run_input.bc_list(bcid(ele,l)).get_bc_flag()==SLIP_WALL_DUAL)
             {
 
                 // Compute force on this interface

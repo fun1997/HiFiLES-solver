@@ -61,8 +61,8 @@ enum BCFLAG {
   SUP_OUT       = 5,
   SLIP_WALL     = 6,
   CYCLIC        = 7,
-  ISOTHERM_FIX  = 8,
-  ADIABAT_FIX   = 9,
+  ISOTHERM_WALL  = 8,
+  ADIABAT_WALL   = 9,
   CHAR          = 10,
   SLIP_WALL_DUAL= 11,
   AD_WALL       = 12

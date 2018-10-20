@@ -80,7 +80,7 @@ void input::read_input_file(string fileName, int rank)
 
     opts.getScalarValue("equation", equation);
     opts.getScalarValue("order", order);
-    opts.getScalarValue("viscous", viscous, 1);
+    opts.getScalarValue("viscous", viscous);
     opts.getScalarValue("mesh_file", mesh_file);
     opts.getScalarValue("ic_form", ic_form, 1);
     opts.getScalarValue("test_case", test_case, 0);
@@ -94,17 +94,17 @@ void input::read_input_file(string fileName, int rank)
 
     /* ---- Visualization / Monitoring / Output Parameters ---- */
 
-    opts.getScalarValue("plot_freq", plot_freq, 500);
+    opts.getScalarValue("plot_freq", plot_freq, (int) INFINITY);
     opts.getScalarValue("data_file_name", data_file_name, string("Mesh"));
-    opts.getScalarValue("restart_dump_freq", restart_dump_freq, 0);
+    opts.getScalarValue("restart_dump_freq", restart_dump_freq, (int) INFINITY);
     opts.getScalarValue("monitor_res_freq", monitor_res_freq, 100);
-    opts.getScalarValue("monitor_cp_freq", monitor_cp_freq, 0);
+    opts.getScalarValue("monitor_cp_freq", monitor_cp_freq, (int) INFINITY);
     opts.getScalarValue("calc_force", calc_force, 0);
     opts.getScalarValue("res_norm_type", res_norm_type, 2);
     opts.getScalarValue("error_norm_type", error_norm_type, 2);
     opts.getScalarValue("res_norm_field", res_norm_field, 0);
-    opts.getScalarValue("p_res", p_res, 3);
-    opts.getScalarValue("write_type", write_type, 0);
+    opts.getScalarValue("p_res", p_res, 2);
+    opts.getScalarValue("write_type", write_type, 0);//default vtu
     opts.getScalarValue("probe", probe, 0);
     opts.getVectorValueOptional("integral_quantities", integral_quantities);
     opts.getVectorValueOptional("diagnostic_fields", diagnostic_fields);
@@ -131,8 +131,8 @@ void input::read_input_file(string fileName, int rank)
 
     /* ---- Basic Solver Parameters ---- */
 
-    opts.getScalarValue("riemann_solve_type", riemann_solve_type);
-    opts.getScalarValue("vis_riemann_solve_type", vis_riemann_solve_type);
+    opts.getScalarValue("riemann_solve_type", riemann_solve_type);//default Rusanov
+    opts.getScalarValue("vis_riemann_solve_type", vis_riemann_solve_type,0);//default LDG
     opts.getScalarValue("adv_type", adv_type);
     opts.getScalarValue("dt_type", dt_type);
     if (dt_type == 2 && rank == 0)
@@ -151,9 +151,11 @@ void input::read_input_file(string fileName, int rank)
     {
         opts.getScalarValue("CFL", CFL);
     }
-
-    opts.getScalarValue("tau", tau, 0.);
-    opts.getScalarValue("pen_fact", pen_fact, 0.5);
+    if (vis_riemann_solve_type == 0) //ldg
+    {
+        opts.getScalarValue("ldg_tau", ldg_tau, 0.);//default least dissipation
+        opts.getScalarValue("ldg_beta", ldg_beta, 0.5);//default one sided
+    }
 
     /* ---- Turbulence Modeling Parameters ---- */
 
@@ -168,7 +170,7 @@ void input::read_input_file(string fileName, int rank)
         opts.getScalarValue("filter_ratio", filter_ratio);
         opts.getScalarValue("wall_model", wall_model);
         if (wall_model)
-            opts.getScalarValue("wall_layer_thickness", wall_layer_t);
+            opts.getScalarValue("wall_layer_thickness", wall_layer_t);//TODO: try to fix this
     }
 
     /* ---- Gas Parameters ---- */
@@ -302,6 +304,7 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("body_forcing", forcing, 0);
     opts.getScalarValue("perturb_ic", perturb_ic, 0);
 
+    //for ic_form=6 polynomial initial conditions
     // NOTE: the input file line must look like "x_coeffs <# coeffs> x1 x2 x3..."
     opts.getVectorValueOptional("x_coeffs", x_coeffs);
     opts.getVectorValueOptional("y_coeffs", y_coeffs);
@@ -327,11 +330,11 @@ void input::read_boundary_param(void)
         //read paramters need by the type
         if (bc_list(i).get_bc_flag() == SUB_IN_SIMP) //given mass flow rate
         {
-            bdy_r.getScalarValue(bc_paramS + "mach", bc_list(i).mach);
-            bdy_r.getScalarValue(bc_paramS + "T_static", bc_list(i).T_static);
-            bdy_r.getScalarValue(bc_paramS + "nx", bc_list(i).nx, 1.);
-            bdy_r.getScalarValue(bc_paramS + "ny", bc_list(i).ny, 0.);
-            bdy_r.getScalarValue(bc_paramS + "nz", bc_list(i).nz, 0.);
+            bdy_r.getScalarValue(bc_paramS + "rho", bc_list(i).rho);
+            bc_list(i).velocity.setup(3);
+            bdy_r.getScalarValue(bc_paramS + "u", bc_list(i).velocity(0));
+            bdy_r.getScalarValue(bc_paramS + "v", bc_list(i).velocity(1));
+            bdy_r.getScalarValue(bc_paramS + "w", bc_list(i).velocity(2));
         }
         else if (bc_list(i).get_bc_flag() == SUB_IN_CHAR)
         {
@@ -354,7 +357,7 @@ void input::read_boundary_param(void)
         else if (bc_list(i).get_bc_flag() == SUB_OUT_SIMP || bc_list(i).get_bc_flag() == SUB_OUT_CHAR)
         {
             bdy_r.getScalarValue(bc_paramS + "p_static", bc_list(i).p_static);
-            bdy_r.getScalarValue(bc_paramS + "T_total", bc_list(i).T_total);
+            bdy_r.getScalarValue(bc_paramS + "T_total", bc_list(i).T_total, T_free_stream);
         }
         else if (bc_list(i).get_bc_flag() == SUP_IN)
         {
@@ -365,11 +368,15 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "nz", bc_list(i).nz, 0.);
             bdy_r.getScalarValue(bc_paramS + "T_static", bc_list(i).T_static);
         }
-        else if (bc_list(i).get_bc_flag() == ISOTHERM_FIX)
+        else if (bc_list(i).get_bc_flag() == ISOTHERM_WALL)
         {
             if (!viscous)
                 FatalError("Isothermal wall boundary only available to viscous simulation");
             bdy_r.getScalarValue(bc_paramS + "T_static", bc_list(i).T_static);
+            bc_list(i).velocity.setup(3);
+            bdy_r.getScalarValue(bc_paramS + "u", bc_list(i).velocity(0), 0.);
+            bdy_r.getScalarValue(bc_paramS + "v", bc_list(i).velocity(1), 0.);
+            bdy_r.getScalarValue(bc_paramS + "w", bc_list(i).velocity(2), 0.);
         }
         else if (bc_list(i).get_bc_flag() == CHAR)
         {
@@ -380,10 +387,14 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "nz", bc_list(i).nz, 0.);
             bdy_r.getScalarValue(bc_paramS + "T_static", bc_list(i).T_static);
         }
-        else if (bc_list(i).get_bc_flag() == ADIABAT_FIX)
+        else if (bc_list(i).get_bc_flag() == ADIABAT_WALL)
         {
             if (!viscous)
                 FatalError("Adiabatic wall boundary only available to viscous simulation");
+            bc_list(i).velocity.setup(3);
+            bdy_r.getScalarValue(bc_paramS + "u", bc_list(i).velocity(0), 0.);
+            bdy_r.getScalarValue(bc_paramS + "v", bc_list(i).velocity(1), 0.);
+            bdy_r.getScalarValue(bc_paramS + "w", bc_list(i).velocity(2), 0.);
         }
     }
 
@@ -395,13 +406,9 @@ void input::read_boundary_param(void)
 
         if (bc_list(i).get_bc_flag() == SUB_IN_SIMP)
         {
-            bc_list(i).velocity.setup(3);
-            bc_list(i).velocity(0) = bc_list(i).mach * sqrt(gamma * R_gas * bc_list(i).T_static) * bc_list(i).nx;
-            bc_list(i).velocity(1) = bc_list(i).mach * sqrt(gamma * R_gas * bc_list(i).T_static) * bc_list(i).ny;
-            bc_list(i).velocity(2) = bc_list(i).mach * sqrt(gamma * R_gas * bc_list(i).T_static) * bc_list(i).nz;
             if (viscous)
             {
-                bc_list(i).T_static /= T_ref;
+                bc_list(i).rho /= rho_ref;
                 for (int j = 0; j < 3; j++)
                     bc_list(i).velocity(j) /= uvw_ref;
             }
@@ -444,10 +451,14 @@ void input::read_boundary_param(void)
                     bc_list(i).velocity(j) /= uvw_ref;
             }
         }
-        else if (bc_list(i).get_bc_flag() == ISOTHERM_FIX)
+        else if (bc_list(i).get_bc_flag() == ISOTHERM_WALL)
         {
             if (viscous)
+            {
                 bc_list(i).T_static /= T_ref;
+                for (int j = 0; j < 3; j++)
+                    bc_list(i).velocity(j) /= uvw_ref;
+            }
         }
         else if (bc_list(i).get_bc_flag() == CHAR)
         {
@@ -461,6 +472,14 @@ void input::read_boundary_param(void)
                 bc_list(i).rho /= rho_ref;
                 bc_list(i).p_static /= p_ref;
                 bc_list(i).T_static /= T_ref;
+                for (int j = 0; j < 3; j++)
+                    bc_list(i).velocity(j) /= uvw_ref;
+            }
+        }
+        else if (bc_list(i).get_bc_flag() == ADIABAT_WALL)
+        {
+            if (viscous)
+            {
                 for (int j = 0; j < 3; j++)
                     bc_list(i).velocity(j) /= uvw_ref;
             }
@@ -489,21 +508,21 @@ void input::setup_params(int rank)
     {
         if (riemann_solve_type == 1) 
             FatalError("Lax-Friedrich flux not supported with NS/RANS equation");
-        if (ic_form == 2 || ic_form == 3 || ic_form == 4)
+        if (ic_form == 2 || ic_form == 3 || ic_form == 4 || ic_form == 5)
             FatalError("Initial condition not supported with NS/RANS equation");
     }
     else if (equation == 1)
     {
-        if (riemann_solve_type == 0)
-            FatalError("Rusanov flux not supported with Advection-Diffusion equation");
+        if (riemann_solve_type != 1)
+            FatalError("Riemann solver not supported with Advection-Diffusion equation");
         if (ic_form != 2 && ic_form != 3 && ic_form != 4 && ic_form != 5)
             FatalError("Initial condition not supported with Advection-Diffusion equation");
     }
 
     if (turb_model)
     {
-        if (riemann_solve_type == 2)
-            FatalError("Roe flux not supported with RANS turbulent models");
+        if (riemann_solve_type == 2 || riemann_solve_type == 3)
+            FatalError("Roe flux and HLLC flux not supported with RANS turbulent models");
         if (!viscous)
             FatalError("turbulent model not supported with inviscid flow");
         if (LES)
@@ -567,7 +586,7 @@ void input::setup_params(int rank)
             p_ref = rho_ref * uvw_ref * uvw_ref;
             mu_ref = rho_ref * uvw_ref * L_ref;
             time_ref = L_ref / uvw_ref;
-            R_ref = (R_gas * T_ref) / (uvw_ref * uvw_ref); // R/R_ref,non_dimensionalized R_gas
+            R_ref = (R_gas * T_ref) / (uvw_ref * uvw_ref); // non_dimensionalized R_gas
 
             // non-dimensionalize sutherland law parameters
             c_sth = S_gas / T_gas;

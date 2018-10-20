@@ -19,8 +19,8 @@ void bc::setup(const string &in_bc_name) //setup the maps
     bc_type2flag["sup_out"] = 5;      // Supersonic outflow //
     bc_type2flag["slip_wall"] = 6;    // Slip wall //
     bc_type2flag["cyclic"] = 7;        // Cyclic//
-    bc_type2flag["isotherm_fix"] = 8;    // Isothermal, no-slip wall //
-    bc_type2flag["adiabat_fix"] = 9;    // Adiabatic, no-slip wall //
+    bc_type2flag["isotherm_wall"] = 8;    // Isothermal, no-slip wall //
+    bc_type2flag["adiabat_wall"] = 9;    // Adiabatic, no-slip wall //
     bc_type2flag["char"] = 10;           // Characteristic //
     bc_type2flag["slip_wall_dual"] = 11; // Dual consistent BC //
     bc_type2flag["ad_wall"] = 12;        // Advection, Advection-Diffusion Boundary Conditions //

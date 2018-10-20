@@ -758,7 +758,7 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
 
       int bctype_f = run_input.bc_list(bcid_f).get_bc_flag();
       // All types of no-slip wall
-      if (bctype_f == ISOTHERM_FIX || bctype_f == ADIABAT_FIX)
+      if (bctype_f == ISOTHERM_WALL || bctype_f == ADIABAT_WALL)
       {
         // segs
         if (mesh_data.f2nv(i) == 2)
@@ -830,7 +830,7 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
       bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
       int bctype_f = run_input.bc_list(bcid_f).get_bc_flag();
       // All types of no-slip wall
-      if (bctype_f == ISOTHERM_FIX || bctype_f == ADIABAT_FIX)
+      if (bctype_f == ISOTHERM_WALL || bctype_f == ADIABAT_WALL)
       {
 
         // segs

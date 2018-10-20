@@ -66,10 +66,10 @@ public:
   void lax_friedrich(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double lambda, hf_array<double>& wave_speed);
 
   /*! Compute common viscous flux using LDG formulation */
-  void ldg_flux(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double tau, double pen_fact);
+  void ldg_flux(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double ldg_tau, double ldg_beta);
 
   /*! Compute common solution using LDG formulation */
-  void ldg_solution(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &u_c, double pen_fact, hf_array<double>& norm);
+  void ldg_solution(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &u_c, double ldg_beta, hf_array<double>& norm);
 
 	/*! get look up table for flux point connectivity based on rotation tag */
 	void get_lut(int in_rot_tag);

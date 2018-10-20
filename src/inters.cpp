@@ -292,9 +292,9 @@ void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array
   hf_array<double> fn_l(n_fields), fn_r(n_fields);//noraml fluxes
 
   // calculate normal flux from discontinuous solution at flux points
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
   fn_l.initialize_to_zero();
   fn_r.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
   cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_l.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_l.get_ptr_cpu(), 1);
   cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_r.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_r.get_ptr_cpu(), 1);
 #else
@@ -323,8 +323,8 @@ void inters::rusanov_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array
     vsq_l += pow(v_l(i), 2.);
     vsq_r += pow(v_r(i), 2.);
   }
-  p_l = (gamma - 1.0) * (u_l(n_fields - 1) - 0.5 * u_l(0) * vsq_l);
-  p_r = (gamma - 1.0) * (u_r(n_fields - 1) - 0.5 * u_r(0) * vsq_r);
+  p_l = (gamma - 1.0) * (u_l(n_dims + 1) - 0.5 * u_l(0) * vsq_l);
+  p_r = (gamma - 1.0) * (u_r(n_dims + 1) - 0.5 * u_r(0) * vsq_r);
 
   eig = sqrt(gamma * (p_l + p_r) / (u_l(0) + u_r(0))) + 0.5 * fabs(vn_l + vn_r);
 
@@ -339,17 +339,22 @@ void inters::convective_flux_boundary( hf_array<double> &f_l, hf_array<double> &
 {
   hf_array<double> fn_l(n_fields),fn_r(n_fields);
 
-  // calculate normal flux from total discontinuous flux at flux points
-  for(int k=0;k<n_fields;k++) {
-
-      fn_l(k)=0.;
-      fn_r(k)=0.;
-
-      for(int l=0;l<n_dims;l++) {
-          fn_l(k)+=f_l(k,l)*norm(l);
-          fn_r(k)+=f_r(k,l)*norm(l);
-        }
+  // calculate normal flux from discontinuous solution at flux points
+  fn_l.initialize_to_zero();
+  fn_r.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_l.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_l.get_ptr_cpu(), 1);
+  cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_r.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_r.get_ptr_cpu(), 1);
+#else
+  for (int k = 0; k < n_fields; k++)
+  {
+    for (int l = 0; l < n_dims; l++)
+    {
+      fn_l(k) += f_l(k, l) * norm(l);
+      fn_r(k) += f_r(k, l) * norm(l);
     }
+  }
+#endif
 
   // calculate the normal continuous flux at the flux points
   for(int k=0;k<n_fields;k++)
@@ -612,133 +617,64 @@ void inters::lax_friedrich(hf_array<double> &u_l, hf_array<double> &u_r, hf_arra
 
 
 // LDG viscous numerical flux
-void inters::ldg_flux(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double tau, double pen_fact)
+void inters::ldg_flux(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double ldg_tau, double ldg_beta)
 {
-  hf_array<double> f_c(n_fields,n_dims);
-  double norm_x, norm_y, norm_z;
+  hf_array<double> fn_l(n_fields), fn_r(n_fields);
+  //natural switch
 
-  if(n_dims==2) // needs to be reviewed and understood
-    {
-      if ((norm(0)+norm(1)) <0.)
-        pen_fact = -pen_fact;
-    }
-  if(n_dims==3)
-    {
-      if ((norm(0)+norm(1)+sqrt(2.)*norm(2)) <0.)
-        pen_fact = -pen_fact;
-    }
-
-  norm_x = norm(0);
-  norm_y = norm(1);
-
-  if(n_dims == 3)
-    norm_z = norm(2);
-
+  // calculate right normal flux
+  fn_r.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_r.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_r.get_ptr_cpu(), 1);
+#else
+  for (int k = 0; k < n_fields; k++)
+    for (int l = 0; l < n_dims; l++)
+      fn_r(k) += f_r(k, l) * norm(l);
+#endif
 
   if(flux_spec == 0) //Interior and mpi
     {
+      // calculate left normal flux
+      fn_l.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+      cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_l.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_l.get_ptr_cpu(), 1);
+#else
+      for (int k = 0; k < n_fields; k++)
+        for (int l = 0; l < n_dims; l++)
+          fn_l(k) += f_l(k, l) * norm(l);
+#endif
+
       for(int k=0;k<n_fields;k++)
         {
-          if(n_dims == 2)
-            {
-              f_c(k,0) = 0.5*(f_l(k,0) + f_r(k,0)) + pen_fact*norm_x*( norm_x*(f_l(k,0) - f_r(k,0)) + norm_y*(f_l(k,1) - f_r(k,1)) ) + tau*norm_x*(u_l(k) - u_r(k));
-              f_c(k,1) = 0.5*(f_l(k,1) + f_r(k,1)) + pen_fact*norm_y*( norm_x*(f_l(k,0) - f_r(k,0)) + norm_y*(f_l(k,1) - f_r(k,1)) ) + tau*norm_y*(u_l(k) - u_r(k));
-            }
-
-          if(n_dims == 3)
-            {
-              f_c(k,0) = 0.5*(f_l(k,0) + f_r(k,0)) + pen_fact*norm_x*( norm_x*(f_l(k,0) - f_r(k,0)) + norm_y*(f_l(k,1) - f_r(k,1)) + norm_z*(f_l(k,2) - f_r(k,2)) ) + tau*norm_x*(u_l(k) - u_r(k));
-              f_c(k,1) = 0.5*(f_l(k,1) + f_r(k,1)) + pen_fact*norm_y*( norm_x*(f_l(k,0) - f_r(k,0)) + norm_y*(f_l(k,1) - f_r(k,1)) + norm_z*(f_l(k,2) - f_r(k,2)) ) + tau*norm_y*(u_l(k) - u_r(k));
-              f_c(k,2) = 0.5*(f_l(k,2) + f_r(k,2)) + pen_fact*norm_z*( norm_x*(f_l(k,0) - f_r(k,0)) + norm_y*(f_l(k,1) - f_r(k,1)) + norm_z*(f_l(k,2) - f_r(k,2)) ) + tau*norm_z*(u_l(k) - u_r(k));
-            }
+            fn(k)=(0.5+ldg_beta)*fn_l(k)+(0.5-ldg_beta)*fn_r(k)+ldg_tau*(u_l(k)-u_r(k));
         }
     }
-  else if(flux_spec == 1) //Dirichlet
+  else if(flux_spec == 1) //boundary flux
     {
       for(int k=0;k<n_fields;k++)
         {
-          if(n_dims == 2)
-            {
-              f_c(k,0) = f_l(k,0) + tau*norm_x*(u_l(k) - u_r(k));
-              f_c(k,1) = f_l(k,1) + tau*norm_y*(u_l(k) - u_r(k));
-            }
-
-          if(n_dims == 3)
-            {
-              f_c(k,0) = f_l(k,0) + tau*norm_x*(u_l(k) - u_r(k));
-              f_c(k,1) = f_l(k,1) + tau*norm_y*(u_l(k) - u_r(k));
-              f_c(k,2) = f_l(k,2) + tau*norm_z*(u_l(k) - u_r(k));
-            }
-        }
-    }
-  else if(flux_spec == 2) //von Neumann
-    {
-      for(int k=0;k<n_fields;k++)
-        {
-          if(n_dims == 2)
-            {
-              f_c(k,0) = f_r(k,0) + tau*norm_x*(u_l(k) - u_r(k));
-              f_c(k,1) = f_r(k,1) + tau*norm_y*(u_l(k) - u_r(k));
-            }
-
-          if(n_dims == 3)
-            {
-              f_c(k,0) = f_r(k,0) + tau*norm_x*(u_l(k) - u_r(k));
-              f_c(k,1) = f_r(k,1) + tau*norm_y*(u_l(k) - u_r(k));
-              f_c(k,2) = f_r(k,2) + tau*norm_z*(u_l(k) - u_r(k));
-            }
+          fn(k)=fn_r(k)+ldg_tau*(u_l(k)-u_r(k));
         }
     }
   else
     FatalError("This variant of the LDG flux has not been implemented");
-
-
-  // calculate normal flux from discontinuous solution at flux points
-  for(int k=0;k<n_fields;k++)
-    {
-      fn(k) = f_c(k,0)*norm(0);
-
-      for(int l=1;l<n_dims;l++)
-        {
-          fn(k) += f_c(k,l)*norm(l);
-        }
-    }
 }
 
 
 // LDG common solution
-void inters::ldg_solution(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &u_c, double pen_fact, hf_array<double>& norm)
+void inters::ldg_solution(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &u_c, double ldg_beta, hf_array<double>& norm)
 {
-
+      //natural switch
   if(flux_spec == 0) // Interior and mpi
     {
-      // Choosing a unique direction for the switch
-      if(n_dims==2)
-        {
-          if ((norm(0)+norm(1)) <0.)
-            pen_fact = -pen_fact;
-        }
-      if(n_dims==3)
-        {
-          if ((norm(0)+norm(1)+sqrt(2.)*norm(2)) <0.)
-            pen_fact = -pen_fact;
-        }
-
-      for(int k=0;k<n_fields;k++)
-        u_c(k) = 0.5*(u_l(k) + u_r(k)) - pen_fact*(u_l(k) - u_r(k));
+        for (int k = 0; k < n_fields; k++)
+          u_c(k) = 0.5 * (u_l(k) + u_r(k)) - ldg_beta * (u_l(k) - u_r(k));
     }
-  else if(flux_spec == 1) //Dirichlet
+    else if (flux_spec == 1) //boundary
     {
-      for(int k=0;k<n_fields;k++)
-        u_c(k) = 0.5 * ( u_r(k) + u_l(k) );
+      u_c = u_r;
     }
-  else if(flux_spec == 2) //von Neumann
-    {
-      for(int k=0;k<n_fields;k++)
-        u_c(k) = 0.5 * ( u_r(k) + u_l(k) );
-    }
-  else
-    FatalError("This variant of the LDG flux has not been implemented");
-
+    else
+      FatalError("This variant of the LDG flux has not been implemented");
 }
 

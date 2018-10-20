@@ -483,7 +483,7 @@ void mpi_inters::calculate_common_invFlux(void)
             {
               // Calling viscous riemann solver
               if (run_input.vis_riemann_solve_type==0)
-                ldg_solution(0,temp_u_l,temp_u_r,u_c,run_input.pen_fact,norm);
+                ldg_solution(0,temp_u_l,temp_u_r,u_c,run_input.ldg_beta,norm);
               else
                 FatalError("Viscous Riemann solver not implemented");
 
@@ -499,7 +499,7 @@ void mpi_inters::calculate_common_invFlux(void)
 
 #ifdef _GPU
   if (n_inters!=0) {
-      calculate_common_invFlux_mpi_gpu_kernel_wrapper(n_fpts_per_inter,n_dims,n_fields,n_inters,disu_fpts_l.get_ptr_gpu(),disu_fpts_r.get_ptr_gpu(),norm_tconf_fpts_l.get_ptr_gpu(),tdA_fpts_l.get_ptr_gpu(),ndA_dyn_fpts_l.get_ptr_gpu(),J_dyn_fpts_l.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu(),run_input.riemann_solve_type, delta_disu_fpts_l.get_ptr_gpu(),run_input.gamma, run_input.pen_fact, run_input.viscous, motion, run_input.vis_riemann_solve_type, run_input.wave_speed(0), run_input.wave_speed(1), run_input.wave_speed(2), run_input.lambda, run_input.turb_model);
+      calculate_common_invFlux_mpi_gpu_kernel_wrapper(n_fpts_per_inter,n_dims,n_fields,n_inters,disu_fpts_l.get_ptr_gpu(),disu_fpts_r.get_ptr_gpu(),norm_tconf_fpts_l.get_ptr_gpu(),tdA_fpts_l.get_ptr_gpu(),ndA_dyn_fpts_l.get_ptr_gpu(),J_dyn_fpts_l.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu(),run_input.riemann_solve_type, delta_disu_fpts_l.get_ptr_gpu(),run_input.gamma, run_input.ldg_beta, run_input.viscous, motion, run_input.vis_riemann_solve_type, run_input.wave_speed(0), run_input.wave_speed(1), run_input.wave_speed(2), run_input.lambda, run_input.turb_model);
     }
 #endif
 
@@ -573,7 +573,7 @@ void mpi_inters::calculate_common_viscFlux(void)
 
           // Calling viscous riemann solver
           if (run_input.vis_riemann_solve_type==0)
-            ldg_flux(0,temp_u_l,temp_u_r,temp_f_l,temp_f_r,norm,fn,n_dims,n_fields,run_input.tau,run_input.pen_fact);
+            ldg_flux(0,temp_u_l,temp_u_r,temp_f_l,temp_f_r,norm,fn,n_dims,n_fields,run_input.ldg_tau,run_input.ldg_beta);
           else
             FatalError("Viscous Riemann solver not implemented");
 
@@ -590,7 +590,7 @@ void mpi_inters::calculate_common_viscFlux(void)
 
 #ifdef _GPU
   if (n_inters!=0)
-    calculate_common_viscFlux_mpi_gpu_kernel_wrapper(n_fpts_per_inter,n_dims,n_fields,n_inters,disu_fpts_l.get_ptr_gpu(),disu_fpts_r.get_ptr_gpu(),grad_disu_fpts_l.get_ptr_gpu(),grad_disu_fpts_r.get_ptr_gpu(),norm_tconf_fpts_l.get_ptr_gpu(),tdA_fpts_l.get_ptr_gpu(),ndA_dyn_fpts_l.get_ptr_gpu(),J_dyn_fpts_l.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),sgsf_fpts_l.get_ptr_gpu(),sgsf_fpts_r.get_ptr_gpu(),run_input.riemann_solve_type,run_input.vis_riemann_solve_type,run_input.pen_fact,run_input.tau,run_input.gamma,run_input.prandtl,run_input.rt_inf,run_input.mu_inf,run_input.c_sth,run_input.fix_vis,run_input.diff_coeff,LES,motion,run_input.turb_model,run_input.c_v1,run_input.omega,run_input.prandtl_t);
+    calculate_common_viscFlux_mpi_gpu_kernel_wrapper(n_fpts_per_inter,n_dims,n_fields,n_inters,disu_fpts_l.get_ptr_gpu(),disu_fpts_r.get_ptr_gpu(),grad_disu_fpts_l.get_ptr_gpu(),grad_disu_fpts_r.get_ptr_gpu(),norm_tconf_fpts_l.get_ptr_gpu(),tdA_fpts_l.get_ptr_gpu(),ndA_dyn_fpts_l.get_ptr_gpu(),J_dyn_fpts_l.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),sgsf_fpts_l.get_ptr_gpu(),sgsf_fpts_r.get_ptr_gpu(),run_input.riemann_solve_type,run_input.vis_riemann_solve_type,run_input.ldg_beta,run_input.ldg_tau,run_input.gamma,run_input.prandtl,run_input.rt_inf,run_input.mu_inf,run_input.c_sth,run_input.fix_vis,run_input.diff_coeff,LES,motion,run_input.turb_model,run_input.c_v1,run_input.omega,run_input.prandtl_t);
 #endif
 }
 
