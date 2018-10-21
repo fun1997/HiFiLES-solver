@@ -969,31 +969,30 @@ void bdy_inters::set_boundary_gradients(int bc_id, hf_array<double> &u_l, hf_arr
 
     if (bc_flag == ADIABAT_WALL) //adiabatic wall substract norm temperature gradient from energy gradients
     {
-        //left internal energy
+        //right internal energy
         v_sq = 0.;
         for (int i = 0; i < n_dims; i++)
-            v_sq += (u_l(i + 1) * u_l(i + 1));
-        inte = (u_l(n_dims + 1) - 0.5 * v_sq / u_l(0)) / u_l(0); //inte=cvT=(rhoE-0.5*rho*u^2)/rho
+            v_sq += (u_r(i + 1) * u_r(i + 1));
+        inte = (u_r(n_dims + 1) - 0.5 * v_sq / u_r(0)) / u_r(0); //inte=cvT=(rhoE-0.5*rho*u^2)/rho
 
-        // left velocity gradients
+        // right velocity gradients
         for (int j = 0; j < n_dims; j++)                                                             //direction
             for (int i = 0; i < n_dims; i++)                                                         //velocity component
-                grad_vel(i, j) = (grad_ul(i + 1, j) - grad_ul(0, j) * u_l(i + 1) / u_l(0)) / u_l(0); //du_i/dx_j=drhou_i/dx_j-u_i*drho/dx_j)/rho
+                grad_vel(i, j) = (grad_ur(i + 1, j) - grad_ur(0, j) * u_r(i + 1) / u_r(0)) / u_r(0); //du_i/dx_j=drhou_i/dx_j-u_i*drho/dx_j)/rho
 
-        //left internal energy gradients
+        //right internal energy gradients
         if (n_dims == 2)
         {
             for (int i = 0; i < n_dims; i++) //dinte/dx_i=drhoE/dx_i-(inte*drho/dx_i+0.5*u^2drho/dx_i+rhou*du/dx_i)
-                grad_inte(i) = grad_ul(3, i) - (inte * grad_ul(0, i) + 0.5 * v_sq / (u_l[0] * u_l[0]) * grad_ul(0, i) + u_l[1] * grad_vel(0, i) + u_l[2] * grad_vel(1, i));
+                grad_inte(i) = grad_ur(3, i) - (inte * grad_ur(0, i) + 0.5 * v_sq / (u_r[0] * u_r[0]) * grad_ur(0, i) + u_r[1] * grad_vel(0, i) + u_r[2] * grad_vel(1, i));
         }
         else
         {
             for (int i = 0; i < n_dims; i++) //dinte/dx_i=drhoE/dx_i-(inte*drho/dx_i+0.5*u^2drho/dx_i+rhou*du/dx_i)
-                grad_inte(i) = grad_ul(4, i) - (inte * grad_ul(0, i) + 0.5 * v_sq / (u_l[0] * u_l[0]) * grad_ul(0, i) + u_l[1] * grad_vel(0, i) + u_l[2] * grad_vel(1, i) + u_l[3] * grad_vel(2, i));
+                grad_inte(i) = grad_ur(4, i) - (inte * grad_ur(0, i) + 0.5 * v_sq / (u_r[0] * u_r[0]) * grad_ur(0, i) + u_r[1] * grad_vel(0, i) + u_r[2] * grad_vel(1, i) + u_r[3] * grad_vel(2, i));
         }
 
         // correct right energy gradients (set grad dT/dn = 0)
-
         if (n_dims == 2)
         {
             for (int i = 0; i < n_dims; i++)
