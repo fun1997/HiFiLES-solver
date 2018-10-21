@@ -94,11 +94,11 @@ void input::read_input_file(string fileName, int rank)
 
     /* ---- Visualization / Monitoring / Output Parameters ---- */
 
-    opts.getScalarValue("plot_freq", plot_freq, (int) INFINITY);
+    opts.getScalarValue("plot_freq", plot_freq, INT32_MAX);
     opts.getScalarValue("data_file_name", data_file_name, string("Mesh"));
-    opts.getScalarValue("restart_dump_freq", restart_dump_freq, (int) INFINITY);
+    opts.getScalarValue("restart_dump_freq", restart_dump_freq, INT32_MAX);
     opts.getScalarValue("monitor_res_freq", monitor_res_freq, 100);
-    opts.getScalarValue("monitor_cp_freq", monitor_cp_freq, (int) INFINITY);
+    opts.getScalarValue("monitor_cp_freq", monitor_cp_freq, INT32_MAX);
     opts.getScalarValue("calc_force", calc_force, 0);
     opts.getScalarValue("res_norm_type", res_norm_type, 2);
     opts.getScalarValue("error_norm_type", error_norm_type, 2);
