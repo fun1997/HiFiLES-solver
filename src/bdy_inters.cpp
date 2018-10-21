@@ -640,12 +640,24 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             for (int i=0; i<n_dims; i++)
                 vn_l += v_l[i]*norm[i];
 
-            // set normal velocity
-            for (int i=0; i<n_dims; i++)
-                v_r[i] = v_l[i] - 2*vn_l*norm[i];
+            // set velocity
+            if (sol_spec == 0) //inviscid solution
+            {
+                for (int i = 0; i < n_dims; i++)
+                    v_r[i] = v_l[i] - 2 * vn_l * norm[i];
+            }
+            else//viscous solution
+            {
+                for (int i = 0; i < n_dims; i++)
+                    v_r[i] = v_l[i] - vn_l * norm[i];
+            }
 
             // energy
-            e_r = e_l;
+            v_sq = 0.;
+            for (int i=0; i<n_dims; i++)
+                v_sq += (v_r[i]*v_r[i]);
+
+            e_r = p_l / (gamma - 1.0) + 0.5 * rho_r * v_sq;
         }
 
         // Isothermal, no-slip wall 
