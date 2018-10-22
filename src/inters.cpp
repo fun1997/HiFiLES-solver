@@ -594,10 +594,21 @@ void inters::ldg_flux(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_
 {
   hf_array<double> f_c(n_fields,n_dims);//common flux
   hf_array<double> fn_l(n_fields), fn_r(n_fields); //left right normal flux
-  //natural switch
 
   if(flux_spec == 0) //Interior and mpi
     {
+      //consistent switch
+      if (n_dims == 2)
+      {
+        if ((norm(0) + norm(1)) < 0.)
+          ldg_beta = -ldg_beta;
+      }
+      if (n_dims == 3)
+      {
+        if ((norm(0) + norm(1) + sqrt(2.) * norm(2)) < 0.)
+          ldg_beta = -ldg_beta;
+      }
+
       // calculate  normal flux
       fn_l.initialize_to_zero();
       fn_r.initialize_to_zero();
@@ -644,9 +655,20 @@ void inters::ldg_flux(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_
 // LDG common solution
 void inters::ldg_solution(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &u_c, double ldg_beta, hf_array<double>& norm)
 {
-      //natural switch
   if(flux_spec == 0) // Interior and mpi
     {
+      //consistent switch
+      if (n_dims == 2)
+      {
+        if ((norm(0) + norm(1)) < 0.)
+          ldg_beta = -ldg_beta;
+      }
+      if (n_dims == 3)
+      {
+        if ((norm(0) + norm(1) + sqrt(2.) * norm(2)) < 0.)
+          ldg_beta = -ldg_beta;
+      }
+
       //u_c_k={u}-beta*(u_l-u_r)
         for (int k = 0; k < n_fields; k++)
           u_c(k) = 0.5 * (u_l(k) + u_r(k)) - ldg_beta * (u_l(k) - u_r(k));
