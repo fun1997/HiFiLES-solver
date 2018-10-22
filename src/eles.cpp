@@ -390,7 +390,7 @@ void eles::set_ics(double& time)
             }
             else if (run_input.ic_form==5) // Constant for adv-diff
             {
-                ics(0) = 1.0;
+                ics(0) = run_input.rho_c_ic;
             }
             else if (run_input.ic_form==6) // Up to 4th order polynomials for u, v, w
             {
