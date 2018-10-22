@@ -6250,7 +6250,7 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
     double p_l,v_sq,vn_l;
     hf_array<double> grad_u_l(n_fields,n_dims);
     hf_array<double> dv(n_dims,n_dims);
-    hf_array<double> de(n_dims);
+    hf_array<double> dE(n_dims);
     hf_array<double> drho(n_dims);
     hf_array<double> taun(n_dims);
     hf_array<double> tautan(n_dims);
@@ -6423,9 +6423,9 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                             drho(m) = grad_u_l(0,m);
                             for (int n=0; n<n_dims; n++)
                             {
-                                dv(n,m) = 1.0/u_l(0)*(grad_u_l(n+1,m)-drho(m)*u_l(n+1));;
+                                dv(n,m) = (grad_u_l(n+1,m)-drho(m)*u_l(n+1)/u_l(0))/u_l(0);//dv_n/dx_m=(drhou_n/dx_m-u_n*drho/dx_m)/rho
                             }
-                            de(m) = 1.0/u_l(0)*(grad_u_l(n_dims+1,m)-drho(m)*u_l(n_dims+1));;
+                            dE(m) = (grad_u_l(n_dims+1,m)-drho(m)*u_l(n_dims+1))/u_l(0);//dE/dx_m=(drhoE/dx_m-E*drho/dx_m)/rho
                         }
 
                         // trace of stress tensor
@@ -6440,7 +6440,7 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                         inte = u_l(n_dims+1)/u_l(0);
                         for (int m=0; m<n_dims; m++)
                         {
-                            inte -= 0.5*u_l(m+1)*u_l(m+1);
+                            inte -= 0.5*u_l(m+1)*u_l(m+1)/u_l(0)/u_l(0);
                         }
 
                         // get viscosity
