@@ -78,7 +78,7 @@ void input::read_input_file(string fileName, int rank)
 
     /* ---- Basic Simulation Parameters ---- */
 
-    opts.getScalarValue("equation", equation);
+    opts.getScalarValue("equation", equation);//0: navier-stokes/euler; 1: advection/diffusion
     opts.getScalarValue("order", order);
     opts.getScalarValue("viscous", viscous);
     opts.getScalarValue("mesh_file", mesh_file);
@@ -198,21 +198,24 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("dz_cyclic", dz_cyclic, (double)INFINITY);
 
     /* ---- Initial Conditions ---- */
-    if (viscous)
+    if (equation == 0)//navier-stokes/euler
     {
-        opts.getScalarValue("Mach_c_ic", Mach_c_ic);
-        opts.getScalarValue("nx_c_ic", nx_c_ic, 1.);
-        opts.getScalarValue("ny_c_ic", ny_c_ic, 0.);
-        opts.getScalarValue("nz_c_ic", nz_c_ic, 0.);
-        opts.getScalarValue("T_c_ic", T_c_ic);
-    }
-    //Inviscid
-    else
-    {
-        opts.getScalarValue("u_c_ic", u_c_ic);
-        opts.getScalarValue("v_c_ic", v_c_ic);
-        opts.getScalarValue("w_c_ic", w_c_ic);
-        opts.getScalarValue("p_c_ic", p_c_ic);
+        if (viscous)
+        {
+            opts.getScalarValue("Mach_c_ic", Mach_c_ic);
+            opts.getScalarValue("nx_c_ic", nx_c_ic, 1.);
+            opts.getScalarValue("ny_c_ic", ny_c_ic, 0.);
+            opts.getScalarValue("nz_c_ic", nz_c_ic, 0.);
+            opts.getScalarValue("T_c_ic", T_c_ic);
+        }
+        //Inviscid
+        else
+        {
+            opts.getScalarValue("u_c_ic", u_c_ic);
+            opts.getScalarValue("v_c_ic", v_c_ic);
+            opts.getScalarValue("w_c_ic", w_c_ic);
+            opts.getScalarValue("p_c_ic", p_c_ic);
+        }
     }
     opts.getScalarValue("rho_c_ic", rho_c_ic);
 
@@ -544,7 +547,7 @@ void input::setup_params(int rank)
     // --------------------------
     // NON-DIMENSIONALIZATION
     // --------------------------
-    if (viscous)
+    if (viscous && equation == 0) //navier-stokes
     {
 
         if (rank == 0)
