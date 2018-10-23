@@ -401,11 +401,11 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
                 for (int i=0; i<n_dims; i++)
                     v_r[i] = v_l[i];
 
+                //extrapolate density
+                rho_r = rho_l;
+
                 // fix pressure
                 p_r = run_input.bc_list(bc_id).p_static;
-
-                // extrapolate temperature to calculate density
-                rho_r = p_r/(R_ref*T_l);
 
                 // compute energy
                 v_sq = 0.;
