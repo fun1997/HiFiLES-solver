@@ -600,13 +600,33 @@ void inters::ldg_flux(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_
       //consistent switch
       if (n_dims == 2)
       {
-        if ((norm(0) + norm(1)) < 0.)
+        int sw = norm(0); //(1,0)*norm
+        if (sw < 0.)      //reverse beta
           ldg_beta = -ldg_beta;
+        else if (sw == 0.) //normal vector perpendicular to the test vector,use another test vector
+        {
+          sw = norm(0) + norm(1); //(1,1)*norm
+          if (sw < 0.)            //reverse beta
+            ldg_beta = -ldg_beta;
+        }
       }
       if (n_dims == 3)
       {
-        if ((norm(0) + norm(1) + sqrt(2.) * norm(2)) < 0.)
+        int sw = norm(0); //(1,0,0)*norm
+        if (sw < 0.)      //reverse beta
           ldg_beta = -ldg_beta;
+        else if (sw == 0.) //normal vector perpendicular to the test vector,use another test vector
+        {
+          sw = norm(0) + norm(1); //(1,1,0)*norm
+          if (sw < 0.)            //reverse beta
+            ldg_beta = -ldg_beta;
+          else if (sw == 0) //normal vector perpendicular to the test vector,use another test vector
+          {
+            sw = norm(0) + norm(2); //(1,0,1)*norm
+            if (sw < 0.)            //reverse beta
+              ldg_beta = -ldg_beta;
+          }
+        }
       }
 
       // calculate  normal flux
@@ -660,13 +680,33 @@ void inters::ldg_solution(int flux_spec, hf_array<double> &u_l, hf_array<double>
       //consistent switch
       if (n_dims == 2)
       {
-        if ((norm(0) + norm(1)) < 0.)
+        int sw = norm(0); //(1,0)*norm
+        if (sw < 0.)      //reverse beta
           ldg_beta = -ldg_beta;
+        else if (sw == 0.) //normal vector perpendicular to the test vector,use another test vector
+        {
+          sw = norm(0) + norm(1); //(1,1)*norm
+          if (sw < 0.)            //reverse beta
+            ldg_beta = -ldg_beta;
+        }
       }
       if (n_dims == 3)
       {
-        if ((norm(0) + norm(1) + sqrt(2.) * norm(2)) < 0.)
+        int sw = norm(0); //(1,0,0)*norm
+        if (sw < 0.)      //reverse beta
           ldg_beta = -ldg_beta;
+        else if (sw == 0.) //normal vector perpendicular to the test vector,use another test vector
+        {
+          sw = norm(0) + norm(1); //(1,1,0)*norm
+          if (sw < 0.)            //reverse beta
+            ldg_beta = -ldg_beta;
+          else if (sw == 0) //normal vector perpendicular to the test vector,use another test vector
+          {
+            sw = norm(0) + norm(2); //(1,0,1)*norm
+            if (sw < 0.)            //reverse beta
+              ldg_beta = -ldg_beta;
+          }
+        }
       }
 
       //u_c_k={u}-beta*(u_l-u_r)
