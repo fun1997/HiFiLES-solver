@@ -4,9 +4,7 @@
 // 0: Euler/Navier-Stokes, 1:Advection/Adv-Diffusion
 equation  0
 viscous   1
-
-// 0: Rusanov, 1: Lax-Friedrich, 2: Roe
-riemann_solve_type       3
+riemann_solve_type       3 //hllc
 vis_riemann_solve_type   0
 
 ic_form    7        // 0: Isentropic Vortex, 1: Uniform flow, 2: Sine Wave
@@ -49,7 +47,7 @@ dz_cyclic   6.2831853071795862
 -----------------------------------
 Monitoring, plotting parameters
 -----------------------------------
-p_res        3            // Plotting resolution, # of nodes per direction
+p_res        2            // Plotting resolution, # of nodes per direction
 write_type   0            // 0: Paraview, 1: Tecplot
 diagnostic_fields  4 vorticity q_criterion pressure mach
 monitor_res_freq   10

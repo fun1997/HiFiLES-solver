@@ -1,27 +1,19 @@
 ----------------------------
  Solver parameters
 ----------------------------
-// 0: Euler/Navier-Stokes, 1:Advection/Adv-Diffusion
 equation  0
 viscous   0
-
-// 0: Rusanov, 1: Lax-Friedrich, 2: Roe
-riemann_solve_type       0
+riemann_solve_type       3 //hllc
 vis_riemann_solve_type   0
-
-// 0: Isentropic Vortex, 1: Uniform flow, 2: Sine Wave
 ic_form    1
-
-// 0: Normal (doesn't have an analytical solution), 1:Isentropic Vortex, 2: Advection-Equation
 test_case  0
 order      3          // Order of basis polynomials
 dt_type    1          // 0: User-supplied, 1: Global, 2: Local
-dt         0.0001
-CFL        0.35
+CFL        0.6
 n_steps    10000
 adv_type   3          // 0: Forward Euler, 3: RK45
-tau        1.0
-pen_fact   0.5
+ldg_tau        1.0
+ldg_beta   0.5
 
 -----------------------
 Mesh options
@@ -31,11 +23,9 @@ mesh_file  cylinder_2ndorder_tri_vis.neu
 -----------------------------------
 Monitoring, plotting parameters
 -----------------------------------
-p_res        6            // Plotting resolution, # of nodes per direction
-write_type   0            // 0: Paraview, 1: Tecplot
-volume_cub_order   12     // Order of cubature rule for integrating over element volumes
-
-monitor_res_freq   100
+p_res        2            // Plotting resolution, # of nodes per direction
+write_type   2            // 0: Paraview, 1: Tecplot
+monitor_res_freq   1
 plot_freq          100
 data_file_name     invCyl
 restart_dump_freq  100000
@@ -49,13 +39,13 @@ Element parameters
 ==== Tris ====
 upts_type_tri      0
 fpts_type_tri      0
-vcjh_scheme_tri    3
+vcjh_scheme_tri    1
 c_tri              0.0
 sparse_tri         0
 
 ==== Quads ====
 upts_type_quad     0    // 0: Gauss, 1: Gauss-Lobatto
-vcjh_scheme_quad   3    // 0: VCJH, 1: DG, 2: SD, 3: Hu, 4: c_+
+vcjh_scheme_quad   1    // 0: VCJH, 1: DG, 2: SD, 3: Hu, 4: c_+
 eta_quad           0.0
 sparse_quad        0
 
@@ -95,12 +85,12 @@ Boundary conditions
 ==== Viscous ====
 fix_vis           1                   // 0: Sutherland's law, 1: Constant viscosity
 
-Far_Field         1
-P_Far_Field       101325.
-Mach_Far_Field    0.1
-T_far_field       300
-nx_far_field      1   
-ny_far_field      0
+bc_far_type          char
+bc_far_p_static      101325.
+bc_far_mach           0.1
+bc_far_T_static       300
+
+bc_Slip_Wall_type   slip_wall
 ==== Inviscid ====
 rho_c_ic         1.17723946
 u_c_ic           34.7128218

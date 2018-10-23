@@ -3,40 +3,31 @@
 ----------------------------
 // 0: Euler/Navier-Stokes, 1:Advection/Adv-Diffusion
 equation  0  
-viscous   1
-
-riemann_solve_type      3 // 0: Rusanov, 1: Lax-Friedrich, 2: Roe
-vis_riemann_solve_type  0
-
-ic_form   1           // 0: Isentropic Vortex, 1: Uniform flow, 2: Sine Wave
-test_case 0           // 0: Normal (doesn't have an analytical solution), 1:Isentropic Vortex, 2: Advection-Equation
-order     3           // Order of basis polynomials
-dt_type   1           // 0: User-supplied, 1: Global, 2: Local
-CFL 0.5
-dt        0.0001
-n_steps   10000
-adv_type  2           // 0: Forward Euler, 3: RK45
-ldg_beta 0.5
-ldg_tau 0.5
+viscous   0
+riemann_solve_type      3  // 0: Rusanov, 1: Lax-Friedrich, 2: Roe
+ic_form   10           // 0: Isentropic Vortex, 1: Uniform flow, 2: Sine Wave
+order     2          // Order of basis polynomials
+dt_type   0           // 0: User-supplied, 1: Global, 2: Local
+dt        0.000001 //1e-6s
+n_steps   5000    //10ms
+adv_type  3          // 0: Forward Euler, 3: RK45
 -----------------------
 Mesh options
 -----------------------
-mesh_file  cylinder_2ndorder_tri_vis.neu
-
+mesh_file  shock_tube101.msh
+x_shock_ic   5.0
 -----------------------------------
 Monitoring, plotting parameters
 -----------------------------------
-p_res        4            // Plotting resolution, # of nodes per direction
+p_res        3            // Plotting resolution, # of nodes per direction
 write_type   0            // 0: Paraview, 1: Tecplot
-plot_freq          100
-data_file_name     viscCyl
-restart_dump_freq  10000
+plot_freq         5000
+data_file_name    shock_tube
 monitor_res_freq   1
-monitor_cp_freq    100     // specify output frequency of file containing cp point values on surface. 0: no output.
 res_norm_type      1       // 0:infinity norm, 1:L1 norm, 2:L2 norm
 error_norm_type    1       // 0:infinity norm, 1:L1 norm, 2:L2 norm
 res_norm_field     0       // Density
-
+diagnostic_fields  3 pressure mach sensor
 ---------------------------
 Element parameters
 ---------------------------
@@ -50,7 +41,7 @@ sparse_tri         0
 ==== Quads ====
 upts_type_quad     0    // 0: Gauss, 1: Gauss-Lobatto
 vcjh_scheme_quad   1    // 0: VCJH, 1: DG, 2: SD, 3: Hu, 4: c_+
-eta_quad           0.0
+eta_quad           0.
 sparse_quad        0
 
 ==== Hexs ====
@@ -60,9 +51,9 @@ eta_hexa           0.
 sparse_hexa        0
 
 ==== Tets ====
-upts_type_tet      0
+upts_type_tet      1
 fpts_type_tet      0
-vcjh_scheme_tet    1
+vcjh_scheme_tet    0
 eta_tet            0.0
 sparse_tet         0
 
@@ -86,25 +77,21 @@ mu_gas        1.827E-05
 -----------------------------------
 Boundary conditions
 -----------------------------------
-
-Mach_free_stream 1.0
-L_free_stream 1.0
-T_free_stream  300.0
-rho_free_stream  1.17723946
-
-
 fix_vis           0                   // 0: Sutherland's law, 1: Constant viscosity
-bc_Sup_In_type          sup_in
-bc_Sup_In_p_static      101325.
-bc_Sup_In_mach          1.1
-bc_Sup_In_T_static      300
-
-bc_Isotherm_Fix_type isotherm_wall
-bc_Isotherm_Fix_T_static 300.
-
-Mach_c_ic 1.1
-T_c_ic 300
-rho_c_ic 1.17723946
+rho_free_stream   1.0
+T_free_stream     300.
+Mach_free_stream  0.00288078173
+----------------------------
+initial condition
+---------------------------
+Mach_c_ic  0.0
+T_c_ic     300.
+rho_c_ic   1.0
+u_c_ic 0.0
+v_c_ic 0.0
+w_c_ic 0.0
+p_c_ic 100
+bc_wall_type slip_wall
 ------------------------------
 shock_capture
 ---------------------------------
@@ -112,4 +99,6 @@ shock_cap 1
 shock_det 0
 s0 0.001
 expf_order 4
+expf_fact 36
+
 
