@@ -104,7 +104,10 @@ public:
 
   // return pointer
 
-  T* get_ptr_cpu(int in_pos_0, int in_pos_1=0, int in_pos_2=0, int in_pos_3=0);
+  T* get_ptr_cpu(int in_pos_0);
+  T *get_ptr_cpu(int in_pos_0, int in_pos_1);
+  T *get_ptr_cpu(int in_pos_0, int in_pos_1, int in_pos_2); 
+  T *get_ptr_cpu(int in_pos_0, int in_pos_1, int in_pos_2, int in_pos_3);
   T* get_ptr_gpu(int in_pos_0, int in_pos_1=0, int in_pos_2=0, int in_pos_3=0);
 
   // return dimension
@@ -321,10 +324,7 @@ T& hf_array<T>::operator[](int idx)
 template <typename T>
 T* hf_array<T>::get_ptr_cpu(void)
 {
-  if(cpu_flag==1)
     return cpu_data;
-  else
-    FatalError("CPU hf_array does not exist");
 }
 
 
@@ -346,13 +346,29 @@ T* hf_array<T>::get_ptr_gpu(void)
 
 // return pointer
 
+//new return pointer for faster access
+template <typename T>
+T *hf_array<T>::get_ptr_cpu(int in_pos_0)
+{
+    return cpu_data + in_pos_0; // column major with matrix indexing
+}
+
+template <typename T>
+T *hf_array<T>::get_ptr_cpu(int in_pos_0, int in_pos_1)
+{
+    return cpu_data + in_pos_0 + (dim_0 * in_pos_1); // column major with matrix indexing
+}
+
+template <typename T>
+T *hf_array<T>::get_ptr_cpu(int in_pos_0, int in_pos_1, int in_pos_2)
+{
+    return cpu_data + in_pos_0 + (dim_0 * in_pos_1) + (dim_0 * dim_1 * in_pos_2); // column major with matrix indexing
+}
+
 template <typename T>
 T* hf_array<T>::get_ptr_cpu(int in_pos_0, int in_pos_1, int in_pos_2, int in_pos_3)
 {
-  if(cpu_flag==1)
     return cpu_data+in_pos_0+(dim_0*in_pos_1)+(dim_0*dim_1*in_pos_2)+(dim_0*dim_1*dim_2*in_pos_3); // column major with matrix indexing
-  else
-    FatalError("Cpu data does not exist");
 }
 
 
