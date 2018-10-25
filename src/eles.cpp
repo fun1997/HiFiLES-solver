@@ -1781,35 +1781,27 @@ void eles::calculate_gradient(void)
      */
 }
 
-// calculate corrected gradient of the discontinuous solution at solution points
+// calculate corrected gradient of the discontinuous solution at solution points and flux points
 
 void eles::correct_gradient(void)
 {
     if (n_eles!=0)
     {
 #ifdef _CPU
-
+        //correct gradient on solution points
         if(opp_5_sparse==0) // dense
         {
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-
             for (int i=0; i<n_dims; i++)
-            {
                 cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_upts_per_ele,n_fields_mul_n_eles,n_fpts_per_ele,1.0,opp_5(i).get_ptr_cpu(),n_upts_per_ele,delta_disu_fpts.get_ptr_cpu(),n_fpts_per_ele,1.0,grad_disu_upts.get_ptr_cpu(0,0,0,i),n_upts_per_ele);
-            }
-
 #elif defined _NO_BLAS
             for (int i=0; i<n_dims; i++)
-            {
                 dgemm(n_upts_per_ele,n_fields_mul_n_eles,n_fpts_per_ele,1.0,1.0,opp_5(i).get_ptr_cpu(),delta_disu_fpts.get_ptr_cpu(),grad_disu_upts.get_ptr_cpu(0,0,0,i));
-            }
-
 #endif
         }
         else if(opp_5_sparse==1) // mkl blas four-hf_array coo format
         {
 #if defined _MKL_BLAS
-
             for (int i=0; i<n_dims; i++)
             {
                 mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_5_mkl(i),
@@ -1826,84 +1818,132 @@ void eles::correct_gradient(void)
             cout << "ERROR: Unknown storage for opp_5 ... " << endl;
         }
 
-        // Transform to physical space
-        double detjac;
-        double inv_detjac;
-        double rx,ry,rz,sx,sy,sz,tx,ty,tz;
-        double Xx,Xy,Xz,Yx,Yy,Yz,Zx,Zy,Zz;
-        double ur,us,ut,uX,uY,uZ;
-
-        for (int i=0; i<n_eles; i++)
+        //extrapolate transformed corrected gradients to flux points
+        if (opp_6_sparse == 0) // dense
         {
-            for (int j=0; j<n_upts_per_ele; j++)
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+            for (int i = 0; i < n_dims; i++)
+                cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_fpts_per_ele, n_fields_mul_n_eles, n_upts_per_ele, 1.0, opp_6.get_ptr_cpu(), n_fpts_per_ele, grad_disu_upts.get_ptr_cpu(0, 0, 0, i), n_upts_per_ele, 0.0, grad_disu_fpts.get_ptr_cpu(0, 0, 0, i), n_fpts_per_ele);
+#elif defined _NO_BLAS
+            for (int i = 0; i < n_dims; i++)
+                dgemm(n_fpts_per_ele, n_fields_mul_n_eles, n_upts_per_ele, 1.0, 0.0, opp_6.get_ptr_cpu(), grad_disu_upts.get_ptr_cpu(0, 0, 0, i), grad_disu_fpts.get_ptr_cpu(0, 0, 0, i));
+#endif
+        }
+        else if (opp_6_sparse == 1) // mkl blas four-hf_array coo format
+        {
+#if defined _MKL_BLAS
+            for (int i = 0; i < n_dims; i++)
             {
-                // Transform to static-physical domain
-                detjac = detjac_upts(j,i);
-                inv_detjac = 1.0/detjac;
-
-                rx = JGinv_upts(0,0,j,i)*inv_detjac;
-                ry = JGinv_upts(0,1,j,i)*inv_detjac;
-                sx = JGinv_upts(1,0,j,i)*inv_detjac;
-                sy = JGinv_upts(1,1,j,i)*inv_detjac;
-
-                //physical gradient
-                if(n_dims==2)
-                {
-                    for(int k=0; k<n_fields; k++)
-                    {
-                        ur = grad_disu_upts(j,i,k,0);
-                        us = grad_disu_upts(j,i,k,1);
-
-                        grad_disu_upts(j,i,k,0) = ur*rx + us*sx;
-                        grad_disu_upts(j,i,k,1) = ur*ry + us*sy;
-                    }
-                }
-                if (n_dims==3)
-                {
-                    rz = JGinv_upts(0,2,j,i)*inv_detjac;
-                    sz = JGinv_upts(1,2,j,i)*inv_detjac;
-
-                    tx = JGinv_upts(2,0,j,i)*inv_detjac;
-                    ty = JGinv_upts(2,1,j,i)*inv_detjac;
-                    tz = JGinv_upts(2,2,j,i)*inv_detjac;
-
-                    for (int k=0; k<n_fields; k++)
-                    {
-                        ur = grad_disu_upts(j,i,k,0);
-                        us = grad_disu_upts(j,i,k,1);
-                        ut = grad_disu_upts(j,i,k,2);
-
-                        grad_disu_upts(j,i,k,0) = ur*rx + us*sx + ut*tx;
-                        grad_disu_upts(j,i,k,1) = ur*ry + us*sy + ut*ty;
-                        grad_disu_upts(j,i,k,2) = ur*rz + us*sz + ut*tz;
-                    }
-                }
-                }
+                mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_6_mkl,
+                                opp_6_descr, SPARSE_LAYOUT_COLUMN_MAJOR,
+                                grad_disu_upts.get_ptr_cpu(0, 0, 0, i),
+                                n_fields_mul_n_eles, n_upts_per_ele, 0.0,
+                                grad_disu_fpts.get_ptr_cpu(0, 0, 0, i), n_fpts_per_ele);
             }
+#endif
+        }
+        else
+        {
+            cout << "ERROR: Unknown storage for opp_6 ... " << endl;
+        }
+
+        // Transform to physical space
+        double inv_detjac;
+
+        hf_array<double> temp_cgradient(n_dims, n_fields);//temporary physical corrected gradients
+        temp_cgradient.initialize_to_zero();
+        hf_array<double> temp_tcgradient(n_dims, n_fields);//temporary transformed correct gradients
+
+        for (int i = 0; i < n_eles; i++)
+        {
+            //for solution points
+            for (int j = 0; j < n_upts_per_ele; j++)
+            {
+                inv_detjac = 1.0 / detjac_upts(j, i);
+
+                //copy data from array
+                for (int k = 0; k < n_fields; k++)
+                    for (int d = 0; d < n_dims; d++)
+                        temp_tcgradient(d, k) = grad_disu_upts(j, i, k, d);
+
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+                cblas_dgemm(CblasColMajor, CblasTrans, CblasNoTrans, n_dims, n_fields, n_dims, inv_detjac, JGinv_upts.get_ptr_cpu(0, 0, j, i), n_dims, temp_tcgradient.get_ptr_cpu(), n_dims, 0.0, temp_cgradient.get_ptr_cpu(), n_dims);
+#elif defined _NO_BLAS
+                hf_array<double> temp_JGinv(n_dims, n_dims);//transposed JGinv
+                for (int k = 0; k < n_dims; k++)
+                    for (int d = 0; d < n_dims; d++)
+                        temp_JGinv(k, d) = JGinv_upts(d, k, j, i);
+                dgemm(n_dims, n_fields, n_dims, inv_detjac, 0.0, temp_JGinv.get_ptr_cpu(), temp_tcgradient.get_ptr_cpu(), temp_cgradient.get_ptr_cpu());
+#endif
+                //copy back to array
+                for (int k = 0; k < n_fields; k++)
+                    for (int d = 0; d < n_dims; d++)
+                        grad_disu_upts(j, i, k, d) = temp_cgradient(d, k);
+            }
+
+            //for flux points
+            for (int j = 0; j < n_fpts_per_ele; j++)
+            {
+                inv_detjac = 1.0 / detjac_fpts(j, i);
+
+                //copy data from array
+                for (int k = 0; k < n_fields; k++)
+                    for (int d = 0; d < n_dims; d++)
+                        temp_tcgradient(d, k) = grad_disu_fpts(j, i, k, d);
+
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+                cblas_dgemm(CblasColMajor, CblasTrans, CblasNoTrans, n_dims, n_fields, n_dims, inv_detjac, JGinv_fpts.get_ptr_cpu(0, 0, j, i), n_dims, temp_tcgradient.get_ptr_cpu(), n_dims, 0.0, temp_cgradient.get_ptr_cpu(), n_dims);
+#elif defined _NO_BLAS
+                hf_array<double> temp_JGinv(n_dims, n_dims);//transposed JGinv
+                for (int k = 0; k < n_dims; k++)
+                    for (int d = 0; d < n_dims; d++)
+                        temp_JGinv(k, d) = JGinv_upts(d, k, j, i);
+                dgemm(n_dims, n_fields, n_dims, inv_detjac, 0.0, temp_JGinv.get_ptr_cpu(), temp_tcgradient.get_ptr_cpu(), temp_cgradient.get_ptr_cpu());
+#endif
+                //copy back to array
+                for (int k = 0; k < n_fields; k++)
+                    for (int d = 0; d < n_dims; d++)
+                        grad_disu_fpts(j, i, k, d) = temp_cgradient(d, k);
+            }
+        }
 
 #endif
 
 #ifdef _GPU
 
-        if (opp_5_sparse==0)
+        if (opp_5_sparse == 0)
         {
-            for (int i=0; i<n_dims; i++)
+            for (int i = 0; i < n_dims; i++)
             {
-                cublasDgemm('N','N',n_upts_per_ele,n_fields_mul_n_eles,n_fpts_per_ele,1.0,opp_5(i).get_ptr_gpu(),n_upts_per_ele,delta_disu_fpts.get_ptr_gpu(),n_fpts_per_ele,1.0,grad_disu_upts.get_ptr_gpu(0,0,0,i),n_upts_per_ele);
+                cublasDgemm('N', 'N', n_upts_per_ele, n_fields_mul_n_eles, n_fpts_per_ele, 1.0, opp_5(i).get_ptr_gpu(), n_upts_per_ele, delta_disu_fpts.get_ptr_gpu(), n_fpts_per_ele, 1.0, grad_disu_upts.get_ptr_gpu(0, 0, 0, i), n_upts_per_ele);
             }
         }
-        else if (opp_5_sparse==1)
+        else if (opp_5_sparse == 1)
         {
-            for (int i=0; i<n_dims; i++)
+            for (int i = 0; i < n_dims; i++)
             {
-                bespoke_SPMV(n_upts_per_ele,n_fpts_per_ele,n_fields,n_eles,opp_5_ell_data(i).get_ptr_gpu(),opp_5_ell_indices(i).get_ptr_gpu(),opp_5_nnz_per_row(i),delta_disu_fpts.get_ptr_gpu(),grad_disu_upts.get_ptr_gpu(0,0,0,i),ele_type,order,1);
+                bespoke_SPMV(n_upts_per_ele, n_fpts_per_ele, n_fields, n_eles, opp_5_ell_data(i).get_ptr_gpu(), opp_5_ell_indices(i).get_ptr_gpu(), opp_5_nnz_per_row(i), delta_disu_fpts.get_ptr_gpu(), grad_disu_upts.get_ptr_gpu(0, 0, 0, i), ele_type, order, 1);
             }
         }
 
-        transform_grad_disu_upts_kernel_wrapper(n_upts_per_ele,n_dims,n_fields,n_eles,grad_disu_upts.get_ptr_gpu(),detjac_upts.get_ptr_gpu(),J_dyn_upts.get_ptr_gpu(),JGinv_upts.get_ptr_gpu(),JGinv_dyn_upts.get_ptr_gpu(),run_input.equation,motion);
+        if (opp_6_sparse == 0)
+        {
+            for (int i = 0; i < n_dims; i++)
+            {
+                cublasDgemm('N', 'N', n_fpts_per_ele, n_fields_mul_n_eles, n_upts_per_ele, 1.0, opp_6.get_ptr_gpu(), n_fpts_per_ele, grad_disu_upts.get_ptr_gpu(0, 0, 0, i), n_upts_per_ele, 0.0, grad_disu_fpts.get_ptr_gpu(0, 0, 0, i), n_fpts_per_ele);
+            }
+        }
+        else if (opp_6_sparse == 1)
+        {
+            for (int i = 0; i < n_dims; i++)
+            {
+                bespoke_SPMV(n_fpts_per_ele, n_upts_per_ele, n_fields, n_eles, opp_6_ell_data.get_ptr_gpu(), opp_6_ell_indices.get_ptr_gpu(), opp_6_nnz_per_row, grad_disu_upts.get_ptr_gpu(0, 0, 0, i), grad_disu_fpts.get_ptr_gpu(0, 0, 0, i), ele_type, order, 0);
+            }
+        }
+
+        transform_grad_disu_upts_kernel_wrapper(n_upts_per_ele, n_dims, n_fields, n_eles, grad_disu_upts.get_ptr_gpu(), detjac_upts.get_ptr_gpu(), J_dyn_upts.get_ptr_gpu(), JGinv_upts.get_ptr_gpu(), JGinv_dyn_upts.get_ptr_gpu(), run_input.equation, motion);
 
 #endif
-
     }
 
     /*
@@ -1934,86 +1974,6 @@ void eles::correct_gradient(void)
      cout << setprecision(10)  << i << " " << ele2global_ele(j) << " " << k << " " << m << " " << grad_disu_upts(i,j,k,m) << endl;
      }
      }
-     */
-}
-
-
-// calculate corrected gradient of the discontinuous solution at flux points
-
-void eles::extrapolate_corrected_gradient(void)
-{
-    if (n_eles!=0)
-    {
-#ifdef _CPU
-
-        if(opp_6_sparse==0) // dense
-        {
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-
-            for (int i=0; i<n_dims; i++)
-            {
-                cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_6.get_ptr_cpu(),n_fpts_per_ele,grad_disu_upts.get_ptr_cpu(0,0,0,i),n_upts_per_ele,0.0,grad_disu_fpts.get_ptr_cpu(0,0,0,i),n_fpts_per_ele);
-            }
-
-#elif defined _NO_BLAS
-            for (int i=0; i<n_dims; i++)
-            {
-                dgemm(n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,0.0,opp_6.get_ptr_cpu(),grad_disu_upts.get_ptr_cpu(0,0,0,i),grad_disu_fpts.get_ptr_cpu(0,0,0,i));
-            }
-#endif
-        }
-        else if(opp_6_sparse==1) // mkl blas four-hf_array coo format
-        {
-#if defined _MKL_BLAS
-            for (int i = 0; i < n_dims; i++)
-            {
-                mkl_sparse_d_mm(SPARSE_OPERATION_NON_TRANSPOSE, 1.0, opp_6_mkl,
-                                opp_6_descr, SPARSE_LAYOUT_COLUMN_MAJOR,
-                                grad_disu_upts.get_ptr_cpu(0, 0, 0, i),
-                                n_fields_mul_n_eles, n_upts_per_ele, 0.0,
-                                grad_disu_fpts.get_ptr_cpu(0, 0, 0, i), n_fpts_per_ele);
-            }
-#endif
-        }
-        else
-        {
-            cout << "ERROR: Unknown storage for opp_6 ... " << endl;
-        }
-
-#endif
-
-#ifdef _GPU
-
-        if (opp_6_sparse==0)
-        {
-            for (int i=0; i<n_dims; i++)
-            {
-                cublasDgemm('N','N',n_fpts_per_ele,n_fields_mul_n_eles,n_upts_per_ele,1.0,opp_6.get_ptr_gpu(),n_fpts_per_ele,grad_disu_upts.get_ptr_gpu(0,0,0,i),n_upts_per_ele,0.0,grad_disu_fpts.get_ptr_gpu(0,0,0,i),n_fpts_per_ele);
-            }
-        }
-        else if (opp_6_sparse==1)
-        {
-            for (int i=0; i<n_dims; i++)
-            {
-                bespoke_SPMV(n_fpts_per_ele,n_upts_per_ele,n_fields,n_eles,opp_6_ell_data.get_ptr_gpu(),opp_6_ell_indices.get_ptr_gpu(),opp_6_nnz_per_row,grad_disu_upts.get_ptr_gpu(0,0,0,i),grad_disu_fpts.get_ptr_gpu(0,0,0,i),ele_type,order,0);
-            }
-        }
-
-#endif
-
-    }
-
-    /*
-     cout << "OUTPUT" << endl;
-     #ifdef _GPU
-     grad_disu_fpts.cp_gpu_cpu();
-     #endif
-
-     for (int i=0;i<n_fpts_per_ele;i++)
-     for (int j=0;j<n_eles;j++)
-     for (int k=0;k<n_fields;k++)
-     for (int m=0;m<n_dims;m++)
-     cout << setprecision(10)  << i << " " << j<< " " << k << " " << m << " " << grad_disu_fpts(i,j,k,m) << endl;
      */
 }
 

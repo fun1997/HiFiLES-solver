@@ -79,12 +79,12 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
 #endif
 
   if (FlowSol->viscous) {
-      /*! Compute the uncorrected gradient of the solution at the solution points. */
+      /*! Compute the uncorrected transformed gradient of the solution at the solution points. */
       for(i=0; i<FlowSol->n_ele_types; i++)
         FlowSol->mesh_eles(i)->calculate_gradient();
     }
 
-  /*! Compute the inviscid flux at the solution points and store in total flux storage. */
+  /*! Compute the transformed inviscid flux at the solution points and store in total transformed flux storage. */
   for(i=0; i<FlowSol->n_ele_types; i++)
     FlowSol->mesh_eles(i)->evaluate_invFlux();
 
@@ -105,7 +105,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     }
   }
 
-  /*! Compute the inviscid numerical fluxes.
+  /*! Compute the transformed normal inviscid numerical fluxes.
    Compute the common solution and solution corrections (viscous only). */
   for(i=0; i<FlowSol->n_int_inter_types; i++)
     FlowSol->mesh_int_inters(i).calculate_common_invFlux();
@@ -126,15 +126,12 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
 
     if (FlowSol->viscous)
     {
-      /*! Compute corrected gradient of the solution at the solution and flux points. */
+      /*! Compute physical corrected gradient of the solution at the solution and flux points. */
       for(i=0; i<FlowSol->n_ele_types; i++)
         FlowSol->mesh_eles(i)->correct_gradient();
 
-      for(i=0; i<FlowSol->n_ele_types; i++)
-        FlowSol->mesh_eles(i)->extrapolate_corrected_gradient();
-
 #ifdef _MPI
-      /*! Send the corrected value and SGS flux across the MPI interface. */
+      /*! Send the corrected physical gradients across the MPI interface. */
       if (FlowSol->nproc>1)
       {
         for(i=0; i<FlowSol->n_mpi_inter_types; i++)
@@ -142,17 +139,19 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
       }
 #endif
 
-      /*! Compute discontinuous viscous flux at upts and add to total flux at upts. */
+      /*! Compute discontinuous transformed viscous flux at upts and add to total transformed flux at upts. */
+      /*! If using LES, compute the transformed SGS flux and add to total transformed flux at solution points. */
       for(i=0; i<FlowSol->n_ele_types; i++)
         FlowSol->mesh_eles(i)->evaluate_viscFlux();
 
-      /*! If using LES, compute the SGS flux at flux points. */
+      //If using LES, extrapolate transformed SGS flux to flux points
       if (run_input.LES)
       {
         for(i=0; i<FlowSol->n_ele_types; i++)
           FlowSol->mesh_eles(i)->extrapolate_sgsFlux();
       }
 
+//If using MPI and LES, send SGS flux across processors
 #ifdef _MPI
       if (FlowSol->nproc > 1)
       {
@@ -164,16 +163,16 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
       }
 #endif
     }
-    /*! For viscous or inviscid, compute the normal discontinuous flux at flux points. */
+    /*! For viscous or inviscid, compute the transformed normal discontinuous flux at flux points. */
     for(i=0; i<FlowSol->n_ele_types; i++)
       FlowSol->mesh_eles(i)->extrapolate_totalFlux();
 
-    /*! For viscous or inviscid, compute the divergence of flux at solution points. */
+    /*! For viscous or inviscid, compute the transformed divergence of total flux at solution points. */
     for(i=0; i<FlowSol->n_ele_types; i++)
       FlowSol->mesh_eles(i)->calculate_divergence();
 
     if (FlowSol->viscous) {
-      /*! Compute normal interface viscous flux and add to normal inviscid flux. */
+      /*! Compute transformed normal interface viscous flux and add to transformed normal inviscid flux. */
       for(i=0; i<FlowSol->n_int_inter_types; i++)
         FlowSol->mesh_int_inters(i).calculate_common_viscFlux();
 
@@ -197,7 +196,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
 #endif
     }
 
-  /*! Compute the divergence of the transformed continuous flux. */
+  /*! Compute the transformed divergence of the continuous flux. */
   for(i=0; i<FlowSol->n_ele_types; i++)
     FlowSol->mesh_eles(i)->calculate_corrected_divergence();
 

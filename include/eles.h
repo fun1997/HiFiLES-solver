@@ -104,9 +104,6 @@ public:
   /*! calculate corrected gradient of the discontinuous solution at solution points */
   void correct_gradient(void);
 
-  /*! calculate corrected gradient of the discontinuous solution at flux points */
-  void extrapolate_corrected_gradient(void);
-
   /*! calculate transformed discontinuous viscous flux at solution points */
   void evaluate_viscFlux(void);
 
