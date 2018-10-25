@@ -2218,11 +2218,14 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
                 write_hist[0] << ", " << FlowSol->integral_quantities(i);
 
     // Output physical time in seconds
-    write_hist[0] << ", " << in_time*run_input.time_ref;
+            if (run_input.viscous)
+              write_hist[0] << ", " << in_time * run_input.time_ref;
+            else
+              write_hist[0] << ", " << in_time;
 
-    // Compute execution time
-    final = clock()-init;
-    write_hist[0] << ", " << (double) final/(((double) CLOCKS_PER_SEC) * 60.0) << endl;
+            // Compute execution time
+            final = clock() - init;
+            write_hist[0] << ", " << (double)final / (((double)CLOCKS_PER_SEC) * 60.0) << endl;
   }
 }
 
