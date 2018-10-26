@@ -138,14 +138,11 @@ int main(int argc, char *argv[]) {
   /*! Initialize forces, integral quantities, and residuals. */
 
   if (FlowSol.rank == 0)
-  {
-    FlowSol.inv_force.setup(5);
-    FlowSol.vis_force.setup(5);
     FlowSol.norm_residual.setup(6);
-    //initialize to 0
-    FlowSol.inv_force.initialize_to_zero();
-    FlowSol.vis_force.initialize_to_zero();
-    FlowSol.norm_residual.initialize_to_zero();
+  if (run_input.calc_force)
+  {
+    FlowSol.inv_force.setup(FlowSol.n_dims);
+    FlowSol.vis_force.setup(FlowSol.n_dims);
   }
   if (run_input.n_integral_quantities)
     FlowSol.integral_quantities.setup(run_input.n_integral_quantities);

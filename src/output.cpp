@@ -1678,10 +1678,10 @@ if (FlowSol->nproc>1)
 
 }
 
-void output::CalcForces(int in_file_num) {
-
-  char file_name_s[256], *file_name;
-  char forcedir_s[256], *forcedir;
+void output::CalcForces(int in_file_num)
+{
+  char file_name_s[256];
+  char forcedir_s[256];
   struct stat st = {0};
   ofstream coeff_file;
   bool write_dir, write_forces;
@@ -1691,75 +1691,51 @@ void output::CalcForces(int in_file_num) {
   int my_rank;
 
   // set write flags
-  if (run_input.restart_flag==0) {
+  if (run_input.restart_flag == 0)
+   {
     write_dir = (in_file_num == 1);
     write_forces = ((in_file_num % (run_input.monitor_cp_freq)) == 0) || (in_file_num == 1);
-  }
-  else {
+   }
+  else
+  {
     write_dir = (in_file_num == run_input.restart_iter+1);
-    write_forces = ((in_file_num % (run_input.monitor_cp_freq)) == 0) || (in_file_num == run_input.restart_iter+1);
+    write_forces = ((in_file_num % (run_input.monitor_cp_freq)) == 0) || (in_file_num == run_input.restart_iter + 1);
   }
-
   // set name of directory to store output files
   sprintf(forcedir_s,"force_files");
-  forcedir = &forcedir_s[0];
-
   // Create directory and set name of files
-#ifdef _MPI
-
-  my_rank = FlowSol->rank;
-
+    my_rank = FlowSol->rank;
   // Master node creates a subdirectory to store cp_*.dat files
   if ((my_rank == 0) && (write_dir))
-    {
-      if (stat(forcedir, &st) == -1)
-        {
-          mkdir(forcedir, 0755);
-        }
-    }
-
+      if (stat(forcedir_s, &st) == -1)
+          mkdir(forcedir_s, 0755);
+#ifdef _MPI
+MPI_Barrier(MPI_COMM_WORLD);//wait for master node
   if (write_forces)
     {
       sprintf(file_name_s,"force_files/cp_%.09d_p%.04d.dat",in_file_num,my_rank);
-      file_name = &file_name_s[0];
-
       // open files for writing
-      coeff_file.open(file_name);
+      coeff_file.open(file_name_s);
     }
-
 #else
-
-  if (write_dir)
-    {
-      if (stat(forcedir, &st) == -1)
-        {
-          mkdir(forcedir, 0755);
-        }
-    }
-
   if (write_forces)
     {
       sprintf(file_name_s,"force_files/cp_%.09d_p%.04d.dat",in_file_num,0);
-      file_name = &file_name_s[0];
-
       // open file for writing
-      coeff_file.open(file_name);
+      coeff_file.open(file_name_s);
     }
 
 #endif
 
   // zero the forces and coeffs
-  for (int m=0;m<FlowSol->n_dims;m++)
-    {
-      FlowSol->inv_force(m) = 0.;
-      FlowSol->vis_force(m) = 0.;
-    }
 
-  FlowSol->coeff_lift = 0.0;
-  FlowSol->coeff_drag = 0.0;
+    FlowSol->inv_force.initialize_to_zero();
+    FlowSol->vis_force.initialize_to_zero();
+    FlowSol->coeff_lift = 0.0;
+    FlowSol->coeff_drag = 0.0;
 
-  // loop over elements and compute forces on solid surfaces
-  for(int i=0;i<FlowSol->n_ele_types;i++)
+    // loop over elements and compute forces on solid surfaces
+    for (int i = 0; i < FlowSol->n_ele_types; i++)
     {
       if (FlowSol->mesh_eles(i)->get_n_eles()!=0)
         {
@@ -2017,14 +1993,22 @@ void output::CalcNormResidual(void) {
   int n_upts = 0;
   int n_fields;
 
-  if (FlowSol->n_dims==2) n_fields = 4;
-  else n_fields = 5;
-
-  if (run_input.turb_model==1) {
-    n_fields++;
+  if (run_input.equation == 0)//Navier-Stokes/Euler
+  {
+    if (FlowSol->n_dims == 2)
+      n_fields = 4;
+    else
+      n_fields = 5;
+    if (run_input.turb_model == 1)
+    {
+      n_fields++;
+    }
   }
+  else//advection/diffusion
+    n_fields = 1;
 
-  double sum[6]={0.0,0.0,0.0,0.0,0.0,0.0};
+  hf_array<double> sum(n_fields);
+  sum.initialize_to_zero();
   
   if (run_input.res_norm_type == 0) {
     // Infinity Norm
@@ -2056,16 +2040,17 @@ void output::CalcNormResidual(void) {
   }
 
 #ifdef _MPI
-  double sum_global[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  hf_array<double> sum_global(n_fields);
+  sum_global.initialize_to_zero();
   if (run_input.res_norm_type == 0) {
     // Get maximum
-    MPI_Reduce(sum, sum_global, 6, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(sum.get_ptr_cpu(), sum_global.get_ptr_cpu(), n_fields, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   }
   else {
     // Get sum
     int n_upts_global = 0;
     MPI_Reduce(&n_upts, &n_upts_global, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(sum, sum_global, 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(sum.get_ptr_cpu(), sum_global.get_ptr_cpu(), n_fields, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     n_upts = n_upts_global;
   }
@@ -2142,7 +2127,6 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
           if (run_input.turb_model)
           {
             write_hist[0] << ",\"mu_tilde\"";
-            //write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
           }
           if (run_input.calc_force)
             write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
@@ -2154,10 +2138,9 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
           if (run_input.turb_model)
           {
             write_hist[0] << ",\"<greek>mu</greek><sub>tilde</sub>\"";
-            //write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
           }
           if (run_input.calc_force)
-            write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>E])\",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
+            write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
         }
 
         // Add integral diagnostics

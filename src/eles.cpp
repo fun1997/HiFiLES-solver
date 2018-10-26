@@ -5546,32 +5546,26 @@ double eles::compute_res_upts(int in_norm_type, int in_field)
 
     int i, j;
     double sum = 0.;
-    double cell_sum = 0.;
 
     // NOTE: div_tconf_upts must be on CPU
 
     for (i=0; i<n_eles; i++)
     {
-        cell_sum=0;
         for (j=0; j<n_upts_per_ele; j++)
         {
             if (in_norm_type == 0)
             {
-                cell_sum = max(cell_sum, abs(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-run_input.const_src-src_upts(j,i,in_field)));
+                sum = max(sum, abs(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-run_input.const_src-src_upts(j,i,in_field)));
             }
             if (in_norm_type == 1)
             {
-                cell_sum += abs(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-run_input.const_src-src_upts(j,i,in_field));
+                sum += abs(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-run_input.const_src-src_upts(j,i,in_field));
             }
             else if (in_norm_type == 2)
             {
-                cell_sum += (div_tconf_upts(0)(j, i, in_field)/detjac_upts(j,i)-run_input.const_src-src_upts(j,i,in_field))*(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-run_input.const_src-src_upts(j,i,in_field));
+                sum += (div_tconf_upts(0)(j, i, in_field)/detjac_upts(j,i)-run_input.const_src-src_upts(j,i,in_field))*(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-run_input.const_src-src_upts(j,i,in_field));
             }
         }
-        if (in_norm_type==0)
-            sum = max(cell_sum,sum);
-        else
-            sum += cell_sum;
     }
 
     return sum;
