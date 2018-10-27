@@ -679,6 +679,8 @@ protected:
 	/*! determinant of volume jacobian at cubature points. TODO: what is this really? */
 	hf_array< hf_array<double> > vol_detjac_vol_cubpts;
 
+  hf_array<double> Jacobian_fpts;
+  
   /*! Full vector-transform matrix from static physical->computational frame, at solution points
    *  [Determinant of Jacobian times inverse of Jacobian] [J*G^-1] */
   hf_array<double> JGinv_upts;
