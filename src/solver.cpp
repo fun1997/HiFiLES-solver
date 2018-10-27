@@ -67,7 +67,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     }
   }
 
-    /*! Compute the solution at the flux points. */
+    /*! Extrapolate the solution to the flux points. */
     for(i=0; i<FlowSol->n_ele_types; i++)
       FlowSol->mesh_eles(i)->extrapolate_solution();
 
@@ -144,7 +144,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
       for(i=0; i<FlowSol->n_ele_types; i++)
         FlowSol->mesh_eles(i)->evaluate_viscFlux();
 
-      //If using LES, extrapolate transformed SGS flux to flux points
+      //If using LES, extrapolate transformed SGS flux to flux points and transform back to physical domain
       if (run_input.LES)
       {
         for(i=0; i<FlowSol->n_ele_types; i++)
@@ -163,7 +163,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
       }
 #endif
     }
-    /*! For viscous or inviscid, compute the transformed normal discontinuous flux at flux points. */
+    /*! For viscous or inviscid, compute the transformed normal discontinuous total flux at flux points. */
     for(i=0; i<FlowSol->n_ele_types; i++)
       FlowSol->mesh_eles(i)->extrapolate_totalFlux();
 

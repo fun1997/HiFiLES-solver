@@ -313,17 +313,20 @@ void int_inters::calculate_common_viscFlux(void)
           else
             FatalError("ERROR: Invalid number of dimensions ... ");
 
-          // If LES, get SGS flux and add to viscous flux
-          if(LES) {
-            for(int k=0;k<n_dims;k++) {
-              for(int l=0;l<n_fields;l++) {
+          // If LES, get physical SGS flux and add to viscous flux
+          if (LES)
+          {
+            for (int k = 0; k < n_dims; k++)
+            {
+              for (int l = 0; l < n_fields; l++)
+              {
                 // pointers to subgrid-scale fluxes
-                temp_sgsf_l(l,k) = *sgsf_fpts_l(j,i,l,k);
-                temp_sgsf_r(l,k) = *sgsf_fpts_r(j,i,l,k);
+                temp_sgsf_l(l, k) = *sgsf_fpts_l(j, i, l, k);
+                temp_sgsf_r(l, k) = *sgsf_fpts_r(j, i, l, k);
 
                 // Add SGS fluxes to viscous fluxes
-                temp_f_l(l,k) += temp_sgsf_l(l,k);
-                temp_f_r(l,k) += temp_sgsf_r(l,k);
+                temp_f_l(l, k) += temp_sgsf_l(l, k);
+                temp_f_r(l, k) += temp_sgsf_r(l, k);
               }
             }
           }

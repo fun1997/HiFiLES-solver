@@ -122,10 +122,6 @@ int main(int argc, char *argv[]) {
 
   /*! Variable initialization. */
 
-  //error_state = 0;
-  //FlowSol.ene_hist = 1000.;
-  //FlowSol.grad_ene_hist = 1000.;
-
   if (FlowSol.adv_type == 0)
     RKSteps = 1; //Euler
   else if (FlowSol.adv_type == 1 || FlowSol.adv_type == 2)

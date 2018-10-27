@@ -1272,23 +1272,6 @@ void eles::extrapolate_solution(void)
     if (n_eles!=0)
     {
 
-        /*!
-         Performs C = (alpha*A*B) + (beta*C) where: \n
-         alpha = 1.0 \n
-         beta = 0.0 \n
-         A = opp_0 \n
-         B = disu_upts(0) \n
-         C = disu_fpts
-
-         opp_0 is the polynomial extrapolation matrix;
-         has dimensions n_f_pts_per_ele by n_upts_per_ele
-
-         Recall: opp_0(j,i) = value of the ith nodal basis at the
-         jth flux point location in the reference domain
-
-         (vector of solution values at flux points) = opp_0 * (vector of solution values at nodes)
-         */
-
 #ifdef _CPU
 
         if(opp_0_sparse==0) // dense
@@ -1691,25 +1674,6 @@ void eles::calculate_gradient(void)
     if (n_eles!=0)
     {
 
-        /*!
-         Performs C = (alpha*A*B) + (beta*C) where: \n
-         alpha = 1.0 \n
-         beta = 0.0 \n
-         A = opp_4 \n
-         B = disu_upts \n
-         C = grad_disu_upts
-
-         opp_4 is the polynomial gradient matrix;
-         has dimensions n_upts_per_ele by n_upts_per_ele
-         Recall: opp_4(i)(k,j) = eval_d_nodal_basis(j,i,loc);
-         = derivative of the jth nodal basis at the
-         kth nodal (solution) point location in the reference domain
-         for the ith dimension
-
-         (vector of gradient values at solution points) = opp_4 *
-         (vector of solution values at solution points in all elements of the same type)
-         */
-
 #ifdef _CPU
 
         if(opp_4_sparse==0) // dense
@@ -1768,22 +1732,6 @@ void eles::calculate_gradient(void)
         }
 #endif
     }
-
-    /*
-     cout << "OUTPUT" << endl;
-     #ifdef _GPU
-     grad_disu_upts.cp_gpu_cpu();
-     #endif
-
-     for (int i=0;i<n_upts_per_ele;i++)
-     for (int j=0;j<n_eles;j++)
-     for (int k=0;k<n_fields;k++)
-     for (int m=0;m<n_dims;m++)
-     {
-     if (ele2global_ele(j)==53)
-     cout << setprecision(10)  << i << " " << ele2global_ele(j) << " " << k << " " << m << " " << grad_disu_upts(i,j,k,m) << endl;
-     }
-     */
 }
 
 // calculate corrected gradient of the discontinuous solution at solution points and flux points
@@ -1854,7 +1802,6 @@ void eles::correct_gradient(void)
 
         // Transform to physical space
         double inv_detjac;
-
         hf_array<double> temp_cgradient(n_dims, n_fields);//temporary physical corrected gradients
         temp_cgradient.initialize_to_zero();
         hf_array<double> temp_tcgradient(n_dims, n_fields);//temporary transformed correct gradients
@@ -1866,7 +1813,7 @@ void eles::correct_gradient(void)
             {
                 inv_detjac = 1.0 / detjac_upts(j, i);
 
-                //copy data from array
+                //copy transformed gradients from array
                 for (int k = 0; k < n_fields; k++)
                     for (int d = 0; d < n_dims; d++)
                         temp_tcgradient(d, k) = grad_disu_upts(j, i, k, d);
@@ -1880,7 +1827,7 @@ void eles::correct_gradient(void)
                         temp_JGinv(k, d) = JGinv_upts(d, k, j, i);
                 dgemm(n_dims, n_fields, n_dims, inv_detjac, 0.0, temp_JGinv.get_ptr_cpu(), temp_tcgradient.get_ptr_cpu(), temp_cgradient.get_ptr_cpu());
 #endif
-                //copy back to array
+                //copy physical gradient back to array
                 for (int k = 0; k < n_fields; k++)
                     for (int d = 0; d < n_dims; d++)
                         grad_disu_upts(j, i, k, d) = temp_cgradient(d, k);
@@ -1891,7 +1838,7 @@ void eles::correct_gradient(void)
             {
                 inv_detjac = 1.0 / detjac_fpts(j, i);
 
-                //copy data from array
+                //copy transformed gradients from array
                 for (int k = 0; k < n_fields; k++)
                     for (int d = 0; d < n_dims; d++)
                         temp_tcgradient(d, k) = grad_disu_fpts(j, i, k, d);
@@ -1902,10 +1849,10 @@ void eles::correct_gradient(void)
                 hf_array<double> temp_JGinv(n_dims, n_dims);//transposed JGinv
                 for (int k = 0; k < n_dims; k++)
                     for (int d = 0; d < n_dims; d++)
-                        temp_JGinv(k, d) = JGinv_upts(d, k, j, i);
+                        temp_JGinv(k, d) = JGinv_fpts(d, k, j, i);
                 dgemm(n_dims, n_fields, n_dims, inv_detjac, 0.0, temp_JGinv.get_ptr_cpu(), temp_tcgradient.get_ptr_cpu(), temp_cgradient.get_ptr_cpu());
 #endif
-                //copy back to array
+                //copy physical gradient back to array
                 for (int k = 0; k < n_fields; k++)
                     for (int d = 0; d < n_dims; d++)
                         grad_disu_fpts(j, i, k, d) = temp_cgradient(d, k);
@@ -1951,35 +1898,6 @@ void eles::correct_gradient(void)
 #endif
     }
 
-    /*
-     for (int i=0;i<n_fpts_per_ele;i++)
-     for (int j=0;j<n_eles;j++)
-     for (int k=0;k<n_fields;k++)
-     {
-     if (ele2global_ele(j)==53)
-     {
-     cout << setprecision(10)  << i << " " << ele2global_ele(j) << " " << k << " " << " " << delta_disu_fpts(i,j,k) << endl;
-     }
-     }
-     */
-
-    /*
-     cout << "OUTPUT" << endl;
-     #ifdef _GPU
-     grad_disu_upts.cp_gpu_cpu();
-     #endif
-
-     for (int i=0;i<n_upts_per_ele;i++)
-     for (int j=0;j<n_eles;j++)
-     for (int k=0;k<n_fields;k++)
-     for (int m=0;m<n_dims;m++)
-     {
-     if (ele2global_ele(j)==53)
-     {
-     cout << setprecision(10)  << i << " " << ele2global_ele(j) << " " << k << " " << m << " " << grad_disu_upts(i,j,k,m) << endl;
-     }
-     }
-     */
 }
 
 /*! If at first RK step and using certain LES models, compute some model-related quantities.
@@ -2268,7 +2186,6 @@ void eles::evaluate_viscFlux(void)
 #endif
         for(i=0; i<n_eles; i++)
         {
-
             // Calculate viscous flux
             for(j=0; j<n_upts_per_ele; j++)
             {
@@ -2303,31 +2220,16 @@ void eles::evaluate_viscFlux(void)
                 // If LES or wall model, calculate SGS viscous flux
                 if(LES)
                 {
-
                     calc_sgsf_upts(temp_u,temp_grad_u,detjac,i,j,temp_sgsf);
 
                     // Add SGS or wall flux to viscous flux
-
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-
                     cblas_daxpy(n_fields * n_dims, 1.0, temp_sgsf.get_ptr_cpu(), 1, temp_f.get_ptr_cpu(), 1);
-
 #elif defined _NO_BLAS
-
                     daxpy_wrapper(n_fields * n_dims, 1.0, temp_sgsf.get_ptr_cpu(), 1, temp_f.get_ptr_cpu(), 1);
-
-#else
-                    for(k=0; k<n_fields; k++)
-                        for(l=0; l<n_dims; l++)
-                            temp_f(k,l) += temp_sgsf(k,l);
 #endif
-                }
 
-                // If LES, add SGS flux to global hf_array (needed for interface flux calc)
-                if(LES > 0)
-                {
-                    // Transfer back to computational domain
-
+                    // Transform SGS flux back to computational domain F=det(J)*J^-1*f
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
                     cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n_fields, n_dims, n_dims, 1.0, temp_sgsf.get_ptr_cpu(), n_fields, JGinv_upts.get_ptr_cpu(0, 0, j, i), n_dims, 0.0, temp_tdisf_upts.get_ptr_cpu(), n_fields);
                     for (k = 0; k < n_fields; k++)
@@ -2348,7 +2250,7 @@ void eles::evaluate_viscFlux(void)
 #endif
                 }
 
-// Transform viscous flux
+// Transform viscous flux to reference domain, F_tot+=det(J)J^-1*f
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
                 cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n_fields, n_dims, n_dims, 1.0, temp_f.get_ptr_cpu(), n_fields, JGinv_upts.get_ptr_cpu(0, 0, j, i), n_dims, 0.0, temp_tdisf_upts.get_ptr_cpu(), n_fields);
                 for (k = 0; k < n_fields; k++)
@@ -3190,20 +3092,11 @@ double eles::wallfn_br(double yplus, double A, double B, double E, double kappa)
     return Rey;
 }
 
-/*! Calculate SGS flux at solution points */
+/*! Extrapolate transformed SGS flux to flux points and transform back to physical domain */
 void eles::extrapolate_sgsFlux(void)
 {
     if (n_eles!=0)
     {
-
-        /*!
-         Performs C = (alpha*A*B) + (beta*C) where: \n
-         alpha = 1.0 \n
-         beta = 0.0 \n
-         A = opp_0 \n
-         B = sgsf_upts \n
-         C = sgsf_fpts
-         */
 
 #ifdef _CPU
 
@@ -3246,6 +3139,40 @@ void eles::extrapolate_sgsFlux(void)
 
 #endif
 
+//Transform back to physical domain
+
+        hf_array<double> temp_psgsf(n_dims, n_fields); //temporary physical corrected gradients
+        hf_array<double> temp_tsgsf(n_dims, n_fields); //temporary transformed correct gradients
+        hf_array<double> temp_JGinv(n_dims, n_dims); //inv JGinv
+        temp_psgsf.initialize_to_zero();
+
+        for (int i = 0; i < n_eles; i++)
+        {
+            //at flux points
+            for (int j = 0; j < n_fpts_per_ele; j++)
+            {
+                //copy data from ref domain
+                for (int k = 0; k < n_fields; k++)
+                    for (int d = 0; d < n_dims; d++)
+                        temp_tsgsf(d, k) = sgsf_fpts(j, i, k, d);
+
+                //inverse JGinv
+                for (int k = 0; k < n_dims; k++)
+                    for (int d = 0; d < n_dims; d++)
+                        temp_JGinv(k, d) = JGinv_fpts(k, d, j, i);
+                        temp_JGinv=inv_array(temp_JGinv);
+
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+                        cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_dims, n_fields, n_dims, 1.0, temp_JGinv.get_ptr_cpu(), n_dims, temp_tsgsf.get_ptr_cpu(), n_dims, 0.0, temp_psgsf.get_ptr_cpu(), n_dims);
+#elif defined _NO_BLAS
+                        dgemm(n_dims, n_fields, n_dims, 1.0, 0.0, temp_JGinv.get_ptr_cpu(), temp_tsgsf.get_ptr_cpu(), temp_psgsf.get_ptr_cpu());
+#endif
+                        //copy physical sgs flux back to array
+                        for (int k = 0; k < n_fields; k++)
+                            for (int d = 0; d < n_dims; d++)
+                                sgsf_fpts(j, i, k, d) = temp_psgsf(d, k);
+            }
+        }
 #ifdef _GPU
 
         if(opp_0_sparse==0)
@@ -4711,7 +4638,7 @@ void eles::set_transforms_upts(void)
                         FatalError("Negative Jacobian at solution points");
                     }
 
-                    // store inverse of  jacobian multiplied by determinant of jacobian at the solution point
+                    // store determinant of jacobian multiplied by inverse of jacobian at the solution point
                     JGinv_upts(0,0,j,i)= ys;
                     JGinv_upts(0,1,j,i)= -xs;
                     JGinv_upts(1,0,j,i)= -yr;
@@ -4735,6 +4662,7 @@ void eles::set_transforms_upts(void)
 
                     detjac_upts(j,i) = xr*(ys*zt - yt*zs) - xs*(yr*zt - yt*zr) + xt*(yr*zs - ys*zr);
 
+                    // store determinant of jacobian multiplied by inverse of jacobian at the solution point
                     JGinv_upts(0,0,j,i) = ys*zt - yt*zs;
                     JGinv_upts(0,1,j,i) = xt*zs - xs*zt;
                     JGinv_upts(0,2,j,i) = xs*yt - xt*ys;
@@ -4837,7 +4765,7 @@ void eles::set_transforms_fpts(void)
                         FatalError("Negative Jacobian at flux points");
                     }
 
-                    // store inverse of determinant of jacobian multiplied by jacobian at the flux point
+                    // store determinant of jacobian multiplied by inverse of jacobian at the flux point
 
                     JGinv_fpts(0,0,j,i)= ys;
                     JGinv_fpts(0,1,j,i)= -xs;
