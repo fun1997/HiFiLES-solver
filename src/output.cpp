@@ -1722,6 +1722,8 @@ void output::CalcForces(int in_file_num, bool write_forces)
 
     // open file for writing
     coeff_file.open(file_name_s);
+    // Add a header to the force file
+    coeff_file << setw(18) << "x" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
   }
 
   // zero the forces and coeffs

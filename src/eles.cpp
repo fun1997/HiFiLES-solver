@@ -6242,10 +6242,6 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
     // one over the dynamic pressure - 1/(0.5rho*u^2)
     factor = 1.0 / (0.5*run_input.rho_c_ic*(run_input.u_c_ic*run_input.u_c_ic+run_input.v_c_ic*run_input.v_c_ic+run_input.w_c_ic*run_input.w_c_ic));
 
-    // Add a header to the force file
-    if (write_forces)
-        coeff_file << setw(18) << "x" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
-
     // loop over the boundary elements
     for (int i=0; i<n_bdy_eles; i++)
     {
@@ -6399,13 +6395,12 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                         // Compute the coefficient of friction and wall shear stress
                         hf_array<double> S(n_dims,n_dims);
                         taun.initialize_to_zero();
-                        for (int m = 0; m < n_dims; m++)
-                            for (int n = 0; n < n_dims; n++)
-                            {
+                        for (int n = 0; n < n_dims; n++)
+                        {
+                            for (int m = 0; m < n_dims; m++)
                                 S(m, n) = 0.5 * (dv(m, n) + dv(n, m));
-                                if (m == n)
-                                    S(m, n) -= diag;
-                            }
+                            S(n, n) -= diag;
+                        }
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
                         cblas_dgemv(CblasColMajor, CblasNoTrans, n_dims, n_dims, 2.*mu, S.get_ptr_cpu(), n_dims, norm.get_ptr_cpu(), 1, 0.0, taun.get_ptr_cpu(), 1);
 #else
@@ -6426,7 +6421,7 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                         // wall shear stress
                         tauw = 0.;
                         for (int m = 0; m < n_dims; m++)
-                            tauw += pow(tautan(i), 2);
+                            tauw += pow(tautan(m), 2);
                         tauw = sqrt(tauw);
 
                         // coefficient of friction
