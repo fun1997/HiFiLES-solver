@@ -92,7 +92,7 @@ class output
     void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist);
 
     /*! compute forces on wall faces*/
-    void CalcForces(int in_file_num);
+    void CalcForces(int in_file_num, bool write_forces);
     
     //helper methods
 

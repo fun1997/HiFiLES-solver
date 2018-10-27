@@ -330,10 +330,10 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
     cout << "done." << endl;
 
   // Set metrics at interface cubpts
-  if (run_input.calc_force != 0 || run_input.forcing != 0)
+  if (run_input.calc_force != 0 || run_input.forcing != 0)//only calculated when need to calculate surface/body force
   {
     if (FlowSol->rank == 0)
-      cout << "setting element transforms at interface cubpts ... "; //only calculated when need to calculate surface/body force
+      cout << "setting element transforms at interface cubpts ... "; 
     for (int i = 0; i < FlowSol->n_ele_types; i++)
     {
       if (FlowSol->mesh_eles(i)->get_n_eles() != 0)

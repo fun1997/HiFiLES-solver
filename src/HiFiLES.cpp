@@ -228,7 +228,7 @@ int main(int argc, char *argv[]) {
       /*! Compute the value of the forces. */
 
       if (run_input.calc_force!=0)
-          run_output.CalcForces(FlowSol.ini_iter+i_steps);
+        run_output.CalcForces(FlowSol.ini_iter + i_steps, (i_steps == 1 || i_steps % run_input.monitor_cp_freq == 0));
 
       /*! Compute integral quantities. */
 

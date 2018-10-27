@@ -597,8 +597,13 @@ void eles::set_patch(void)
 {
     double rho,vx,vy,vz,p,temper;
     double gamma=run_input.gamma;
+    double temp_R;
     hf_array<double> pos(n_dims);
     double rho_temp;
+    if (viscous) //Navier
+        temp_R = run_input.R_ref;
+    else //Euler
+        temp_R = run_input.R_gas;
     for(int i=0; i<n_eles; i++)
     {
         for(int j=0; j<n_upts_per_ele; j++)
@@ -607,7 +612,7 @@ void eles::set_patch(void)
             {
                 pos(k)=pos_upts(j,i,k);
             }
-            if(run_input.patch_type==0)//shock vortex by sup_in sub_out_simp/char
+            if(run_input.patch_type==0)//vortex
             {
                 //set parameters
                 double Mv=run_input.Mv;//vortex strength
@@ -639,7 +644,7 @@ void eles::set_patch(void)
                     {
                         vx-=(pos(1)-yc)/r*vm*r/ra;
                         vy+=(pos(0)-xc)/r*vm*r/ra;
-                        temper=p/(rho*run_input.R_ref)-(gamma-1)/(run_input.R_ref*gamma)*(pow(vm,2)/pow(ra,2)*0.5*(pow(ra,2)-pow(r,2))
+                        temper=p/(rho*temp_R)-(gamma-1)/(temp_R*gamma)*(pow(vm,2)/pow(ra,2)*0.5*(pow(ra,2)-pow(r,2))
                                 +pow(vm,2)*pow(ra,2)/pow(pow(ra,2)-pow(rb,2),2)*(0.5*(pow(rb,2)-pow(ra,2))-0.5*pow(rb,4)*(1/pow(rb,2)-1/pow(ra,2))
                                         -2*pow(rb,2)*(log(rb/ra))));
                     }
@@ -647,12 +652,12 @@ void eles::set_patch(void)
                     {
                         vx-=(pos(1)-yc)/r*vm*ra/(pow(ra,2)-pow(rb,2))*(r-pow(rb,2)/r);
                         vy+=(pos(0)-xc)/r*vm*ra/(pow(ra,2)-pow(rb,2))*(r-pow(rb,2)/r);
-                        temper=p/(rho*run_input.R_ref)-(gamma-1)/(run_input.R_ref*gamma)*pow(vm,2)*pow(ra,2)/pow(pow(ra,2)-pow(rb,2),2)*(0.5*(pow(rb,2)-pow(r,2))-0.5*pow(rb,4)*(1/(pow(rb,2))-1/(pow(r,2)))
+                        temper=p/(rho*temp_R)-(gamma-1)/(temp_R*gamma)*pow(vm,2)*pow(ra,2)/pow(pow(ra,2)-pow(rb,2),2)*(0.5*(pow(rb,2)-pow(r,2))-0.5*pow(rb,4)*(1/(pow(rb,2))-1/(pow(r,2)))
                                 -2*pow(rb,2)*(log(rb/r)));
                     }
                     rho_temp=rho;
-                    rho=rho*pow(temper/(p/(rho*run_input.R_ref)),1/(gamma-1));
-                    p=p*pow(temper/(p/(rho_temp*run_input.R_ref)),gamma/(gamma-1));
+                    rho=rho*pow(temper/(p/(rho*temp_R)),1/(gamma-1));
+                    p=p*pow(temper/(p/(rho_temp*temp_R)),gamma/(gamma-1));
                     //copy solution back to solution hf_array
                     disu_upts(0)(j,i,0)=rho;
                     disu_upts(0)(j,i,1)=rho*vx;
@@ -4255,7 +4260,7 @@ void eles::calc_pos_ppts(int in_ele, hf_array<double>& out_pos_ppts)
             }
             calc_pos(loc,in_ele,pos);
 
-        for(j=0; j<n_dims; j++) // TODO: can this be made more efficient/simpler?
+        for(j=0; j<n_dims; j++)
         {
             out_pos_ppts(i,j)=pos(j);
         }
@@ -5012,7 +5017,6 @@ void eles::set_transforms_inters_cubpts(void)
 
                     // calculate first derivatives of shape functions at the cubature points
 
-                    // TODO: Need mapping between bdy_interfaces and ele
                     calc_d_pos(loc,bdy_ele2ele(i),d_pos);
 
                     // store quantities at the cubature point
@@ -5026,7 +5030,7 @@ void eles::set_transforms_inters_cubpts(void)
                         yr = d_pos(1,0);
                         ys = d_pos(1,1);
 
-                        // store determinant of jacobian at cubature point. TODO: what is this for?
+                        // store determinant of jacobian at cubature point. 
                         vol_detjac_inters_cubpts(l)(j,i)= xr*ys - xs*yr;
 
                         // temporarily store transformed normal dot inverse of determinant of jacobian multiplied by jacobian at the cubature point
@@ -6216,19 +6220,13 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
     double diag, tauw, taundotn, wgt, detjac;
     double factor, aoa, aos, cp, cf, cl, cd;
 
-    // Need to add a reference area to the input file... Not needed for Cp/Cf,
-    // but will be needed for forces if not equal to 1.0 for different geometries
+    double area_ref = run_input.area_ref;
 
-    double area_ref = 1.0;
-
-    for (int m=0; m<n_dims; m++)
-    {
-        Finv(m) = 0.;
-        Fvis(m) = 0.;
-        inv_force(m) = 0.;
-        vis_force(m) = 0.;
-    }
-
+    //initialize forces
+    Finv.initialize_to_zero();
+    Fvis.initialize_to_zero();
+    inv_force.initialize_to_zero();
+    vis_force.initialize_to_zero();
     temp_cd = 0.0;
     temp_cl = 0.0;
 
@@ -6241,14 +6239,12 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
         aos = atan2(run_input.w_c_ic, run_input.u_c_ic);
     }
 
-    // one over the dynamic pressure - factor for computing friction coeff, pressure coeff, forces
+    // one over the dynamic pressure - 1/(0.5rho*u^2)
     factor = 1.0 / (0.5*run_input.rho_c_ic*(run_input.u_c_ic*run_input.u_c_ic+run_input.v_c_ic*run_input.v_c_ic+run_input.w_c_ic*run_input.w_c_ic));
 
     // Add a header to the force file
     if (write_forces)
-    {
         coeff_file << setw(18) << "x" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
-    }
 
     // loop over the boundary elements
     for (int i=0; i<n_bdy_eles; i++)
@@ -6290,7 +6286,7 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                         u_l(m) = value;
                     }
 
-                    // If viscous, extrapolate the gradient at the cubature points
+                    // If viscous, extrapolate the gradient at the cubature points, TODO: this is only exact for linear transform
                     if (viscous==1)
                     {
                         for (int m=0; m<n_fields; m++)
@@ -6343,13 +6339,13 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                     // calculate pressure coefficient at current point on the surface
                     cp = (p_l-run_input.p_c_ic)*factor;
 
-                    // Inviscid force
+                    // Inviscid force coefficient, F/0.5rhou^2
                     for (int m=0; m<n_dims; m++)
                     {
                         Finv(m) = wgt*(p_l-run_input.p_c_ic)*norm(m)*detjac*factor;
                     }
 
-                    // inviscid component of the lift and drag coefficients
+                    // inviscid component of the lift and drag coefficients without area
 
                     if (n_dims==2)
                     {
@@ -6364,11 +6360,9 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
 
                     // write to file
                     if (write_forces)
-                    {
                         coeff_file << scientific << setw(18) << setprecision(12) << pos(0) << " " << setw(18) << setprecision(12) << cp;
-                    }
 
-                    if (viscous==1)
+                    if (viscous)
                     {
                         // TODO: Have a function that returns tau given u and grad_u
                         // Computing the n_dims derivatives of rho,u,v,w and ene
@@ -6403,88 +6397,65 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                         mu = mu + run_input.fix_vis*(run_input.mu_inf - mu);
 
                         // Compute the coefficient of friction and wall shear stress
-                        if (n_dims==2)
+                        hf_array<double> S(n_dims,n_dims);
+                        taun.initialize_to_zero();
+                        for (int m = 0; m < n_dims; m++)
+                            for (int n = 0; n < n_dims; n++)
+                            {
+                                S(m, n) = 0.5 * (dv(m, n) + dv(n, m));
+                                if (m == n)
+                                    S(m, n) -= diag;
+                            }
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+                        cblas_dgemv(CblasColMajor, CblasNoTrans, n_dims, n_dims, 2.*mu, S.get_ptr_cpu(), n_dims, norm.get_ptr_cpu(), 1, 0.0, taun.get_ptr_cpu(), 1);
+#else
+                        for (int m = 0; m < n_dims; m++)
+                            for (int n = 0; n < n_dims; n++)
+                                taun(m) += 2.*mu*S(m, n) * norm(n);
+#endif
+
+                        // take dot product with normal
+                        taundotn = 0.;
+                        for (int m = 0; m < n_dims; m++)
+                            taundotn += taun(m) * norm(m);
+
+                        // stresses tangent to wall
+                        for (int m = 0; m < n_dims; m++)
+                            tautan(m) = taun(m) - taundotn * norm(m);
+
+                        // wall shear stress
+                        tauw = 0.;
+                        for (int m = 0; m < n_dims; m++)
+                            tauw += pow(tautan(i), 2);
+                        tauw = sqrt(tauw);
+
+                        // coefficient of friction
+                        cf = tauw * factor;
+                        if (write_forces)
+                            coeff_file << " " << setw(18) << setprecision(12) << cf;
+
+                        // viscous force
+                        for (int m = 0; m < n_dims; m++)
                         {
-                            // stresses w.r.t. normal
-                            taun(0) = mu*(2.*(dv(0,0)-diag)*norm(0) + (dv(0,1)+dv(1,0))*norm(1));
-                            taun(1) = mu*(2.*(dv(1,1)-diag)*norm(1) + (dv(0,1)+dv(1,0))*norm(0));
-
-                            // take dot product with normal
-                            taundotn = taun(0)*norm(0)+taun(1)*norm(1);
-
-                            // stresses tangent to wall
-                            tautan(0) = taun(0) - taundotn*norm(0);
-                            tautan(1) = taun(1) - taundotn*norm(1);
-
-                            // wall shear stress
-                            tauw = sqrt(pow(tautan(0),2)+pow(tautan(1),2));
-
-                            // coefficient of friction
-                            cf = tauw*factor;
-
-                            if (write_forces)
-                            {
-                                coeff_file << " " << setw(18) <<setprecision(12) << cf;
-                            }
-
-                            // viscous force
-                            for (int m=0; m<n_dims; m++)
-                            {
-                                Fvis(m) = -wgt*taun(m)*detjac*factor;
-                            }
-
-                            // viscous component of the lift and drag coefficients
-
-                            cl += -Fvis(0)*sin(aoa) + Fvis(1)*cos(aoa);
-                            cd += Fvis(0)*cos(aoa) + Fvis(1)*sin(aoa);
-
+                            Fvis(m) = -wgt * taun(m) * detjac * factor;
                         }
 
-                        if (n_dims==3)
+                        // viscous component of the lift and drag coefficients
+                        if (n_dims == 2)
                         {
-                            // stresses w.r.t. normal
-                            taun(0) = mu*(2.*(dv(0,0)-diag)*norm(0) + (dv(0,1)+dv(1,0))*norm(1) + (dv(0,2)+dv(2,0))*norm(2));
-                            taun(1) = mu*(2.*(dv(1,1)-diag)*norm(1) + (dv(0,1)+dv(1,0))*norm(0) + (dv(1,2)+dv(2,1))*norm(2));
-                            taun(2) = mu*(2.*(dv(2,2)-diag)*norm(2) + (dv(0,2)+dv(2,0))*norm(0) + (dv(1,2)+dv(2,1))*norm(1));
-
-                            // take dot product with normal
-                            taundotn = taun(0)*norm(0)+taun(1)*norm(1)+taun(2)*norm(2);
-
-                            // stresses tangent to wall
-                            tautan(0) = taun(0) - taundotn*norm(0);
-                            tautan(1) = taun(1) - taundotn*norm(1);
-                            tautan(2) = taun(2) - taundotn*norm(2);
-
-                            // wall shear stress
-                            tauw = sqrt(pow(tautan(0),2)+pow(tautan(1),2)+pow(tautan(2),2));
-
-                            // coefficient of friction
-                            cf = tauw*factor;
-
-                            if (write_forces)
-                            {
-                                coeff_file << " " << setw(18) <<setprecision(12) << cf;
-                            }
-
-                            // viscous force
-                            for (int m=0; m<n_dims; m++)
-                            {
-                                Fvis(m) = -wgt*taun(m)*detjac*factor;
-                            }
-
+                            cl += -Fvis(0) * sin(aoa) + Fvis(1) * cos(aoa);
+                            cd += Fvis(0) * cos(aoa) + Fvis(1) * sin(aoa);
+                        }
+                        else if (n_dims == 3)
+                        {
                             // viscous component of the lift and drag coefficients
-                            // TODO: make this work for any orientation of axes
-
-                            cl += -Fvis(0)*sin(aoa) + Fvis(1)*cos(aoa);
-                            cd += Fvis(0)*cos(aoa)*cos(aos) + Fvis(1)*sin(aoa) + Fvis(2)*sin(aoa)*cos(aos);
-
+                            cl += -Fvis(0) * sin(aoa) + Fvis(1) * cos(aoa);
+                            cd += Fvis(0) * cos(aoa) * cos(aos) + Fvis(1) * sin(aoa) + Fvis(2) * sin(aoa) * cos(aos);
                         }
                     } // End of if viscous
 
                     if (write_forces)
-                    {
                         coeff_file << endl;
-                    }
 
                     // Add force and coefficient contributions from current face
                     for (int m=0; m<n_dims; m++)
@@ -6492,8 +6463,8 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                         inv_force(m) += Finv(m);
                         vis_force(m) += Fvis(m);
                     }
-                    temp_cl += cl;
-                    temp_cd += cd;
+                    temp_cl += cl/area_ref;
+                    temp_cd += cd/area_ref;
                 }
             }
         }

@@ -1411,6 +1411,8 @@ void output::write_probe(void)
 {
     /*! Current rank*/
     int myrank=FlowSol->rank;
+    /*! Is viscous*/
+    int viscous=run_input.viscous;
     /*! No. of solution fields */
     int n_fields;
     /*! No. of optional diagnostic fields */
@@ -1518,9 +1520,17 @@ void output::write_probe(void)
         {
           write_probe << "NOTE: ALL OUTPUTS ARE DIMENSIONAL IN SI UNITS" << endl;
           write_probe << "Probe position" << endl;
-          write_probe << setw(20) << setprecision(10) << run_probe.pos_probe(0, i) * run_input.L_free_stream << setw(20) << setprecision(10) << run_probe.pos_probe(1, i) * run_input.L_free_stream;
+          if (viscous)
+            write_probe << setw(20) << setprecision(10) << run_probe.pos_probe(0, i) * run_input.L_ref << setw(20) << setprecision(10) << run_probe.pos_probe(1, i) * run_input.L_ref;
+          else
+            write_probe << setw(20) << setprecision(10) << run_probe.pos_probe(0, i) << setw(20) << setprecision(10) << run_probe.pos_probe(1, i);
           if (n_dims == 3)
-            write_probe << setw(20) << setprecision(10) << run_probe.pos_probe(2, i) * run_input.L_free_stream << endl;
+          {
+            if (viscous)
+              write_probe << setw(20) << setprecision(10) << run_probe.pos_probe(2, i) * run_input.L_ref << endl;
+            else
+              write_probe << setw(20) << setprecision(10) << run_probe.pos_probe(2, i) << endl;
+          }
           else
             write_probe << endl;
           /*! write surface information*/
@@ -1534,7 +1544,10 @@ void output::write_probe(void)
               write_probe << endl;
 
             write_probe << "Surface area" << endl;
-            write_probe << setw(20) << setprecision(10) << run_probe.surf_area[i] * run_input.L_free_stream * run_input.L_free_stream << endl;
+            if (viscous)
+              write_probe << setw(20) << setprecision(10) << run_probe.surf_area[i] * run_input.L_ref * run_input.L_ref << endl;
+            else
+              write_probe << setw(20) << setprecision(10) << run_probe.surf_area[i] << endl;
           }
           /*! write field titles*/
           write_probe << setw(20) << "time";
@@ -1553,8 +1566,8 @@ void output::write_probe(void)
 
         /*! Start writing data*/
         //write time
-        if (run_input.viscous)
-          write_probe << setw(20) << setprecision(10) << FlowSol->time * run_input.L_free_stream / run_input.uvw_ref;
+        if (viscous)
+          write_probe << setw(20) << setprecision(10) << FlowSol->time * run_input.L_ref / run_input.uvw_ref;
         else
           write_probe << setw(20) << setprecision(10) << FlowSol->time;
         for (int j = 0; j < n_probe_fields; j++) //write transient fields
@@ -1562,21 +1575,21 @@ void output::write_probe(void)
 
           if (run_probe.probe_fields(j) == "rho")
           {
-            if (run_input.viscous)
+            if (viscous)
               write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(0) * run_input.rho_ref;
             else
               write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(0);
           }
           else if (run_probe.probe_fields(j) == "u")
           {
-            if (run_input.viscous)
+            if (viscous)
               write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(1) / disu_probe_point_temp(0) * run_input.uvw_ref;
             else
               write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(1) / disu_probe_point_temp(0);
           }
           else if (run_probe.probe_fields(j) == "v")
           {
-            if (run_input.viscous)
+            if (viscous)
               write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(2) / disu_probe_point_temp(0) * run_input.uvw_ref;
             else
               write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(2) / disu_probe_point_temp(0);
@@ -1585,7 +1598,7 @@ void output::write_probe(void)
           {
             if (n_dims == 3)
             {
-              if (run_input.viscous)
+              if (viscous)
                 write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(3) / disu_probe_point_temp(0) * run_input.uvw_ref;
               else
                 write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(3) / disu_probe_point_temp(0);
@@ -1596,7 +1609,7 @@ void output::write_probe(void)
           }
           else if (run_probe.probe_fields(j) == "specific_total_energy") //e
           {
-            if (run_input.viscous)
+            if (viscous)
               write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(n_dims + 1) / disu_probe_point_temp(0) * run_input.uvw_ref * run_input.uvw_ref;
             else
               write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(n_dims + 1) / disu_probe_point_temp(0);
@@ -1611,7 +1624,7 @@ void output::write_probe(void)
             // cout<<disu_probe_point_temp(0);
             // Compute pressure
             pressure = (run_input.gamma - 1.0) * (disu_probe_point_temp(n_dims + 1) - 0.5 * disu_probe_point_temp(0) * v_sq);
-            if (run_input.viscous)
+            if (viscous)
               write_probe << setw(20) << setprecision(10) << pressure * run_input.rho_ref * run_input.uvw_ref * run_input.uvw_ref;
             else
               write_probe << setw(20) << setprecision(10) << pressure;
@@ -1678,57 +1691,40 @@ if (FlowSol->nproc>1)
 
 }
 
-void output::CalcForces(int in_file_num)
+void output::CalcForces(int in_file_num, bool write_forces)
 {
   char file_name_s[256];
   char forcedir_s[256];
   struct stat st = {0};
   ofstream coeff_file;
-  bool write_dir, write_forces;
   hf_array<double> temp_inv_force(FlowSol->n_dims);
   hf_array<double> temp_vis_force(FlowSol->n_dims);
   double temp_cl, temp_cd;
   int my_rank;
 
-  // set write flags
-  if (run_input.restart_flag == 0)
-   {
-    write_dir = (in_file_num == 1);
-    write_forces = ((in_file_num % (run_input.monitor_cp_freq)) == 0) || (in_file_num == 1);
-   }
-  else
+  if (write_forces)
   {
-    write_dir = (in_file_num == run_input.restart_iter+1);
-    write_forces = ((in_file_num % (run_input.monitor_cp_freq)) == 0) || (in_file_num == run_input.restart_iter + 1);
-  }
-  // set name of directory to store output files
-  sprintf(forcedir_s,"force_files");
-  // Create directory and set name of files
+    // set name of directory to store output files
+    sprintf(forcedir_s, "force_files_%09d", in_file_num);
+    // Create directory and set name of files
     my_rank = FlowSol->rank;
-  // Master node creates a subdirectory to store cp_*.dat files
-  if ((my_rank == 0) && (write_dir))
+    // Master node creates a subdirectory to store cp_*.dat files
+    if (my_rank == 0)
       if (stat(forcedir_s, &st) == -1)
-          mkdir(forcedir_s, 0755);
-#ifdef _MPI
-MPI_Barrier(MPI_COMM_WORLD);//wait for master node
-  if (write_forces)
-    {
-      sprintf(file_name_s,"force_files/cp_%.09d_p%.04d.dat",in_file_num,my_rank);
-      // open files for writing
-      coeff_file.open(file_name_s);
-    }
-#else
-  if (write_forces)
-    {
-      sprintf(file_name_s,"force_files/cp_%.09d_p%.04d.dat",in_file_num,0);
-      // open file for writing
-      coeff_file.open(file_name_s);
-    }
+        mkdir(forcedir_s, 0755);
 
+#ifdef _MPI
+    MPI_Barrier(MPI_COMM_WORLD); //wait for master node
+    sprintf(file_name_s, "%s/cp_%.09d_p%.04d.dat", forcedir_s, in_file_num, my_rank);
+#else
+    sprintf(file_name_s, "%s/cp_%.09d_p%.04d.dat", forcedir_s, in_file_num, 0);
 #endif
 
-  // zero the forces and coeffs
+    // open file for writing
+    coeff_file.open(file_name_s);
+  }
 
+  // zero the forces and coeffs
     FlowSol->inv_force.initialize_to_zero();
     FlowSol->vis_force.initialize_to_zero();
     FlowSol->coeff_lift = 0.0;
@@ -1739,16 +1735,16 @@ MPI_Barrier(MPI_COMM_WORLD);//wait for master node
     {
       if (FlowSol->mesh_eles(i)->get_n_eles()!=0)
         {
-          // compute surface forces and coefficients
+          // compute surface forces and coefficients, write to files
           FlowSol->mesh_eles(i)->compute_wall_forces(temp_inv_force, temp_vis_force, temp_cl, temp_cd, coeff_file, write_forces);
 
-          // set surface forces
+          // set total surface forces
           for (int m=0;m<FlowSol->n_dims;m++) {
               FlowSol->inv_force(m) += temp_inv_force(m);
               FlowSol->vis_force(m) += temp_vis_force(m);
             }
 
-          // set lift and drag coefficients
+          // set total lift and drag coefficients
           FlowSol->coeff_lift += temp_cl;
           FlowSol->coeff_drag += temp_cd;
         }
@@ -1761,28 +1757,21 @@ MPI_Barrier(MPI_COMM_WORLD);//wait for master node
   double coeff_lift_global=0.0;
   double coeff_drag_global=0.0;
 
-  for (int m=0;m<FlowSol->n_dims;m++) {
-      inv_force_global(m) = 0.;
-      vis_force_global(m) = 0.;
-      MPI_Reduce(&FlowSol->inv_force(m),&inv_force_global(m),1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
-      MPI_Reduce(&FlowSol->vis_force(m),&vis_force_global(m),1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
-    }
+  MPI_Reduce(FlowSol->inv_force.get_ptr_cpu(), inv_force_global.get_ptr_cpu(), FlowSol->n_dims, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(FlowSol->vis_force.get_ptr_cpu(), vis_force_global.get_ptr_cpu(), FlowSol->n_dims, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  MPI_Reduce(&FlowSol->coeff_lift,&coeff_lift_global,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
-  MPI_Reduce(&FlowSol->coeff_drag,&coeff_drag_global,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
+  MPI_Reduce(&FlowSol->coeff_lift, &coeff_lift_global, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&FlowSol->coeff_drag, &coeff_drag_global, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  for (int m=0;m<FlowSol->n_dims;m++)
-    {
-      FlowSol->inv_force(m) = inv_force_global(m);
-      FlowSol->vis_force(m) = vis_force_global(m);
-    }
+  FlowSol->inv_force = inv_force_global;
+  FlowSol->vis_force = vis_force_global;
 
   FlowSol->coeff_lift = coeff_lift_global;
   FlowSol->coeff_drag = coeff_drag_global;
 
 #endif
-
-  if (write_forces) { coeff_file.close(); }
+  if (write_forces)
+    coeff_file.close();
 }
 
 // Calculate integral diagnostic quantities

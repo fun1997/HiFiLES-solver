@@ -159,28 +159,6 @@ void eles_quads::set_connectivity_plot()
     }
 }
 
-
-
-// set shape
-
-/*
-void eles_quads::set_shape(hf_array<int> &in_n_spts_per_ele)
-{
-  //TODO: this is inefficient, copies by value
-  n_spts_per_ele = in_n_spts_per_ele;
-
-  // Computing maximum number of spts per ele for all elements
-  int max_n_spts_per_ele = 0;
-  for (int i=0;i<n_eles;i++) {
-    if (n_spts_per_ele(i) > max_n_spts_per_ele)
-      max_n_spts_per_ele = n_spts_per_ele(i);
-  }
-
-    shape.setup(n_dims,max_n_spts_per_ele,n_eles);
-}
-*/
-
-
 // set location of 1d solution points in standard interval (required for tensor product elements)
 
 void eles_quads::set_loc_1d_upts(void)

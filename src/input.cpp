@@ -98,8 +98,12 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("data_file_name", data_file_name, string("Mesh"));
     opts.getScalarValue("restart_dump_freq", restart_dump_freq, INT32_MAX);
     opts.getScalarValue("monitor_res_freq", monitor_res_freq, 100);
-    opts.getScalarValue("monitor_cp_freq", monitor_cp_freq, INT32_MAX);
     opts.getScalarValue("calc_force", calc_force, 0);
+    if (calc_force)
+    {
+        opts.getScalarValue("monitor_cp_freq", monitor_cp_freq);
+        opts.getScalarValue("area_ref", area_ref, 1.0);
+    }
     opts.getScalarValue("res_norm_type", res_norm_type, 2);
     opts.getScalarValue("error_norm_type", error_norm_type, 2);
     opts.getScalarValue("res_norm_field", res_norm_field, 0);
@@ -170,7 +174,7 @@ void input::read_input_file(string fileName, int rank)
         opts.getScalarValue("filter_ratio", filter_ratio);
         opts.getScalarValue("wall_model", wall_model);
         if (wall_model)
-            opts.getScalarValue("wall_layer_thickness", wall_layer_t);//TODO: try to fix this
+            opts.getScalarValue("wall_layer_thickness", wall_layer_t);//TODO: try to fix this with y+
     }
 
     /* ---- Gas Parameters ---- */
@@ -500,7 +504,7 @@ void input::setup_params(int rank)
     if (monitor_res_freq == 0)
         monitor_res_freq = 1000;
     if (monitor_cp_freq == 0)
-        monitor_cp_freq = 1000;
+        monitor_cp_freq = INT32_MAX;
 
 #ifndef _CGNS
     if (write_type == 2)
@@ -662,5 +666,17 @@ void input::setup_params(int rank)
                 cout << "mu_c_ic=" << mu_c_ic << endl;
             }
         }
+    }
+    else
+    {
+        //define all the reference value to be NaN
+        T_ref = NAN;
+        L_ref = NAN;
+        rho_ref = NAN;
+        uvw_ref = NAN;
+        p_ref = NAN;
+        mu_ref = NAN;
+        time_ref = NAN;
+        R_ref = NAN;
     }
 }

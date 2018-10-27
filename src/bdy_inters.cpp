@@ -830,7 +830,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
         }
 
         // Dual consistent BC (see SD++ for more comments)
-        else if (bc_flag==SLIP_WALL_DUAL)
+        else if (bc_flag==SLIP_WALL_DUAL)//TODO: what is this
         {
             // extrapolate density
             rho_r = rho_l;

@@ -140,6 +140,7 @@ public:
     int monitor_res_freq;
     int calc_force;
     int monitor_cp_freq;
+    double area_ref;
     int res_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
     int error_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
     int res_norm_field;
