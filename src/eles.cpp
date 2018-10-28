@@ -2287,7 +2287,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     int i,j,k;
     int eddy, sim, wall;
     double C_s=run_input.C_s;
-    double diag=0.0;
+    double diag;
     double Smod=0.0;
     double ke=0.0;
     double Pr_t=run_input.prandtl_t; // turbulent Prandtl number
@@ -2518,17 +2518,10 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             /*! calculate traceless strain rate */
 
             // Strain rate tensor
-                      for (i=0; i<n_dims; i++)
-            {
+            for (i=0; i<n_dims; i++)
                 for (j=0; j<n_dims; j++)
-                {
                     S(i,j) = (du(i,j)+du(j,i))/2.0;//S_ij=0.5*(du_j/dx_i+du_i/dx_j)
-                }
-                diag += S(i,i)/3.0;
-            }
 
-            // Subtract diag
-            for (i=0; i<n_dims; i++) S(i,i) -= diag;
             /*!-----------------------------------------*/
 
             // Eddy viscosity
@@ -2604,6 +2597,13 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             }
 
             // Add eddy-viscosity term to SGS fluxes
+            // Subtract diag
+            diag = 0.;
+            for (i = 0; i < n_dims; i++)
+                diag += S(i, i) / 3.0;
+            for (i = 0; i < n_dims; i++)
+                S(i, i) -= diag;
+
             for (j=0; j<n_dims; j++)
             {
                 temp_sgsf(0,j) = 0.0; // Density flux
