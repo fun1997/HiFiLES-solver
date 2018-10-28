@@ -2518,7 +2518,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             /*! calculate traceless strain rate */
 
             // Strain rate tensor
-            for (i=0; i<n_dims; i++)
+                      for (i=0; i<n_dims; i++)
             {
                 for (j=0; j<n_dims; j++)
                 {
@@ -2556,7 +2556,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             //  Output: mu_t = rho*C_s^2*delta^2 * -----------------------------
             //                                     (Sij*Sij)^5/2+(sqij*sqij)^5/4
             //
-            //  Typically Cw = 0.5.
+            //  Typically Cw = 0.325.
 
             else if(sgs_model==1 || sgs_model==2)
             {
@@ -6275,7 +6275,7 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                     // Inviscid force coefficient, F/0.5rhou^2
                     for (int m=0; m<n_dims; m++)
                     {
-                        Finv(m) = wgt*(p_l-run_input.p_c_ic)*norm(m)*detjac*factor;
+                        Finv(m) = wgt * (p_l - run_input.p_c_ic) * norm(m) * detjac * factor / area_ref;
                     }
 
                     // inviscid component of the lift and drag coefficients without area
@@ -6369,7 +6369,7 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                         // viscous force
                         for (int m = 0; m < n_dims; m++)
                         {
-                            Fvis(m) = -wgt * taun(m) * detjac * factor;
+                            Fvis(m) = -wgt * taun(m) * detjac * factor / area_ref;
                         }
 
                         // viscous component of the lift and drag coefficients
