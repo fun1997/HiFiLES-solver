@@ -100,7 +100,7 @@ void int_inters::set_interior(int in_inter, int in_ele_type_l, int in_ele_type_r
               norm_tconf_fpts_l(j,in_inter,i)=get_norm_tconf_fpts_ptr(in_ele_type_l,in_ele_l,i,in_local_inter_l,j,FlowSol);
               norm_tconf_fpts_r(j,in_inter,i)=get_norm_tconf_fpts_ptr(in_ele_type_r,in_ele_r,i,in_local_inter_r,j_rhs,FlowSol);
 
-              for (int k=0;k<n_dims;k++)
+              for (k=0;k<n_dims;k++)
                 {
                   if(viscous)
                     {

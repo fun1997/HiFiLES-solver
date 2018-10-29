@@ -419,11 +419,11 @@ void output::write_tec(int in_file_num)
 
             // write element specific connectivity
             con = FlowSol->mesh_eles(i)->get_connectivity_plot();
-            for (int j = 0; j < FlowSol->mesh_eles(i)->get_n_eles(); j++)
+            for (j = 0; j < FlowSol->mesh_eles(i)->get_n_eles(); j++)
             {
-              for (int k = 0; k < n_peles_per_ele; k++)
+              for (k = 0; k < n_peles_per_ele; k++)
               {
-                for (int l = 0; l < n_verts_per_ele; l++)
+                for (l = 0; l < n_verts_per_ele; l++)
                 {
                   write_tec << con(l, k) + j * n_ppts_per_ele + 1;
                   if (l != n_verts_per_ele - 1)

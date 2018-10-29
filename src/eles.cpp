@@ -428,7 +428,7 @@ void eles::set_ics(double& time)
             else if(run_input.ic_form==9)//stationary shock
             {
                 int found=0;
-                for (int k = 0; k < run_input.bc_list.get_dim(0); k++)
+                for (k = 0; k < run_input.bc_list.get_dim(0); k++)
                 {
                     if (run_input.bc_list(k).get_bc_flag() == SUP_IN || run_input.bc_list(k).get_bc_flag() == CHAR)
                     {
@@ -3601,7 +3601,7 @@ void eles::set_opp_1(int in_sparse)
     hf_array<double> loc(n_dims);
 
     opp_1.setup(n_dims);
-    for (int i=0; i<n_dims; i++)
+    for (i=0; i<n_dims; i++)
         opp_1(i).setup(n_fpts_per_ele,n_upts_per_ele);
 
     for(i=0; i<n_dims; i++)
@@ -3625,7 +3625,7 @@ void eles::set_opp_1(int in_sparse)
     }
 
 #ifdef _GPU
-    for (int i=0; i<n_dims; i++)
+    for (i=0; i<n_dims; i++)
         opp_1(i).cp_cpu_gpu();
 #endif
 
@@ -3645,7 +3645,7 @@ void eles::set_opp_1(int in_sparse)
         opp_1_cols.setup(n_dims);
         opp_1_mkl.setup(n_dims);
         opp_1_descr.setup(n_dims);
-        for (int i = 0; i < n_dims; i++)
+        for (i = 0; i < n_dims; i++)
         {
            array_to_mklcoo(opp_1(i), opp_1_data(i), opp_1_rows(i),opp_1_cols(i));
            mkl_sparse_d_create_coo(opp_1_mkl.get_ptr_cpu(i),
@@ -3663,7 +3663,7 @@ void eles::set_opp_1(int in_sparse)
         opp_1_ell_data.setup(n_dims);
         opp_1_ell_indices.setup(n_dims);
         opp_1_nnz_per_row.setup(n_dims);
-        for (int i=0; i<n_dims; i++)
+        for (i=0; i<n_dims; i++)
         {
             array_to_ellpack(opp_1(i), opp_1_ell_data(i), opp_1_ell_indices(i), opp_1_nnz_per_row(i));
             opp_1_ell_data(i).cp_cpu_gpu();
@@ -3688,7 +3688,7 @@ void eles::set_opp_2(int in_sparse)
     hf_array<double> loc(n_dims);
 
     opp_2.setup(n_dims);
-    for (int i=0; i<n_dims; i++)
+    for (i=0; i<n_dims; i++)
         opp_2(i).setup(n_upts_per_ele,n_upts_per_ele);
 
     for(i=0; i<n_dims; i++)
@@ -3717,7 +3717,7 @@ void eles::set_opp_2(int in_sparse)
     }
 
 #ifdef _GPU
-    for (int i=0; i<n_dims; i++)
+    for (i=0; i<n_dims; i++)
         opp_2(i).cp_cpu_gpu();
 #endif
 
@@ -3739,7 +3739,7 @@ void eles::set_opp_2(int in_sparse)
         opp_2_cols.setup(n_dims);
         opp_2_mkl.setup(n_dims);
         opp_2_descr.setup(n_dims);
-        for (int i = 0; i < n_dims; i++)
+        for (i = 0; i < n_dims; i++)
         {
            array_to_mklcoo(opp_2(i), opp_2_data(i), opp_2_rows(i),opp_2_cols(i));
            mkl_sparse_d_create_coo(opp_2_mkl.get_ptr_cpu(i),
@@ -3757,7 +3757,7 @@ void eles::set_opp_2(int in_sparse)
         opp_2_ell_data.setup(n_dims);
         opp_2_ell_indices.setup(n_dims);
         opp_2_nnz_per_row.setup(n_dims);
-        for (int i=0; i<n_dims; i++)
+        for (i=0; i<n_dims; i++)
         {
             array_to_ellpack(opp_2(i), opp_2_ell_data(i), opp_2_ell_indices(i), opp_2_nnz_per_row(i));
             opp_2_ell_data(i).cp_cpu_gpu();
@@ -3830,7 +3830,7 @@ void eles::set_opp_4(int in_sparse)
     hf_array<double> loc(n_dims);
 
     opp_4.setup(n_dims);
-    for (int i=0; i<n_dims; i++)
+    for (i=0; i<n_dims; i++)
         opp_4(i).setup(n_upts_per_ele, n_upts_per_ele);
 
     for(i=0; i<n_dims; i++)
@@ -3850,7 +3850,7 @@ void eles::set_opp_4(int in_sparse)
     }
 
 #ifdef _GPU
-    for (int i=0; i<n_dims; i++)
+    for (i=0; i<n_dims; i++)
         opp_4(i).cp_cpu_gpu();
 #endif
 
@@ -3869,7 +3869,7 @@ void eles::set_opp_4(int in_sparse)
         opp_4_cols.setup(n_dims);
         opp_4_mkl.setup(n_dims);
         opp_4_descr.setup(n_dims);
-        for (int i = 0; i < n_dims; i++)
+        for (i = 0; i < n_dims; i++)
         {
             array_to_mklcoo(opp_4(i), opp_4_data(i), opp_4_rows(i),opp_4_cols(i));
             mkl_sparse_d_create_coo(opp_4_mkl.get_ptr_cpu(i),
@@ -3887,7 +3887,7 @@ void eles::set_opp_4(int in_sparse)
         opp_4_ell_data.setup(n_dims);
         opp_4_ell_indices.setup(n_dims);
         opp_4_nnz_per_row.setup(n_dims);
-        for (int i=0; i<n_dims; i++)
+        for (i=0; i<n_dims; i++)
         {
             array_to_ellpack(opp_4(i), opp_4_ell_data(i), opp_4_ell_indices(i), opp_4_nnz_per_row(i));
             opp_4_ell_data(i).cp_cpu_gpu();
@@ -3910,7 +3910,7 @@ void eles::set_opp_5(int in_sparse)
     hf_array<double> loc(n_dims);
 
     opp_5.setup(n_dims);
-    for (int i=0; i<n_dims; i++)
+    for (i=0; i<n_dims; i++)
         opp_5(i).setup(n_upts_per_ele, n_fpts_per_ele);
 
     for(i=0; i<n_dims; i++)
@@ -3933,7 +3933,7 @@ void eles::set_opp_5(int in_sparse)
     }
 
 #ifdef _GPU
-    for (int i=0; i<n_dims; i++)
+    for (i=0; i<n_dims; i++)
         opp_5(i).cp_cpu_gpu();
 #endif
 
@@ -3955,7 +3955,7 @@ void eles::set_opp_5(int in_sparse)
         opp_5_cols.setup(n_dims);
         opp_5_mkl.setup(n_dims);
         opp_5_descr.setup(n_dims);
-        for (int i = 0; i < n_dims; i++)
+        for (i = 0; i < n_dims; i++)
         {
             array_to_mklcoo(opp_5(i), opp_5_data(i), opp_5_rows(i),opp_5_cols(i));
             mkl_sparse_d_create_coo(opp_5_mkl.get_ptr_cpu(i),
@@ -3973,7 +3973,7 @@ void eles::set_opp_5(int in_sparse)
         opp_5_ell_data.setup(n_dims);
         opp_5_ell_indices.setup(n_dims);
         opp_5_nnz_per_row.setup(n_dims);
-        for (int i=0; i<n_dims; i++)
+        for (i=0; i<n_dims; i++)
         {
             array_to_ellpack(opp_5(i), opp_5_ell_data(i), opp_5_ell_indices(i), opp_5_nnz_per_row(i));
             opp_5_ell_data(i).cp_cpu_gpu();
@@ -4097,7 +4097,7 @@ void eles::set_opp_inters_cubpts(void)
 
     opp_inters_cubpts.setup(n_inters_per_ele);
 
-    for (int i=0; i<n_inters_per_ele; i++)
+    for (i=0; i<n_inters_per_ele; i++)
     {
         opp_inters_cubpts(i).setup(n_cubpts_per_inter(i),n_upts_per_ele);
     }
@@ -4932,7 +4932,7 @@ void eles::set_transforms_inters_cubpts(void)
         norm_inters_cubpts.setup(n_inters_per_ele);
         vol_detjac_inters_cubpts.setup(n_inters_per_ele);
 
-        for (int i=0; i<n_inters_per_ele; i++)
+        for (i=0; i<n_inters_per_ele; i++)
         {
             inter_detjac_inters_cubpts(i).setup(n_cubpts_per_inter(i),n_bdy_eles);
             norm_inters_cubpts(i).setup(n_cubpts_per_inter(i),n_bdy_eles,n_dims);
