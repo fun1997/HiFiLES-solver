@@ -738,9 +738,8 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             double vn_star;
             double vn_r;//normal velocity from outside
             double r_plus,r_minus;
-
+            double c_l,c_r;
             double one_over_s;
-            double h_free_stream;
             double mach;
 
 
@@ -753,14 +752,17 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             vn_r = 0;
             for (int i=0; i<n_dims; i++)
                 vn_r += run_input.bc_list(bc_id).velocity[i]*norm[i];
+            
+            c_l=sqrt(gamma*p_l/rho_l);
+            c_r=sqrt(gamma*run_input.bc_list(bc_id).p_static/run_input.bc_list(bc_id).rho);
 
-            r_plus  = vn_l + 2./(gamma-1.)*sqrt(gamma*p_l/rho_l);
-            r_minus = vn_r - 2./(gamma-1.)*sqrt(gamma*run_input.bc_list(bc_id).p_static/run_input.bc_list(bc_id).rho);
+            r_plus  = vn_l + 2./(gamma-1.)*c_l;
+            r_minus = vn_r - 2./(gamma-1.)*c_r;
 
             c_star = 0.25*(gamma-1.)*(r_plus-r_minus);
             vn_star = 0.5*(r_plus+r_minus);
             //calculate local mach number
-            mach = fabs(vn_l) / sqrt((gamma * R_ref * T_l));
+            mach = fabs(vn_l) / c_l;
 
             // Inflow
             if (vn_l<0)
@@ -768,7 +770,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
                 //if supersonic set the outgoing Riemann invariant to be far field value
                 if (mach>1)
                 {
-                    r_plus  = vn_r + 2./(gamma-1.)*sqrt(gamma*run_input.bc_list(bc_id).p_static/run_input.bc_list(bc_id).rho);
+                    r_plus  = vn_r + 2./(gamma-1.)*c_r;
                     c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
                     vn_star = 0.5 * (r_plus + r_minus);
                 }
@@ -801,7 +803,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
                 //if supersonic set the incoming Riemann invariant to be local value
                 if (mach>1)
                 {
-                    r_minus = vn_l - 2./(gamma-1.)*sqrt(gamma*p_l/rho_l);
+                    r_minus = vn_l - 2./(gamma-1.)*c_l;
                     c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
                     vn_star = 0.5 * (r_plus + r_minus);
                 }
