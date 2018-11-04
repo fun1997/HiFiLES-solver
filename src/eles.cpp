@@ -2179,7 +2179,7 @@ void eles::evaluate_viscFlux(void)
 #ifdef _CPU
 
         int i,j,k,l,m;
-        double detjac,inv_detjac;
+        double detjac;
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS//pre initialize the array for blas
         hf_array<double> temp_tdisf_upts(n_fields, n_dims);
         temp_tdisf_upts.initialize_to_zero();
@@ -2190,7 +2190,7 @@ void eles::evaluate_viscFlux(void)
             for(j=0; j<n_upts_per_ele; j++)
             {
                 detjac = detjac_upts(j,i);
-                inv_detjac=1.0/detjac;
+
                 // solution in static-physical domain
                 for(k=0; k<n_fields; k++)
                 {
@@ -2229,9 +2229,9 @@ void eles::evaluate_viscFlux(void)
                     daxpy_wrapper(n_fields * n_dims, 1.0, temp_sgsf.get_ptr_cpu(), 1, temp_f.get_ptr_cpu(), 1);
 #endif
 
-                    // Transform SGS flux back to computational domain F=J^-1*f
+                    // Transform SGS flux back to computational domain F=|J|J^-1*f
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-                    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n_fields, n_dims, n_dims, inv_detjac, temp_sgsf.get_ptr_cpu(), n_fields, JGinv_upts.get_ptr_cpu(0, 0, j, i), n_dims, 0.0, temp_tdisf_upts.get_ptr_cpu(), n_fields);
+                    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n_fields, n_dims, n_dims, 1.0, temp_sgsf.get_ptr_cpu(), n_fields, JGinv_upts.get_ptr_cpu(0, 0, j, i), n_dims, 0.0, temp_tdisf_upts.get_ptr_cpu(), n_fields);
                     for (k = 0; k < n_fields; k++)
                         for (l = 0; l < n_dims; l++)
                             sgsf_upts(j, i, k, l) = temp_tdisf_upts(k, l);
@@ -2243,7 +2243,7 @@ void eles::evaluate_viscFlux(void)
                             sgsf_upts(j,i,k,l) = 0.0;
                             for(m=0; m<n_dims; m++)
                             {
-                                sgsf_upts(j,i,k,l)+=JGinv_upts(l,m,j,i)*temp_sgsf(k,m)*inv_detjac;
+                                sgsf_upts(j,i,k,l)+=JGinv_upts(l,m,j,i)*temp_sgsf(k,m);
                             }
                         }
                     }
@@ -3144,22 +3144,23 @@ void eles::extrapolate_sgsFlux(void)
         hf_array<double> temp_psgsf(n_dims, n_fields); //temporary physical corrected gradients
         hf_array<double> temp_tsgsf(n_dims, n_fields); //temporary transformed correct gradients
         temp_psgsf.initialize_to_zero();
-
+        double inv_detjac;
         for (int i = 0; i < n_eles; i++)
         {
             //at flux points
             for (int j = 0; j < n_fpts_per_ele; j++)
             {
+                inv_detjac = 1.0 / detjac_fpts(j, i);
                 //copy data from ref domain
                 for (int k = 0; k < n_fields; k++)
                     for (int d = 0; d < n_dims; d++)
                         temp_tsgsf(d, k) = sgsf_fpts(j, i, k, d);
 
-
+//f=|J|^-1*JF
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-                        cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_dims, n_fields, n_dims, 1.0, Jacobian_fpts.get_ptr_cpu(0,0,j,i), n_dims, temp_tsgsf.get_ptr_cpu(), n_dims, 0.0, temp_psgsf.get_ptr_cpu(), n_dims);
+                        cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_dims, n_fields, n_dims, inv_detjac, Jacobian_fpts.get_ptr_cpu(0,0,j,i), n_dims, temp_tsgsf.get_ptr_cpu(), n_dims, 0.0, temp_psgsf.get_ptr_cpu(), n_dims);
 #elif defined _NO_BLAS
-                        dgemm(n_dims, n_fields, n_dims, 1.0, 0.0, Jacobian_fpts.get_ptr_cpu(0,0,j,i), temp_tsgsf.get_ptr_cpu(), temp_psgsf.get_ptr_cpu());
+                        dgemm(n_dims, n_fields, n_dims, inv_detjac, 0.0, Jacobian_fpts.get_ptr_cpu(0,0,j,i), temp_tsgsf.get_ptr_cpu(), temp_psgsf.get_ptr_cpu());
 #endif
                         //copy physical sgs flux back to array
                         for (int k = 0; k < n_fields; k++)
