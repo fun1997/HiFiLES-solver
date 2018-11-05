@@ -231,11 +231,11 @@ void output::write_tec(int in_file_num)
     {
       if(n_dims==2)
         {
-          fields += "Variables = \"x\", \"y\", \"rho\", \"mom_x\", \"mom_y\", \"rhoe\"";
+          fields += "Variables = \"x\", \"y\", \"rho\", \"mom_x\", \"mom_y\", \"rhoE\"";
         }
       else if(n_dims==3)
         {
-          fields += "Variables = \"x\", \"y\", \"z\", \"rho\", \"mom_x\", \"mom_y\", \"mom_z\", \"rhoe\"";
+          fields += "Variables = \"x\", \"y\", \"z\", \"rho\", \"mom_x\", \"mom_y\", \"mom_z\", \"rhoE\"";
         }
       else
         {

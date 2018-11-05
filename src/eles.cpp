@@ -4495,8 +4495,8 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppt
 
                         SS = Sxx*Sxx + Syy*Syy + Szz*Szz + 2*Sxy*Sxy + 2*Sxz*Sxz + 2*Syz*Syz;
                         OO = 2*wx*wx + 2*wy*wy + 2*wz*wz;
-
-                        diagfield_upt = 0.5*(OO-SS);
+                        double eps=1.e-24;
+                        diagfield_upt = 0.5*(OO-SS)/(SS+eps);//normalized
 
                     }
                 }
