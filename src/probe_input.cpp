@@ -111,8 +111,14 @@ void probe_input::read_probe_input(int rank)
         probf.getVectorValueOptional("probe_x", probe_x);
         probf.getVectorValueOptional("probe_y", probe_y);
         n_probe = probe_x.get_dim(0); //set number of probes
-        if (n_probe != probe_y.get_dim(0))
-            FatalError("Probe coordinate data don't agree!\n");
+        if (n_probe == 0)
+        {
+            FatalError("No probes are sampled!\n");
+        }
+        else if (n_probe != probe_y.get_dim(0))
+        {
+            FatalError("Probe coordinates not agree!\n");
+        }
         pos_probe.setup(n_dims, n_probe);
         for (int i = 0; i < n_probe; i++)
         {
