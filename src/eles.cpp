@@ -4436,7 +4436,7 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppt
                 diagfield_upt = pressure;
             }
             // turbulence metrics
-            else if (run_input.diagnostic_fields(k)=="vorticity" || run_input.diagnostic_fields(k)=="q_criterion")
+            else if (run_input.diagnostic_fields(k)=="vorticity" || run_input.diagnostic_fields(k)=="q_criterion"||run_input.diagnostic_fields(k)=="scaled_q_criterion")
             {
                 if (!viscous)
                     FatalError("Trying to calculate diagnostic field only supported by viscous simualtion");
@@ -4454,7 +4454,7 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppt
                     {
                         diagfield_upt = abs(dvdx-dudy);
                     }
-                    else if (run_input.diagnostic_fields(k) == "q_criterion")
+                    else
                     {
                         FatalError("Q criterion Not implemented in 2D");
                     }
@@ -4478,7 +4478,7 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppt
                     {
                         diagfield_upt = sqrt(wx*wx+wy*wy+wz*wz);
                     }
-                    else if (run_input.diagnostic_fields(k) == "q_criterion")
+                    else
                     {
 
                         wx *= 0.5;
@@ -4495,9 +4495,13 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppt
 
                         SS = Sxx*Sxx + Syy*Syy + Szz*Szz + 2*Sxy*Sxy + 2*Sxz*Sxz + 2*Syz*Syz;
                         OO = 2*wx*wx + 2*wy*wy + 2*wz*wz;
-                        double eps=1.e-24;
-                        diagfield_upt = 0.5*(OO-SS)/(SS+eps);//normalized
-
+                        if (run_input.diagnostic_fields(k) == "q_criterion")
+                            diagfield_upt = 0.5 * (OO - SS);
+                        else
+                        {
+                            double eps = 1.e-24;
+                            diagfield_upt = 0.5 * (OO - SS) / (SS + eps); //normalized
+                        }
                     }
                 }
             }
