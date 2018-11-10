@@ -316,7 +316,7 @@ void eles::set_ics(double& time)
             }
 
             // evaluate solution at solution point
-            if(run_input.ic_form==0)
+            if(run_input.ic_form==0)//isentropic vortex at (0,0)
             {
                 eval_isentropic_vortex(pos,time,rho,vx,vy,vz,p,n_dims);
 
@@ -2725,7 +2725,10 @@ void eles::calc_wall_distance(int n_seg_noslip_inters, int n_tri_noslip_inters, 
             {
 
                 // get coords of current solution point
-                calc_pos_upt(j,i,pos);
+                for(k=0; k<n_dims; k++)
+                {
+                    pos(k)=pos_upts(j,i,k);
+                }
 
                 // initialize wall distance
                 distmin = 1e20;
@@ -4531,22 +4534,6 @@ void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppt
     }
 }
 
-// calculate position of solution point
-
-void eles::calc_pos_upt(int in_upt, int in_ele, hf_array<double>& out_pos)
-{
-    int i;
-
-    hf_array<double> loc(n_dims);
-
-    for(i=0; i<n_dims; i++)
-    {
-        loc(i)=loc_upts(i,in_upt);
-    }
-
-    calc_pos(loc,in_ele,out_pos);
-}
-
 double eles::get_loc_upt(int in_upt, int in_dim)
 {
     return loc_upts(in_dim,in_upt);
@@ -5286,7 +5273,10 @@ double* eles::get_normal_disu_fpts_ptr(int in_inter_local_fpt, int in_ele_local_
     for (int i=0; i<n_upts_per_ele; i++)
     {
 
-        calc_pos_upt(i, in_ele, pos);
+        for (int k = 0; k < n_dims; k++)
+        {
+            pos(k) = pos_upts(i, in_ele, k);
+        }
 
         dist = 0.0;
         for(int j=0; j<n_dims; j++)
@@ -5376,38 +5366,6 @@ void eles::calc_pos(hf_array<double> in_loc, int in_ele, hf_array<double>& out_p
         for(j=0; j<n_spts_per_ele(in_ele); j++)
         {
             out_pos(i)+=eval_nodal_s_basis(j,in_loc,n_spts_per_ele(in_ele))*shape(i,j,in_ele);
-        }
-    }
-
-}
-
-void eles::calc_pos_upts(int in_upt, int in_ele, hf_array<double>& out_pos)
-{
-    int i,j;
-
-    for(i=0; i<n_dims; i++)
-    {
-        out_pos(i)=0.0;
-
-        for(j=0; j<n_spts_per_ele(in_ele); j++)
-        {
-            out_pos(i)+=nodal_s_basis_upts(j,in_upt,in_ele)*shape(i,j,in_ele);
-        }
-    }
-
-}
-
-void eles::calc_pos_fpts(int in_fpt, int in_ele, hf_array<double>& out_pos)
-{
-    int i,j;
-
-    for(i=0; i<n_dims; i++)
-    {
-        out_pos(i)=0.0;
-
-        for(j=0; j<n_spts_per_ele(in_ele); j++)
-        {
-            out_pos(i)+=nodal_s_basis_fpts(j,in_fpt,in_ele)*shape(i,j,in_ele);
         }
     }
 
@@ -5518,207 +5476,208 @@ double eles::compute_res_upts(int in_norm_type, int in_field)
 
 }
 
+hf_array<double> eles::compute_error(int in_norm_type, double &time)
+{
+    hf_array<double> disu_cubpt(n_fields);
+    hf_array<double> grad_disu_cubpt(n_fields, n_dims);
+    double detjac;
+    hf_array<double> pos(n_dims);
+    hf_array<double> temp_loc(n_dims);
+    hf_array<double> error(2, n_fields);     //storage
+    hf_array<double> error_sum(2, n_fields); //output
+    error_sum.initialize_to_zero();
 
-//hf_array<double> eles::compute_error(int in_norm_type, double& time)
-//{
-//    hf_array<double> disu_cubpt(n_fields);
-//    hf_array<double> grad_disu_cubpt(n_fields,n_dims);
-//    double detjac;
-//    hf_array<double> pos(n_dims);
-//
-//    hf_array<double> error(2,n_fields);  //storage
-//    hf_array<double> error_sum(2,n_fields);  //output
-//
-//    for (int i=0; i<n_fields; i++)
-//    {
-//        error_sum(0,i) = 0.;
-//        error_sum(1,i) = 0.;
-//    }
-//
-//    for (int i=0; i<n_eles; i++)
-//    {
-//        for (int j=0; j<n_cubpts_per_ele; j++)
-//        {
-//            // Get jacobian determinant at cubpts
-//            detjac = vol_detjac_vol_cubpts(j)(i);
-//
-//            // Get the solution at cubature point
-//            for (int m=0; m<n_fields; m++)
-//            {
-//                disu_cubpt(m) = 0.;
-//                for (int k=0; k<n_upts_per_ele; k++)
-//                {
-//                    disu_cubpt(m) += opp_volume_cubpts(j,k)*disu_upts(0)(k,i,m);
-//                }
-//            }
-//
-//            // Get the gradient at cubature point
-//            if (viscous==1)
-//            {
-//                for (int m=0; m<n_fields; m++)
-//                {
-//                    for (int n=0; n<n_dims; n++)
-//                    {
-//                        double value=0.;
-//                        for (int k=0; k<n_upts_per_ele; k++)
-//                        {
-//                            value += opp_volume_cubpts(j,k)*grad_disu_upts(k,i,m,n);
-//                        }
-//                        grad_disu_cubpt(m,n) = value;
-//                        //cout << value << endl;
-//                    }
-//                }
-//            }
-//
-//            error = get_pointwise_error(disu_cubpt,grad_disu_cubpt,pos,time,in_norm_type);
-//
-//            for (int m=0; m<n_fields; m++)
-//            {
-//                error_sum(0,m) += error(0,m)*weight_volume_cubpts(j)*detjac;
-//                error_sum(1,m) += error(1,m)*weight_volume_cubpts(j)*detjac;
-//            }
-//        }
-//    }
-//
-//    cout << "time   " << time << endl;
-//
-//    return error_sum;
-//}
-//
+    for (int i = 0; i < n_eles; i++)
+    {
+        for (int j = 0; j < n_cubpts_per_ele; j++)
+        {
+            // Get jacobian determinant at cubpts
+            detjac = vol_detjac_vol_cubpts(j)(i);
 
-//hf_array<double> eles::get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type)
-//{
-//    hf_array<double> error(2,n_fields);  //output
-//
-//    hf_array<double> error_sol(n_fields);
-//    hf_array<double> error_grad_sol(n_fields,n_dims);
-//
-//    for (int i=0; i<n_fields; i++)
-//    {
-//        error_sol(i) = 0.;
-//
-//        error(0,i) = 0.;
-//        error(1,i) = 0.;
-//
-//        for (int j=0; j<n_dims; j++)
-//        {
-//            error_grad_sol(i,j) = 0.;
-//        }
-//    }
-//
-//    if (run_input.test_case==1) // Isentropic vortex
-//    {
-//        // Computing error in all quantities
-//        double rho,vx,vy,vz,p;
-//        eval_isentropic_vortex(loc,time,rho,vx,vy,vz,p,n_dims);
-//
-//        error_sol(0) = sol(0) - rho;
-//        error_sol(1) = sol(1) - rho*vx;
-//        error_sol(2) = sol(2) - rho*vy;
-//        error_sol(3) = sol(3) - (p/(run_input.gamma-1) + 0.5*rho*(vx*vx+vy*vy));
-//    }
-//    else if (run_input.test_case==2) // Sine Wave (single)
-//    {
-//        double rho;
-//        hf_array<double> grad_rho(n_dims);
-//
-//        if(viscous)
-//        {
-//            eval_sine_wave_single(loc,run_input.wave_speed,run_input.diff_coeff,time,rho,grad_rho,n_dims);
-//        }
-//        else
-//        {
-//            eval_sine_wave_single(loc,run_input.wave_speed,0.,time,rho,grad_rho,n_dims);
-//        }
-//
-//        error_sol(0) = sol(0) - rho;
-//
-//        for (int j=0; j<n_dims; j++)
-//        {
-//            error_grad_sol(0,j) = grad_sol(0,j) - grad_rho(j);
-//        }
-//
-//    }
-//    else if (run_input.test_case==3) // Sine Wave (group)
-//    {
-//        double rho;
-//        hf_array<double> grad_rho(n_dims);
-//
-//        if(viscous)
-//        {
-//            eval_sine_wave_group(loc,run_input.wave_speed,run_input.diff_coeff,time,rho,grad_rho,n_dims);
-//        }
-//        else
-//        {
-//            eval_sine_wave_group(loc,run_input.wave_speed,0.,time,rho,grad_rho,n_dims);
-//        }
-//
-//        error_sol(0) = sol(0) - rho;
-//
-//        for (int j=0; j<n_dims; j++)
-//        {
-//            error_grad_sol(0,j) = grad_sol(0,j) - grad_rho(j);
-//        }
-//    }
-//    else if (run_input.test_case==4) // Sphere Wave
-//    {
-//        double rho;
-//        eval_sphere_wave(loc,run_input.wave_speed,time,rho,n_dims);
-//        error_sol(0) = sol(0) - rho;
-//    }
-//    else if (run_input.test_case==5) // Couette flow
-//    {
-//        int ind;
-//        double ene, u_wall;
-//        hf_array<double> grad_ene(n_dims);
-//
-//        u_wall = run_input.v_wall(0);
-//
-//        eval_couette_flow(loc,run_input.gamma, run_input.R_ref, u_wall, run_input.T_wall, run_input.p_bound, run_input.prandtl, time, ene, grad_ene, n_dims);
-//
-//        ind = n_dims+1;
-//
-//        error_sol(ind) = sol(ind) - ene;
-//
-//        for (int j=0; j<n_dims; j++)
-//        {
-//            error_grad_sol(ind,j) = grad_sol(ind,j) - grad_ene(j);
-//        }
-//    }
-//    else
-//    {
-//        FatalError("Test case not recognized in compute error, exiting");
-//    }
-//
-//    if (in_norm_type==1)
-//    {
-//        for (int m=0; m<n_fields; m++)
-//        {
-//            error(0,m) += abs(error_sol(m));
-//
-//            for(int n=0; n<n_dims; n++)
-//            {
-//                error(1,m) += abs(error_grad_sol(m,n)); //might be incorrect
-//            }
-//        }
-//    }
-//
-//    if (in_norm_type==2)
-//    {
-//        for (int m=0; m<n_fields; m++)
-//        {
-//            error(0,m) += error_sol(m)*error_sol(m);
-//
-//            for(int n=0; n<n_dims; n++)
-//            {
-//                error(1,m) += error_grad_sol(m,n)*error_grad_sol(m,n);
-//            }
-//        }
-//    }
-//
-//    return error;
-//}
-//
+            for (int k = 0; k < n_dims; k++)
+                temp_loc(k) = loc_volume_cubpts(k, j);
+            calc_pos(temp_loc, i, pos);
+
+            //Get the solution at cubature point
+            for (int m = 0; m < n_fields; m++)
+            {
+                disu_cubpt(m) = 0.;
+                for (int k = 0; k < n_upts_per_ele; k++)
+                {
+                    disu_cubpt(m) += opp_volume_cubpts(j, k) * disu_upts(0)(k, i, m);
+                }
+            }
+
+            // Get the gradient at cubature point
+            if (viscous == 1)
+            {
+                for (int m = 0; m < n_fields; m++)
+                {
+                    for (int n = 0; n < n_dims; n++)
+                    {
+                        grad_disu_cubpt(m, n) = 0;
+                        for (int k = 0; k < n_upts_per_ele; k++)
+                        {
+                            grad_disu_cubpt(m, n) += opp_volume_cubpts(j, k) * grad_disu_upts(k, i, m, n);
+                        }
+                    }
+                }
+            }
+
+            error = get_pointwise_error(disu_cubpt, grad_disu_cubpt, pos, time, in_norm_type);
+
+            for (int m = 0; m < n_fields; m++)
+            {
+                error_sum(0, m) += error(0, m) * weight_volume_cubpts(j) * detjac;
+                error_sum(1, m) += error(1, m) * weight_volume_cubpts(j) * detjac;
+            }
+        }
+    }
+
+    return error_sum;
+}
+
+hf_array<double> eles::get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type)
+{
+    hf_array<double> error(2,n_fields);  //output
+
+    hf_array<double> error_sol(n_fields);
+    hf_array<double> error_grad_sol(n_fields,n_dims);
+
+    error.initialize_to_zero();
+    error_sol.initialize_to_zero();
+    error_grad_sol.initialize_to_zero();
+
+    if (run_input.test_case==1) // Isentropic vortex
+    {
+        // Computing error in all quantities
+        double rho, vx, vy, vz, p;
+        eval_isentropic_vortex(loc, time, rho, vx, vy, vz, p, n_dims);
+
+        error_sol(0) = sol(0) - rho;
+        error_sol(1) = sol(1) - rho * vx;
+        error_sol(2) = sol(2) - rho * vy;
+        if (n_dims == 2)
+            error_sol(3) = sol(3) - (p / (run_input.gamma - 1) + 0.5 * rho * (vx * vx + vy * vy));
+        else
+        {
+            error_sol(3) = sol(3) - rho * vz;
+            error_sol(4) = sol(4) - (p / (run_input.gamma - 1) + 0.5 * rho * (vx * vx + vy * vy + vz * vz));
+        }
+    }
+    else if (run_input.test_case==2) // Sine Wave (single)
+    {
+        double rho;
+        hf_array<double> grad_rho(n_dims);
+
+        if(viscous)
+        {
+            eval_sine_wave_single(loc,run_input.wave_speed,run_input.diff_coeff,time,rho,grad_rho,n_dims);
+        }
+        else
+        {
+            eval_sine_wave_single(loc,run_input.wave_speed,0.,time,rho,grad_rho,n_dims);
+        }
+
+        error_sol(0) = sol(0) - rho;
+
+        for (int j=0; j<n_dims; j++)
+        {
+            error_grad_sol(0,j) = grad_sol(0,j) - grad_rho(j);
+        }
+
+    }
+    else if (run_input.test_case==3) // Sine Wave (group)
+    {
+        double rho;
+        hf_array<double> grad_rho(n_dims);
+
+        if(viscous)
+        {
+            eval_sine_wave_group(loc,run_input.wave_speed,run_input.diff_coeff,time,rho,grad_rho,n_dims);
+        }
+        else
+        {
+            eval_sine_wave_group(loc,run_input.wave_speed,0.,time,rho,grad_rho,n_dims);
+        }
+
+        error_sol(0) = sol(0) - rho;
+
+        for (int j=0; j<n_dims; j++)
+        {
+            error_grad_sol(0,j) = grad_sol(0,j) - grad_rho(j);
+        }
+    }
+    else if (run_input.test_case==4) // Sphere Wave
+    {
+        double rho;
+        eval_sphere_wave(loc,run_input.wave_speed,time,rho,n_dims);
+        error_sol(0) = sol(0) - rho;
+    }
+    else if (run_input.test_case==5) // Couette flow
+    {
+        double u_wall,T_wall;
+
+        for (int j = 0; j < run_input.bc_list.get_dim(0); j++)
+        {
+            if (run_input.bc_list(j).get_bc_flag() == ISOTHERM_WALL)
+            {
+                if (run_input.bc_list(j).velocity(0) != 0)//moving wall
+                {
+                    u_wall = run_input.bc_list(j).velocity(0);
+                }
+                else//fixed wall
+                    T_wall = run_input.bc_list(j).T_static;
+            }
+        }
+
+        hf_array<double> temp_sol_couette(n_fields),temp_grad_couette(n_fields,n_dims);
+        eval_couette_flow(loc,run_input.gamma, run_input.R_ref, u_wall, T_wall, run_input.p_c_ic, run_input.prandtl, time, temp_sol_couette, temp_grad_couette, n_dims);
+
+        for (int j = 0; j < n_fields; j++)
+        {
+            error_sol(j) = sol(j) - temp_sol_couette(j);
+
+            for (int k = 0; k < n_dims; k++)
+            {
+                error_grad_sol(j, k) = grad_sol(j, k) - temp_grad_couette(j, k);
+            }
+        }
+    }
+    else
+    {
+        FatalError("Test case not recognized in compute error, exiting");
+    }
+
+    if (in_norm_type==1)
+    {
+        for (int m=0; m<n_fields; m++)
+        {
+            error(0,m) += abs(error_sol(m));
+
+            for(int n=0; n<n_dims; n++)
+            {
+                error(1,m) += abs(error_grad_sol(m,n)); //might be incorrect
+            }
+        }
+    }
+
+    if (in_norm_type==2)
+    {
+        for (int m=0; m<n_fields; m++)
+        {
+            error(0,m) += error_sol(m)*error_sol(m);
+
+            for(int n=0; n<n_dims; n++)
+            {
+                error(1,m) += error_grad_sol(m,n)*error_grad_sol(m,n);
+            }
+        }
+    }
+
+    return error;
+}
+
 // Calculate body forcing term for periodic channel flow. HARDCODED FOR THE CHANNEL AND PERIODIC HILL!
 
 void eles::evaluate_body_force(int in_file_num)
@@ -6402,241 +6361,6 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                     }
                     temp_cl += cl/area_ref;
                     temp_cd += cd/area_ref;
-                }
-            }
-        }
-    }
-}
-
-/*! Store nodal basis at flux points to avoid re-calculating every time
- *  TODO: CUDA (mv to GPU) */
-void eles::store_nodal_s_basis_fpts(void)
-{
-    int ic,fpt,j,k;
-    hf_array<double> loc(n_dims);
-    for (ic=0; ic<n_eles; ic++)
-    {
-        for (fpt=0; fpt<n_fpts_per_ele; fpt++)
-        {
-            for(k=0; k<n_dims; k++)
-            {
-                loc(k) = tloc_fpts(k,fpt);
-            }
-            for(j=0; j<n_spts_per_ele(ic); j++)
-            {
-                nodal_s_basis_fpts(j,fpt,ic) = eval_nodal_s_basis(j,loc,n_spts_per_ele(ic));
-            }
-        }
-    }
-#ifdef _GPU
-    nodal_s_basis_fpts.cp_cpu_gpu();
-#endif
-}
-
-void eles::store_nodal_s_basis_upts(void)
-{
-    int ic,upt,j,k;
-    hf_array<double> loc(n_dims);
-    for (ic=0; ic<n_eles; ic++)
-    {
-        for (upt=0; upt<n_upts_per_ele; upt++)
-        {
-            for(k=0; k<n_dims; k++)
-            {
-                loc(k) = loc_upts(k,upt);
-            }
-            for(j=0; j<n_spts_per_ele(ic); j++)
-            {
-                nodal_s_basis_upts(j,upt,ic) = eval_nodal_s_basis(j,loc,n_spts_per_ele(ic));
-            }
-        }
-    }
-#ifdef _GPU
-    nodal_s_basis_upts.cp_cpu_gpu();
-#endif
-}
-
-void eles::store_nodal_s_basis_ppts(void)
-{
-    int ic,ppt,j,k;
-
-    hf_array<double> loc(n_dims);
-    for(ic=0; ic<n_eles; ic++)
-    {
-        for(ppt=0; ppt<n_ppts_per_ele; ppt++)
-        {
-            for(k=0; k<n_dims; k++)
-            {
-                loc(k)=loc_ppts(k,ppt);
-            }
-            for (j=0; j<n_spts_per_ele(ic); j++)
-            {
-                nodal_s_basis_ppts(j,ppt,ic) = eval_nodal_s_basis(j,loc,n_spts_per_ele(ic));
-            }
-        }
-    }
-}
-
-void eles::store_nodal_s_basis_vol_cubpts(void)
-{
-    int ic,cubpt,j,k;
-
-    hf_array<double> loc(n_dims);
-    for(ic=0; ic<n_eles; ic++)
-    {
-        for(cubpt=0; cubpt<n_cubpts_per_ele; cubpt++)
-        {
-            for(k=0; k<n_dims; k++)
-            {
-                loc(k)=loc_volume_cubpts(k,cubpt);
-            }
-            for (j=0; j<n_spts_per_ele(ic); j++)
-            {
-                nodal_s_basis_vol_cubpts(j,cubpt,ic) = eval_nodal_s_basis(j,loc,n_spts_per_ele(ic));
-            }
-        }
-    }
-}
-
-void eles::store_nodal_s_basis_inters_cubpts()
-{
-    int ic,iface,cubpt,j,k;
-
-    hf_array<double> loc(n_dims);
-    for(ic=0; ic<n_eles; ic++)
-    {
-        for(iface=0; iface<n_inters_per_ele; iface++)
-        {
-            for(cubpt=0; cubpt<n_cubpts_per_inter(iface); cubpt++)
-            {
-                for(k=0; k<n_dims; k++)
-                {
-                    loc(k)=loc_inters_cubpts(iface)(k,cubpt);
-                }
-                for (j=0; j<n_spts_per_ele(ic); j++)
-                {
-                    nodal_s_basis_inters_cubpts(iface)(j,cubpt,ic) = eval_nodal_s_basis(j,loc,n_spts_per_ele(ic));
-                }
-            }
-        }
-    }
-}
-
-
-void eles::store_d_nodal_s_basis_fpts(void)
-{
-    int ic,fpt,j,k;
-    hf_array<double> loc(n_dims);
-    hf_array<double> d_nodal_basis;
-
-    for (ic=0; ic<n_eles; ic++)
-    {
-        for (fpt=0; fpt<n_fpts_per_ele; fpt++)
-        {
-            for(k=0; k<n_dims; k++)
-            {
-                loc(k) = tloc_fpts(k,fpt);
-            }
-            d_nodal_basis.setup(n_spts_per_ele(ic),n_dims);
-            eval_d_nodal_s_basis(d_nodal_basis,loc,n_spts_per_ele(ic));
-            for (j=0; j<n_spts_per_ele(ic); j++)
-            {
-                for (k=0; k<n_dims; k++)
-                {
-                    d_nodal_s_basis_fpts(k,j,fpt,ic) = d_nodal_basis(j,k);
-                    //d_nodal_s_basis_fpts(fpt,ic,k,j) = d_nodal_basis(j,k);
-                }
-            }
-        }
-    }
-#ifdef _GPU
-    d_nodal_s_basis_fpts.cp_cpu_gpu();
-#endif
-}
-
-
-void eles::store_d_nodal_s_basis_upts(void)
-{
-    int ic,upt,j,k;
-    hf_array<double> loc(n_dims);
-    hf_array<double> d_nodal_basis;
-
-    for (ic=0; ic<n_eles; ic++)
-    {
-        for (upt=0; upt<n_upts_per_ele; upt++)
-        {
-            for(k=0; k<n_dims; k++)
-            {
-                loc(k) = loc_upts(k,upt);
-            }
-            d_nodal_basis.setup(n_spts_per_ele(ic),n_dims);
-            eval_d_nodal_s_basis(d_nodal_basis,loc,n_spts_per_ele(ic));
-            for (j=0; j<n_spts_per_ele(ic); j++)
-            {
-                for (k=0; k<n_dims; k++)
-                {
-                    //d_nodal_s_basis_upts(upt,ic,k,j) = d_nodal_basis(j,k);
-                    d_nodal_s_basis_upts(k,j,upt,ic) = d_nodal_basis(j,k);
-                }
-            }
-        }
-    }
-#ifdef _GPU
-    d_nodal_s_basis_upts.cp_cpu_gpu();
-#endif
-}
-
-void eles::store_d_nodal_s_basis_vol_cubpts(void)
-{
-    int ic,cubpt,j,k;
-    hf_array<double> loc(n_dims);
-    hf_array<double> d_nodal_basis;
-
-    for (ic=0; ic<n_eles; ic++)
-    {
-        for (cubpt=0; cubpt<n_cubpts_per_ele; cubpt++)
-        {
-            for(k=0; k<n_dims; k++)
-            {
-                loc(k) = loc_volume_cubpts(k,cubpt);
-            }
-            d_nodal_basis.setup(n_spts_per_ele(ic),n_dims);
-            eval_d_nodal_s_basis(d_nodal_basis,loc,n_spts_per_ele(ic));
-            for (j=0; j<n_spts_per_ele(ic); j++)
-            {
-                for (k=0; k<n_dims; k++)
-                {
-                    d_nodal_s_basis_vol_cubpts(k,j,cubpt,ic) = d_nodal_basis(j,k);
-                }
-            }
-        }
-    }
-}
-
-void eles::store_d_nodal_s_basis_inters_cubpts(void)
-{
-    int ic,iface,cubpt,j,k;
-    hf_array<double> loc(n_dims);
-    hf_array<double> d_nodal_basis;
-
-    for (ic=0; ic<n_eles; ic++)
-    {
-        for (iface=0; iface<n_inters_per_ele; iface++)
-        {
-            for (cubpt=0; cubpt<n_cubpts_per_inter(iface); cubpt++)
-            {
-                for(k=0; k<n_dims; k++)
-                {
-                    loc(k) = loc_inters_cubpts(iface)(k,cubpt);
-                }
-                d_nodal_basis.setup(n_spts_per_ele(ic),n_dims);
-                eval_d_nodal_s_basis(d_nodal_basis,loc,n_spts_per_ele(ic));
-                for (j=0; j<n_spts_per_ele(ic); j++)
-                {
-                    for (k=0; k<n_dims; k++)
-                    {
-                        d_nodal_s_basis_inters_cubpts(iface)(k,j,cubpt,ic) = d_nodal_basis(j,k);
-                    }
                 }
             }
         }

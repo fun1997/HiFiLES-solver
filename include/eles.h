@@ -258,12 +258,6 @@ public:
   /*! calculate diagnostic fields at the plot points */
   void calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppts, hf_array<double>& in_grad_disu_ppts, hf_array<double>& in_sensor_ppts, hf_array<double>& out_diag_field_ppts, double& time);
 
-  /*! calculate position of a solution point */
-  void calc_pos_upt(int in_upt, int in_ele, hf_array<double>& out_pos);
-
-  /*! get physical position of a flux point */
-  void calc_pos_fpt(int in_fpt, int in_ele, hf_array<double>& out_pos);
-
   /*! returns position of a solution point */
   double get_loc_upt(int in_upt, int in_dim);
 
@@ -287,10 +281,6 @@ public:
 
   /*! calculate position */
   void calc_pos(hf_array<double> in_loc, int in_ele, hf_array<double>& out_pos);
-    /*! calculate position at a solution point */
-    void calc_pos_upts(int in_upt, int in_ele, hf_array<double>& out_pos);
-    /*! calculate position at a flux point */
-    void calc_pos_fpts(int in_fpt, int in_ele, hf_array<double>& out_pos);
 
   /*! calculate derivative of position */
   void calc_d_pos(hf_array<double> in_loc, int in_ele, hf_array<double>& out_d_pos);
@@ -329,9 +319,9 @@ public:
 
   void compute_wall_forces(hf_array<double>& inv_force, hf_array<double>& vis_force, double& temp_cl, double& temp_cd, ofstream& coeff_file, bool write_forces);
 
-  //hf_array<double> compute_error(int in_norm_type, double& time);
+  hf_array<double> compute_error(int in_norm_type, double& time);
 
-  //hf_array<double> get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type);
+  hf_array<double> get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type);
 
 //------------------------
 // virtual methods
@@ -375,33 +365,6 @@ public:
   virtual int calc_p2c(hf_array<double>& in_pos)=0;
 
   virtual void set_connectivity_plot()=0;
-
-  /*! pre-computing shape basis contributions at flux points for more efficient access */
-  void store_nodal_s_basis_fpts(void);
-
-  /*! pre-computing shape basis contributions at solution points for more efficient access */
-  void store_nodal_s_basis_upts(void);
-
-  /*! pre-computing shape basis contributions at plot points for more efficient access */
-  void store_nodal_s_basis_ppts(void);
-
-  /*! pre-computing shape basis contributions at plot points for more efficient access */
-  void store_nodal_s_basis_vol_cubpts(void);
-
-  /*! pre-computing shape basis contributions at plot points for more efficient access */
-  void store_nodal_s_basis_inters_cubpts(void);
-
-  /*! pre-computing shape basis deriavative contributions at flux points for more efficient access */
-  void store_d_nodal_s_basis_fpts(void);
-
-  /*! pre-computing shape basis derivative contributions at solution points for more efficient access */
-  void store_d_nodal_s_basis_upts(void);
-
-  /*! pre-computing shape basis derivative contributions at solution points for more efficient access */
-  void store_d_nodal_s_basis_vol_cubpts(void);
-
-  /*! pre-computing shape basis derivative contributions at solution points for more efficient access */
-  void store_d_nodal_s_basis_inters_cubpts(void);
 
 //--------------------
 //GPU functions

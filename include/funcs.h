@@ -204,7 +204,7 @@ void eval_sine_wave_group(hf_array<double>& pos, hf_array<double>& wave_speed, d
 
 void eval_sphere_wave(hf_array<double>& pos, hf_array<double>& wave_speed, double time, double& rho, int n_dims);
 
-void eval_couette_flow(hf_array<double>& pos, double in_gamma, double in_R_ref, double in_u_wall, double in_T_wall, double in_p_bound, double in_prandtl, double time, double& ene, hf_array<double>& grad_ene, int n_dims);
+void eval_couette_flow(hf_array<double>& pos, double in_gamma, double in_R_ref, double in_u_wall, double in_T_wall, double in_p_bound, double in_prandtl, double time, hf_array<double> &out_sol, hf_array<double>& out_grad, int n_dims);
 
 void eval_poly_ic(hf_array<double>& pos, double rho, hf_array<double>& ics, int n_dims);
 

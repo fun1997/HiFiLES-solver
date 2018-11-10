@@ -143,7 +143,6 @@ public:
     double area_ref;
     int res_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
     int error_norm_type; // 0:infinity norm, 1:L1 norm, 2:L2 norm
-    int res_norm_field;
     int probe;
 
     /*--- flux reconstruction parameters ---*/
@@ -196,8 +195,6 @@ public:
     double w_free_stream;
     double mu_free_stream;
 
-    double T_wall;
-
     /*--- reference values ---*/
     double T_ref;
     double L_ref;
@@ -227,7 +224,6 @@ public:
     /* --- solution patch ---*/
     int patch;
     int patch_type;
-    int patch_freq;
     double Mv,ra,rb,xc,yc;
     double patch_x;
 

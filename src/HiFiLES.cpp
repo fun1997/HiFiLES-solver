@@ -96,16 +96,20 @@ int main(int argc, char *argv[]) {
   run_input.setup(argv[1], rank);
 
   /*! Set the input values in the FlowSol structure. */
+
   SetInput(&FlowSol);
 
   /*! Read the mesh file from a file. */
+
   GeoPreprocess(&FlowSol, *mesh_data);
   delete mesh_data;
 
   /*! initialize object to output result/restart files */   
+
   output run_output(&FlowSol); 
 
   /*! Initialize solution and patch solution if needed */
+
   InitSolution(&FlowSol);
 
   if(run_input.patch)
@@ -212,18 +216,19 @@ int main(int argc, char *argv[]) {
 
 #endif
 
-    /*! Force, integral quantities, and residual computation and output. */
+    /*! ============================Outputs=============================== */
 
     /*! Compute time-averaged quantities. */
     if ( i_steps==1)//set start time for averaging
         run_input.spinup_time=FlowSol.time;
     run_output.CalcTimeAverageQuantities();
 
-    if( i_steps == 1 || i_steps%run_input.monitor_res_freq == 0 ) {
+    if (i_steps == 1 || i_steps % run_input.monitor_res_freq == 0)
+    {
 
       /*! Compute the value of the forces. */
 
-      if (run_input.calc_force!=0)
+      if (run_input.calc_force != 0)
         run_output.CalcForces(FlowSol.ini_iter + i_steps, (i_steps == 1 || i_steps % run_input.monitor_cp_freq == 0));
 
       /*! Compute integral quantities. */
@@ -237,10 +242,10 @@ int main(int argc, char *argv[]) {
 
       /*! Output the history file. */
 
-      run_output.HistoryOutput(FlowSol.ini_iter+i_steps, init_time, &write_hist);
+      run_output.HistoryOutput(FlowSol.ini_iter + i_steps, init_time, &write_hist);
 
-      if (FlowSol.rank == 0) cout << endl;
-
+      if (FlowSol.rank == 0)
+        cout << endl;
     }
     /*! Dump Paraview, Tecplot or CGNS files. */
 
@@ -265,18 +270,16 @@ int main(int argc, char *argv[]) {
       run_output.write_restart(FlowSol.ini_iter+i_steps);
     }
 
-    /*! patch solution periodically */
-        if(run_input.patch)
-            if(run_input.patch_freq)
-                if(i_steps%run_input.patch_freq==0)
-                    patch_solution(&FlowSol);
-
   }
 
   /////////////////////////////////////////////////
   /// End simulation
   /////////////////////////////////////////////////
 
+  /*! Calculate Error */
+  if (run_input.test_case)
+    run_output.compute_error(FlowSol.ini_iter + i_steps);
+    
   /*! Close convergence history file. */
 
   if (rank == 0) {

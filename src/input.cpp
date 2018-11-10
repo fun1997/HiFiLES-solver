@@ -106,7 +106,6 @@ void input::read_input_file(string fileName, int rank)
     }
     opts.getScalarValue("res_norm_type", res_norm_type, 2);
     opts.getScalarValue("error_norm_type", error_norm_type, 2);
-    opts.getScalarValue("res_norm_field", res_norm_field, 0);
     opts.getScalarValue("p_res", p_res, 2);
     opts.getScalarValue("write_type", write_type, 0);//default vtu
     opts.getScalarValue("probe", probe, 0);
@@ -227,8 +226,7 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("patch", patch, 0);
     if (patch)
     {
-        opts.getScalarValue("patch_type", patch_type, 0); //0: vortex
-        opts.getScalarValue("patch_freq", patch_freq, 0); //0: patch once
+        opts.getScalarValue("patch_type", patch_type, 0); //0: vortex, 1: uniform flow
         if (patch_type == 0)                              //vortex patch
         {
             opts.getScalarValue("Mv", Mv, 0.5);
@@ -558,7 +556,7 @@ void input::setup_params(int rank)
             cout << endl
                  << "---------------------- Non-dimensionalization ---------------------" << endl;
 
-        if (ic_form == 0)
+        if (ic_form == 0)//isentropic vortex when viscous
         {
             fix_vis = 1.;
             R_ref = 1.;

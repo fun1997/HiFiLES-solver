@@ -333,7 +333,7 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
   if (run_input.calc_force != 0 || run_input.forcing != 0)//only calculated when need to calculate surface/body force
   {
     if (FlowSol->rank == 0)
-      cout << "setting element transforms at interface cubpts ... "; 
+      cout << "setting element transforms at interface cubpts ... " << flush;
     for (int i = 0; i < FlowSol->n_ele_types; i++)
     {
       if (FlowSol->mesh_eles(i)->get_n_eles() != 0)
@@ -347,14 +347,16 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
 
   // Set metrics at volume cubpts. Only needed for computing error and integral diagnostic quantities.
   if (run_input.test_case != 0 || run_input.n_integral_quantities != 0)
-  { //|| run_input.monitor_integrals_freq!=0
+  {
     if (FlowSol->rank == 0)
-      cout << "setting element transforms at volume cubpts ... " << endl;
+      cout << "setting element transforms at volume cubpts ... " << flush;
     for (int i = 0; i < FlowSol->n_ele_types; i++)
     {
       if (FlowSol->mesh_eles(i)->get_n_eles() != 0)
         FlowSol->mesh_eles(i)->set_transforms_vol_cubpts(); //calculate static mesh element volume cubature transform
     }
+    if (FlowSol->rank == 0)
+      cout << "done." << endl;
   }
 
   // set on gpu (important - need to do this before we set connectivity, so that pointers point to GPU memory)

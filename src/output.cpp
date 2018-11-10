@@ -1812,172 +1812,123 @@ void output::CalcTimeAverageQuantities(void) {
     }
 }
 
-//void output::compute_error(int in_file_num)
-//{
-//  int n_fields;
-//
-//  //HACK (assume same number of fields for all elements)
-//  for(int i=0;i<FlowSol->n_ele_types;i++) {
-//      if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
-//          n_fields = FlowSol->mesh_eles(i)->get_n_fields();
-//        }
-//    }
-//
-//  hf_array<double> error(2,n_fields);
-//  hf_array<double> temp_error(2,n_fields);
-//
-//  for (int i=0; i<n_fields; i++)
-//    {
-//      error(0,i) = 0.;
-//      error(1,i) = 0.;
-//    }
-//
-//  //Compute the error
-//  for(int i=0;i<FlowSol->n_ele_types;i++) {
-//      if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
-//          temp_error = FlowSol->mesh_eles(i)->compute_error(run_input.error_norm_type,FlowSol->time);
-//
-//          for(int j=0;j<n_fields; j++) {
-//              error(0,j) += temp_error(0,j);
-//              if(FlowSol->viscous) {
-//                  error(1,j) += temp_error(1,j);
-//                }
-//            }
-//        }
-//    }
-//
-//#ifdef _MPI
-//  int n_err_vals = 2*n_fields;
-//
-//  hf_array<double> error_global(2,n_fields);
-//  for (int i=0; i<n_fields; i++)
-//    {
-//      error_global(0,i) = 0.;
-//      error_global(1,i) = 0.;
-//    }
-//
-//  MPI_Barrier(MPI_COMM_WORLD);
-//  MPI_Reduce(error.get_ptr_cpu(),error_global.get_ptr_cpu(),n_err_vals,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
-//
-//  error = error_global;
-//#endif
-//
-//  if (FlowSol->rank==0)
-//    {
-//      if (run_input.error_norm_type==1) // L1 norm
-//        {
-//          error = error;
-//        }
-//      else if (run_input.error_norm_type==2) // L2 norm
-//        {
-//          for(int j=0;j<n_fields; j++) {
-//              error(0,j) = sqrt(error(0,j));
-//              if(FlowSol->viscous) {
-//                  error(1,j) = sqrt(error(1,j));
-//                }
-//            }
-//        }
-//
-//      for(int j=0;j<n_fields; j++) {
-//          cout << scientific << " sol error, field " << j << " = " << setprecision(13) << error(0,j) << endl;
-//        }
-//      if(FlowSol->viscous)
-//        {
-//          for(int j=0;j<n_fields; j++) {
-//              cout << scientific << " grad error, field " << j << " = " << setprecision(13) << error(1,j) << endl;
-//            }
-//        }
-//
-//    }
-//
-//  // Writing error to file
-//
-//  char  file_name_s[256] ;
-//  char *file_name;
-//  int r_flag;
-//
-//  if (FlowSol->rank==0)
-//    {
-//      sprintf(file_name_s,"error000.dat");
-//      file_name = &file_name_s[0];
-//      ofstream write_error;
-//
-//      write_error.open(file_name,ios::app);
-//      write_error << in_file_num << ", ";
-//      write_error <<  run_input.order << ", ";
-//      write_error <<  scientific << run_input.c_tet << ", ";
-//      write_error << run_input.mesh_file << ", ";
-//      write_error << run_input.upts_type_tri << ", ";
-//      write_error << run_input.upts_type_quad << ", ";
-//      write_error << run_input.fpts_type_tri << ", ";
-//      write_error << run_input.adv_type << ", ";
-//      write_error << run_input.riemann_solve_type << ", ";
-//      write_error << scientific << run_input.error_norm_type  << ", " ;
-//
-//      for(int j=0;j<n_fields; j++) {
-//          write_error << scientific << error(0,j);
-//          if((j == (n_fields-1)) && FlowSol->viscous==0)
-//            {
-//              write_error << endl;
-//            }
-//          else
-//            {
-//              write_error <<", ";
-//            }
-//        }
-//
-//      if(FlowSol->viscous) {
-//          for(int j=0;j<n_fields; j++) {
-//              write_error << scientific << error(1,j);
-//              if(j == (n_fields-1))
-//                {
-//                  write_error << endl;
-//                }
-//              else
-//                {
-//                  write_error <<", ";
-//                }
-//            }
-//        }
-//
-//      write_error.close();
-//
-//      double etol = 1.0e-5;
-//
-//      r_flag = 0;
-//
-//      //HACK
-//      /*
-//     if( ((abs(ene_hist - error(0,n_fields-1))/ene_hist) < etol && (abs(grad_ene_hist - error(1,n_fields-1))/grad_ene_hist) < etol) || (abs(error(0,n_fields-1)) > abs(ene_hist)) )
-//     {
-//     r_flag = 1;
-//     }
-//     */
-//
-//      FlowSol->ene_hist = error(0,n_fields-1);
-//      FlowSol->grad_ene_hist = error(1,n_fields-1);
-//    }
-//
-//  //communicate exit_state across processors
-//#ifdef _MPI
-//  MPI_Bcast(&r_flag,1,MPI_INT,0,MPI_COMM_WORLD);
-//  MPI_Barrier(MPI_COMM_WORLD);
-//#endif
-//
-//#ifdef _MPI
-//  if(r_flag)
-//    {
-//      MPI_Finalize();
-//    }
-//#endif
-//
-//  if(r_flag)
-//    {
-//      cout << "Tolerance achieved " << endl;
-//      exit(0);
-//    }
-//
-//}
+void output::compute_error(int in_file_num)
+{
+
+  int n_fields;
+  if (run_input.equation == 0) //Navier-Stokes/Euler
+  {
+    if (FlowSol->n_dims == 2)
+      n_fields = 4;
+    else
+      n_fields = 5;
+    if (run_input.turb_model)
+      n_fields++;
+  }
+  else //advection/diffusion
+    n_fields = 1;
+
+  hf_array<double> error(2, n_fields);
+  hf_array<double> temp_error(2, n_fields);
+
+  error.initialize_to_zero();
+
+  //Compute the error
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+  {
+    if (FlowSol->mesh_eles(i)->get_n_eles() != 0)
+    {
+      temp_error = FlowSol->mesh_eles(i)->compute_error(run_input.error_norm_type, FlowSol->time);
+
+      for (int j = 0; j < n_fields; j++)
+      {
+        error(0, j) += temp_error(0, j);
+        if (FlowSol->viscous)
+          error(1, j) += temp_error(1, j);
+      }
+    }
+  }
+
+#ifdef _MPI
+
+  hf_array<double> error_global(2, n_fields);
+  error_global.initialize_to_zero();
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Reduce(error.get_ptr_cpu(), error_global.get_ptr_cpu(), 2 * n_fields, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  error = error_global;
+#endif
+
+  if (FlowSol->rank == 0)
+  {
+    if (run_input.error_norm_type == 1) // L1 norm
+    {
+      error = error;
+    }
+    else if (run_input.error_norm_type == 2) // L2 norm
+    {
+      for (int j = 0; j < n_fields; j++)
+      {
+        error(0, j) = sqrt(error(0, j));
+        if (FlowSol->viscous)
+        {
+          error(1, j) = sqrt(error(1, j));
+        }
+      }
+    }
+    else
+      FatalError("Error norm not supported!");
+
+    // Writing error to file
+
+    char file_name_s[256];
+
+    sprintf(file_name_s, "error.dat");
+    ofstream write_error;
+
+    write_error.open(file_name_s, ios::app);
+    write_error << in_file_num << ", ";
+    write_error << run_input.order << ", ";
+    write_error << run_input.mesh_file << ", ";
+    write_error << run_input.adv_type << ", ";
+    write_error << run_input.riemann_solve_type << ", ";
+    write_error << scientific << run_input.error_norm_type << ", ";
+
+    for (int j = 0; j < n_fields; j++)
+    {
+      write_error << scientific << error(0, j);
+      if ((j == (n_fields - 1)) && FlowSol->viscous == 0)
+      {
+        write_error << endl;
+      }
+      else
+      {
+        write_error << ", ";
+      }
+    }
+
+    if (FlowSol->viscous)
+    {
+      for (int j = 0; j < n_fields; j++)
+      {
+        write_error << scientific << error(1, j);
+        if (j == (n_fields - 1))
+        {
+          write_error << endl;
+        }
+        else
+        {
+          write_error << ", ";
+        }
+      }
+    }
+
+    write_error.close();
+
+  }
+
+}
 
 void output::CalcNormResidual(void) {
 

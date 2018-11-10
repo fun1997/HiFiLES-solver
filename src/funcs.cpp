@@ -1835,50 +1835,8 @@ int index_locate_int(int value, int* hf_array, int size)
 
 void eval_isentropic_vortex(hf_array<double>& pos, double time, double& rho, double& vx, double& vy, double& vz, double& p, int n_dims)
 {
-  hf_array<double> relative_pos(n_dims);
-
-  double gamma=1.4;
-  /*
-                double ev_x_pos_ic;
-                double ev_y_pos_ic;
-                double ev_mach_ic;
-                double ev_eps_ic;
-                double ev_theta_ic;
-                double ev_rho_inf_ic;
-                double ev_magv_inf_ic;
-                double ev_rad_ic;
-                double ev_p_inf_ic;
-
-                double f;
-        */
-
-  /*
-                ev_x_pos_ic=0.0;
-                ev_y_pos_ic=0.0;
-                ev_mach_ic=0.4;
-                ev_eps_ic=5.0;
-                ev_theta_ic=pi/2.0;
-                ev_rho_inf_ic=1.0;
-                ev_magv_inf_ic=1.0;
-                ev_rad_ic=1;
-                ev_p_inf_ic=1.0/(gamma*ev_mach_ic*ev_mach_ic);
-                ev_p_inf_ic=1.0/(gamma*ev_mach_ic*ev_mach_ic);
-
-        relative_pos(0) = pos(0) - ev_magv_inf_ic*cos(ev_theta_ic)*time;
-        relative_pos(1) = pos(1) - ev_magv_inf_ic*sin(ev_theta_ic)*time;
-
-                f=(1.0-((relative_pos(0)-ev_x_pos_ic)*(relative_pos(0)-ev_x_pos_ic))-((relative_pos(1)-ev_y_pos_ic)*(relative_pos(1)-ev_y_pos_ic)))/(ev_rad_ic*ev_rad_ic);
-
-                rho=ev_rho_inf_ic*pow((1.0-(((ev_eps_ic*ev_eps_ic*(gamma-1.0)*ev_mach_ic*ev_mach_ic)/(8.0*pi*pi))*exp(f))),1.0/(gamma-1.0));
-                vx=ev_magv_inf_ic*(cos(ev_theta_ic)-(((ev_eps_ic*(relative_pos(1)-ev_y_pos_ic))/(2.0*pi*ev_rad_ic))*exp(f/2.0)));
-                vy=ev_magv_inf_ic*(sin(ev_theta_ic)+(((ev_eps_ic*(relative_pos(0)-ev_x_pos_ic))/(2.0*pi*ev_rad_ic))*exp(f/2.0)));
-                vz=0.0;
-                p=ev_p_inf_ic*pow((1.0-(((ev_eps_ic*ev_eps_ic*(gamma-1.0)*ev_mach_ic*ev_mach_ic)/(8.0*pi*pi))*exp(f))),gamma/(gamma-1.0));
-        */
-
   double ev_eps_ic= 5.0;
-
-
+  double gamma=run_input.gamma;
   double x = pos(0) - time;
   double y = pos(1) - time;
 
@@ -1887,6 +1845,7 @@ void eval_isentropic_vortex(hf_array<double>& pos, double time, double& rho, dou
   rho=pow(1.0-ev_eps_ic*ev_eps_ic*(gamma-1.0)/(8.0*gamma*pi*pi)*exp(f),1.0/(gamma-1.0));
   vx=1.-ev_eps_ic*y/(2.0*pi)*exp(f/2.0);
   vy=1.+ev_eps_ic*x/(2.0*pi)*exp(f/2.0);
+  vz=0.;
   p = pow(rho,gamma);
 
 }
@@ -1980,19 +1939,21 @@ int factorial(int in_n)
     }
 }
 
-void eval_couette_flow(hf_array<double>& pos, double in_gamma, double in_R_ref, double in_u_wall, double in_T_wall, double in_p_bound, double in_prandtl, double time, double& ene, hf_array<double>& grad_ene, int n_dims)
+void eval_couette_flow(hf_array<double>& pos, double in_gamma, double in_R_ref, double in_u_wall, double in_T_wall, double in_p_bound, double in_prandtl, double time, hf_array<double> &out_sol, hf_array<double>& out_grad, int n_dims)
 {
   double x,y,z;
 
   double cp;
   double h_channel, T_fact;
-  double rho, mom_x, mom_y, mom_z, vx, vy, vz, Ts, ps;
+  double rho, mom_x, mom_y, mom_z, vx, vy, vz, Ts, ps, ene;
   double gam, R_ref, u_wall, T_wall, p_bound, prandtl, ka, kb;
   double rho_dx, rho_dy, rho_dz;
   double mom_x_dx, mom_x_dy, mom_x_dz;
   double mom_y_dx, mom_y_dy, mom_y_dz;
   double mom_z_dx, mom_z_dy, mom_z_dz;
   double ene_dx, ene_dy, ene_dz;
+  out_sol.initialize_to_zero();
+  out_grad.initialize_to_zero();
 
   gam = in_gamma;
   R_ref = in_R_ref;
@@ -2001,8 +1962,8 @@ void eval_couette_flow(hf_array<double>& pos, double in_gamma, double in_R_ref, 
   p_bound = in_p_bound;
   prandtl = in_prandtl;
 
-  T_fact = 1.0;
-  h_channel = 1.0;
+  T_fact = 1.0/run_input.T_ref;//non_dimentisonal temperature difference
+  h_channel = 1.0;//non_dimensional height
 
   x = pos(0);
   y = pos(1);
@@ -2016,33 +1977,46 @@ void eval_couette_flow(hf_array<double>& pos, double in_gamma, double in_R_ref, 
   if(n_dims==3)
     vz = 0.0;
 
-  ka = (T_fact*T_wall - T_wall);
-  kb = 0.5*(prandtl/cp)*(u_wall*u_wall);
+  ka = T_fact;
+  kb = 0.5*(prandtl/cp)*(u_wall*u_wall)*T_fact;
 
   ps = p_bound;
   Ts = T_wall + (y/h_channel)*ka + kb*(y/h_channel)*(1.0 - (y/h_channel));
 
+//calculate solution variables
   rho = ps/(R_ref*Ts);
-
+  out_sol(0)=rho;
   mom_x 	= rho*vx;
+  out_sol(1)=mom_x;
   mom_y 	= rho*vy;
-  if(n_dims==3)
-    mom_z = rho*vz;
+  out_sol(2)=mom_y;
+  if (n_dims == 3)
+  {
+    mom_z = rho * vz;
+    out_sol(3) = mom_z;
+  }
 
-  if(n_dims==2)
-    ene 	= (ps/(gam-1.0))+0.5*rho*((vx*vx)+(vy*vy));
-
-  if(n_dims==3)
-    ene 	= (ps/(gam-1.0))+0.5*rho*((vx*vx)+(vy*vy)+(vz*vz));
+  if (n_dims == 2)
+  {
+    ene = (ps / (gam - 1.0)) + 0.5 * rho * ((vx * vx) + (vy * vy));
+    out_sol(3) = ene;
+  }
+  if (n_dims == 3)
+  {
+    ene = (ps / (gam - 1.0)) + 0.5 * rho * ((vx * vx) + (vy * vy) + (vz * vz));
+    out_sol(4) = ene;
+  }
 
   rho_dx = 0.0;
-  rho_dy = -(ps/R_ref)*((ka/h_channel) - ((kb*y)/(h_channel*h_channel)) + (kb/h_channel)*(1.0 - (y/h_channel)))/
-      pow( T_wall + ka*(y/h_channel) + kb*(y/h_channel)*(1.0 - (y/h_channel)) ,2.0);
-  if(n_dims==3)
+  rho_dy = -(ps / R_ref) * ((ka / h_channel) - ((kb * y) / (h_channel * h_channel)) + (kb / h_channel) * (1.0 - (y / h_channel))) /
+           pow(T_wall + ka * (y / h_channel) + kb * (y / h_channel) * (1.0 - (y / h_channel)), 2.0);
+    out_grad(0,1)=rho_dy;
+  if (n_dims == 3)
     rho_dz = 0.0;
 
   mom_x_dx = 0.0;
   mom_x_dy = rho_dy*vx + rho*(u_wall/h_channel);
+      out_grad(1,1)=mom_x_dy;
   if(n_dims==3)
     mom_x_dz = 0.0;
 
@@ -2056,10 +2030,7 @@ void eval_couette_flow(hf_array<double>& pos, double in_gamma, double in_R_ref, 
   if(n_dims==3)
     ene_dz = 0.0;
 
-  grad_ene(0) = ene_dx;
-  grad_ene(1) = ene_dy;
-  if(n_dims==3)
-    grad_ene(2) = ene_dz;
+  out_grad(n_dims+1,1) = ene_dy;
 }
 
 // Set initial momentum as up to 4th order polynomial in each direction

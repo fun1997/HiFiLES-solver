@@ -103,7 +103,7 @@ class output
     void CalcTimeAverageQuantities(void);
 
     /*! compute error */
-    //void compute_error(int in_file_num);
+    void compute_error(int in_file_num);
 
     /*! calculate residual */
     void CalcNormResidual(void);
