@@ -1430,19 +1430,17 @@ void output::write_probe(void)
     /*! file name */
     char probe_data[256];
     /*! output file object*/
-    ofstream write_probe;
+    ofstream wt_probe;
     /*! set file name*/
     string folder;
     int file_idx;
 
     /*! every node write .dat*/
     if(myrank ==0) cout<<"writing probe point data...";
-    for (int i=0; i<n_probe; i++) //loop over every probe point i
+    for (int i=0; i<n_probe; i++) //loop over every local probe point i
     {
-      if (run_probe.p2c(i) != -1) //if probe point belongs to this processor
-      {
         //copy probe point property
-        n_fields = FlowSol->mesh_eles(run_probe.p2t(i))->get_n_fields(); //number of computing fields
+        n_fields = FlowSol->mesh_eles(run_probe.p2t[i])->get_n_fields(); //number of computing fields
         disu_probe_point_temp.setup(n_fields);
         disu_probe_point_temp.initialize_to_zero();
         for (int j = 0; j < n_dims; j++)
@@ -1450,50 +1448,49 @@ void output::write_probe(void)
 
         bool surf_flag;
         //set the folder name
-        if (run_input.probe == 2) //from script
+        if (run_input.probe == 1) //from script
         {
-          if (i < run_probe.line_start[0]) //is a surf
+          if (run_probe.p2global_p[i] < run_probe.line_start[0]) //is a surf
           {
-            if (n_dims == 3) //3D sims
-              surf_flag = true;
+            surf_flag = true;
             for (int id = 1; id < run_probe.surf_start.size(); id++)
             {
-              if (i < run_probe.surf_start[id] && i >= run_probe.surf_start[id - 1])
+              if (run_probe.p2global_p[i] < run_probe.surf_start[id] && run_probe.p2global_p[i] >= run_probe.surf_start[id - 1])
               {
                 folder = run_probe.surf_name[id - 1];
-                file_idx = i - run_probe.surf_start[id - 1];
+                file_idx = run_probe.p2global_p[i] - run_probe.surf_start[id - 1];
                 break;
               }
             }
           }
-          else //is a line
+          else if(run_probe.p2global_p[i] <run_probe.point_start[0]) //is a line
           {
             surf_flag = false;
             for (int id = 1; id < run_probe.line_start.size(); id++)
             {
-              if (i < run_probe.line_start[id] && i >= run_probe.line_start[id - 1])
+              if (run_probe.p2global_p[i] < run_probe.line_start[id] && run_probe.p2global_p[i] >= run_probe.line_start[id - 1])
               {
                 folder = run_probe.line_name[id - 1];
-                file_idx = i - run_probe.line_start[id - 1];
+                file_idx = run_probe.p2global_p[i] - run_probe.line_start[id - 1];
                 break;
               }
             }
           }
+          else//is a point
+          {
+            surf_flag = false;
+            folder = "points";
+            file_idx = run_probe.p2global_p[i] - run_probe.point_start[0];
+          }
         }
-        else if (run_input.probe == 3) //gambit
+        else if (run_input.probe == 2) //gambit
         {
           if (run_probe.ele_dims == 2 && n_dims == 3) //3D simulation and surf mesh
             surf_flag = true;
           else
             surf_flag = false;
           folder = "probes";
-          file_idx = i;
-        }
-        else if (run_input.probe == 1) //point
-        {
-          folder = "probes";
-          surf_flag = false;
-          file_idx = i;
+          file_idx = run_probe.p2global_p[i];
         }
         else
         {
@@ -1507,112 +1504,114 @@ void output::write_probe(void)
         if (stat(probe_data, &st) == -1)
           exist = false;
 
-        write_probe.open(probe_data, ios_base::out | ios_base::app); //open file
-        if (!write_probe.is_open())
+        wt_probe.open(probe_data, ios_base::out | ios_base::app); //open file
+        if (!wt_probe.is_open())
         {
-          write_probe.open(probe_data, ios_base::out | ios_base::app);
-          if (!write_probe.is_open())
+          wt_probe.open(probe_data, ios_base::out | ios_base::app);
+          if (!wt_probe.is_open())
             FatalError("Cannont open input file for reading.");
         }
         //use normal notation
-        write_probe.unsetf(ios::floatfield);
+        wt_probe.unsetf(ios::floatfield);
         if (exist == false) //if doesn't exist write headers
         {
-          write_probe << "NOTE: ALL OUTPUTS ARE DIMENSIONAL IN SI UNITS" << endl;
-          write_probe << "Probe position" << endl;
+          wt_probe << "NOTE: ALL OUTPUTS ARE DIMENSIONAL IN SI UNITS" << endl;
+          wt_probe << "Probe position" << endl;
           if (viscous)
-            write_probe << setw(20) << setprecision(10) << run_probe.pos_probe(0, i) * run_input.L_ref << setw(20) << setprecision(10) << run_probe.pos_probe(1, i) * run_input.L_ref;
+            wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(0, run_probe.p2global_p[i]) * run_input.L_ref
+                     << setw(20) << setprecision(10) << run_probe.pos_probe_global(1, run_probe.p2global_p[i]) * run_input.L_ref;
           else
-            write_probe << setw(20) << setprecision(10) << run_probe.pos_probe(0, i) << setw(20) << setprecision(10) << run_probe.pos_probe(1, i);
+            wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(0, run_probe.p2global_p[i])
+                     << setw(20) << setprecision(10) << run_probe.pos_probe_global(1, run_probe.p2global_p[i]);
           if (n_dims == 3)
           {
             if (viscous)
-              write_probe << setw(20) << setprecision(10) << run_probe.pos_probe(2, i) * run_input.L_ref << endl;
+              wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(2, run_probe.p2global_p[i]) * run_input.L_ref << endl;
             else
-              write_probe << setw(20) << setprecision(10) << run_probe.pos_probe(2, i) << endl;
+              wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(2, run_probe.p2global_p[i]) << endl;
           }
           else
-            write_probe << endl;
+            wt_probe << endl;
           /*! write surface information*/
           if (surf_flag == true)
           {
-            write_probe << "Surface normal" << endl;
-            write_probe << setw(20) << setprecision(10) << run_probe.surf_normal[i][0] << setw(20) << setprecision(10) << run_probe.surf_normal[i][1];
+            wt_probe << "Surface normal" << endl;
+            wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i]][0]
+                     << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i]][1];
             if (n_dims == 3)
-              write_probe << setw(20) << setprecision(10) << run_probe.surf_normal[i][2] << endl;
+              wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i]][2] << endl;
             else
-              write_probe << endl;
+              wt_probe << endl;
 
-            write_probe << "Surface area" << endl;
+            wt_probe << "Surface area" << endl;
             if (viscous)
-              write_probe << setw(20) << setprecision(10) << run_probe.surf_area[i] * run_input.L_ref * run_input.L_ref << endl;
+              wt_probe << setw(20) << setprecision(10) << run_probe.surf_area[run_probe.p2global_p[i]] * run_input.L_ref * run_input.L_ref << endl;
             else
-              write_probe << setw(20) << setprecision(10) << run_probe.surf_area[i] << endl;
+              wt_probe << setw(20) << setprecision(10) << run_probe.surf_area[run_probe.p2global_p[i]] << endl;
           }
           /*! write field titles*/
-          write_probe << setw(20) << "time";
+          wt_probe << setw(20) << "time";
           for (int j = 0; j < n_probe_fields; j++)
-            write_probe << setw(20) << run_probe.probe_fields(j);
+            wt_probe << setw(20) << run_probe.probe_fields(j);
 
-          write_probe << endl;
+          wt_probe << endl;
         }
 
         //use scientific notation
-        write_probe.setf(ios::scientific);
+        wt_probe.setf(ios::scientific);
 
         //calculate fields data on probe points
-        FlowSol->mesh_eles(run_probe.p2t(i))->set_opp_probe(loc_probe_point_temp);                            //calculate solution on upts to probe points matrix
-        FlowSol->mesh_eles(run_probe.p2t(i))->calc_disu_probepoints(run_probe.p2c(i), disu_probe_point_temp); //calculate solution on the reference probe point
+        FlowSol->mesh_eles(run_probe.p2t[i])->set_opp_probe(loc_probe_point_temp);                            //calculate solution on upts to probe points matrix
+        FlowSol->mesh_eles(run_probe.p2t[i])->calc_disu_probepoints(run_probe.p2c[i], disu_probe_point_temp); //calculate solution on the reference probe point
 
         /*! Start writing data*/
         //write time
         if (viscous)
-          write_probe << setw(20) << setprecision(10) << FlowSol->time * run_input.L_ref / run_input.uvw_ref;
+          wt_probe << setw(20) << setprecision(10) << FlowSol->time * run_input.time_ref;
         else
-          write_probe << setw(20) << setprecision(10) << FlowSol->time;
+          wt_probe << setw(20) << setprecision(10) << FlowSol->time;
         for (int j = 0; j < n_probe_fields; j++) //write transient fields
         {
 
           if (run_probe.probe_fields(j) == "rho")
           {
             if (viscous)
-              write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(0) * run_input.rho_ref;
+              wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(0) * run_input.rho_ref;
             else
-              write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(0);
+              wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(0);
           }
           else if (run_probe.probe_fields(j) == "u")
           {
             if (viscous)
-              write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(1) / disu_probe_point_temp(0) * run_input.uvw_ref;
+              wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(1) / disu_probe_point_temp(0) * run_input.uvw_ref;
             else
-              write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(1) / disu_probe_point_temp(0);
+              wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(1) / disu_probe_point_temp(0);
           }
           else if (run_probe.probe_fields(j) == "v")
           {
             if (viscous)
-              write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(2) / disu_probe_point_temp(0) * run_input.uvw_ref;
+              wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(2) / disu_probe_point_temp(0) * run_input.uvw_ref;
             else
-              write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(2) / disu_probe_point_temp(0);
+              wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(2) / disu_probe_point_temp(0);
           }
           else if (run_probe.probe_fields(j) == "w")
           {
             if (n_dims == 3)
             {
               if (viscous)
-                write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(3) / disu_probe_point_temp(0) * run_input.uvw_ref;
+                wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(3) / disu_probe_point_temp(0) * run_input.uvw_ref;
               else
-                write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(3) / disu_probe_point_temp(0);
+                wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(3) / disu_probe_point_temp(0);
             }
-
             else
               FatalError("2 dimensional elements don't have z velocity");
           }
           else if (run_probe.probe_fields(j) == "specific_total_energy") //e
           {
             if (viscous)
-              write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(n_dims + 1) / disu_probe_point_temp(0) * run_input.uvw_ref * run_input.uvw_ref;
+              wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(n_dims + 1) / disu_probe_point_temp(0) * run_input.uvw_ref * run_input.uvw_ref;
             else
-              write_probe << setw(20) << setprecision(10) << disu_probe_point_temp(n_dims + 1) / disu_probe_point_temp(0);
+              wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(n_dims + 1) / disu_probe_point_temp(0);
           }
           else if (run_probe.probe_fields(j) == "pressure")
           {
@@ -1625,17 +1624,16 @@ void output::write_probe(void)
             // Compute pressure
             pressure = (run_input.gamma - 1.0) * (disu_probe_point_temp(n_dims + 1) - 0.5 * disu_probe_point_temp(0) * v_sq);
             if (viscous)
-              write_probe << setw(20) << setprecision(10) << pressure * run_input.rho_ref * run_input.uvw_ref * run_input.uvw_ref;
+              wt_probe << setw(20) << setprecision(10) << pressure * run_input.p_ref;
             else
-              write_probe << setw(20) << setprecision(10) << pressure;
+              wt_probe << setw(20) << setprecision(10) << pressure;
           }
           else
             FatalError("Probe field not implemented yet!");
         }
-        write_probe << endl;
-        write_probe.close(); //close file
-        }
-
+        wt_probe << endl;
+        wt_probe.close(); //close file
+        
     }
     if (myrank==0) cout<<"done."<<endl;
 }
@@ -1753,7 +1751,7 @@ void output::CalcForces(int in_file_num, bool write_forces)
     }
 
 #ifdef _MPI
-
+//calculate sum of forces and lift/drag coeff and copy to master node
   hf_array<double> inv_force_global(FlowSol->n_dims);
   hf_array<double> vis_force_global(FlowSol->n_dims);
   double coeff_lift_global=0.0;

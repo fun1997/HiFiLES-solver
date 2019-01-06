@@ -48,7 +48,7 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
-  int rank = 0;// error_state = 0;
+  int rank = 0;
   int i, j;                           /*!< Loop iterators */
   int i_steps = 0;                    /*!< Iteration index */
   int RKSteps;                        /*!< Number of RK steps */

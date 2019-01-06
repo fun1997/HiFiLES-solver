@@ -49,8 +49,6 @@
  */
 void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol);
 
-void set_rank_nproc(int in_rank, int in_nproc, struct solution* FlowSol);
-
 /*! get pointer to transformed discontinuous solution at a flux point */
 double* get_disu_fpts_ptr(int in_ele_type, int in_ele, int in_field, int n_local_inter, int in_fpt, struct solution* FlowSol);
 

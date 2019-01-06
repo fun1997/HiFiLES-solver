@@ -69,7 +69,6 @@ void input::read_input_file(string fileName, int rank)
     param_reader opts(fileName);
     opts.openFile();
     /*---initialize necessary arries to hold parameters---*/
-    wave_speed.setup(3);
 
     /*
      * HiFiLES Developers - Please keep this organized!  There are
@@ -83,7 +82,7 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("viscous", viscous);
     opts.getScalarValue("mesh_file", mesh_file);
     opts.getScalarValue("ic_form", ic_form, 1);
-    opts.getScalarValue("test_case", test_case, 0);
+    opts.getScalarValue("test_case", test_case, 0); //0: no testcase; 1: isentropic vortex; 5: couette flow
     opts.getScalarValue("n_steps", n_steps);
     opts.getScalarValue("restart_flag", restart_flag, 0);
     if (restart_flag == 1)
@@ -101,8 +100,8 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("calc_force", calc_force, 0);
     if (calc_force)
     {
-        opts.getScalarValue("monitor_cp_freq", monitor_cp_freq);
-        opts.getScalarValue("area_ref", area_ref, 1.0);
+        opts.getScalarValue("monitor_cp_freq", monitor_cp_freq);//frequency to dump force file
+        opts.getScalarValue("area_ref", area_ref, 1.0);//non-dim reference area
     }
     opts.getScalarValue("res_norm_type", res_norm_type, 2);
     opts.getScalarValue("error_norm_type", error_norm_type, 2);
@@ -173,7 +172,7 @@ void input::read_input_file(string fileName, int rank)
         opts.getScalarValue("filter_ratio", filter_ratio);
         opts.getScalarValue("wall_model", wall_model);
         if (wall_model)
-            opts.getScalarValue("wall_layer_thickness", wall_layer_t);//TODO: try to fix this with y+
+            opts.getScalarValue("wall_layer_thickness", wall_layer_t);//non-dim distance between the first layer of solution points and wall
     }
 
     /* ---- Gas Parameters ---- */
@@ -243,7 +242,7 @@ void input::read_input_file(string fileName, int rank)
 
     /* ---- stationary shock/shock tube ic----*/
     if (ic_form == 9 || ic_form == 10)
-        opts.getScalarValue("x_shock_ic", x_shock_ic);
+        opts.getScalarValue("x_shock_ic", x_shock_ic);//non-dim x-coord of shock wave
 
     /* ---- Shock Capturing / dealiasing ---- */
     opts.getScalarValue("over_int", over_int, 0);
@@ -296,6 +295,7 @@ void input::read_input_file(string fileName, int rank)
     /* ---- Advection-Diffusion Parameters ---- */
     if (equation == 1)
     {
+        wave_speed.setup(3);
         opts.getScalarValue("wave_speed_x", wave_speed(0));
         opts.getScalarValue("wave_speed_y", wave_speed(1), 0.);
         opts.getScalarValue("wave_speed_z", wave_speed(2), 0.);
@@ -311,9 +311,12 @@ void input::read_input_file(string fileName, int rank)
 
     //for ic_form=6 polynomial initial conditions
     // NOTE: the input file line must look like "x_coeffs <# coeffs> x1 x2 x3..."
-    opts.getVectorValueOptional("x_coeffs", x_coeffs);
-    opts.getVectorValueOptional("y_coeffs", y_coeffs);
-    opts.getVectorValueOptional("z_coeffs", z_coeffs);
+    if (ic_form == 6)
+    {
+        opts.getVectorValue("x_coeffs", x_coeffs);
+        opts.getVectorValue("y_coeffs", y_coeffs);
+        opts.getVectorValue("z_coeffs", z_coeffs);
+    }
 
     opts.closeFile();
 }
@@ -498,7 +501,7 @@ void input::setup_params(int rank)
     // ERROR CHECKING
     // --------------------
     if (p_res < 2)
-        FatalError("Plot resolution must be larger than 2");
+        FatalError("Plot resolution must be at least 2");
     if (monitor_res_freq == 0)
         monitor_res_freq = 1000;
     if (monitor_cp_freq == 0)
@@ -538,7 +541,7 @@ void input::setup_params(int rank)
         FatalError("LES not supported with inviscid flow");
     if (over_int)
     {
-        if (N_under > order || N_under < 0)
+        if (N_under >= order || N_under < 0)
             FatalError("Invalid under sampling order");
     }
 

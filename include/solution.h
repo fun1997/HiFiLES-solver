@@ -72,10 +72,6 @@ struct solution {
   hf_array<int_inters> mesh_int_inters;
   hf_array<bdy_inters> mesh_bdy_inters;
 
-  /*! No-slip wall flux point coordinates for wall models. */
-
-	hf_array< hf_array<double> > loc_noslip_bdy;
-
   //Diagnostic output quantities
   hf_array<double> body_force;
   hf_array<double> inv_force;
@@ -89,21 +85,12 @@ struct solution {
   int plot_freq;//defined in setInput
   int write_type;//defined in SetInput
 
-  //others
-  double ene_hist;
-  double grad_ene_hist;
-
 //mpi parameters
 #ifdef _MPI
 
   int n_mpi_inter_types;
   hf_array<mpi_inters> mesh_mpi_inters;
-  hf_array<int> error_states;
   int n_mpi_inters;
-
-  /*! No-slip wall flux point coordinates for wall models. */
-
-	hf_array< hf_array<double> > loc_noslip_bdy_global;
 
 #endif
 

@@ -241,7 +241,7 @@ void mesh::repartition_mesh(int nproc, int rank)
   {
     if (outK[p] != 0) //if this processor have elements to send to processor p
     {
-      int cnt = 0;
+      cnt = 0;
 
       outlist[p].setup(MAX_V_PER_C, outK[p]);
       outlist_c2n_v[p].setup(outK[p]);
@@ -311,10 +311,9 @@ void mesh::create_iv2ivg()
   std::vector<int>::iterator new_end = unique(vrtlist.begin(), vrtlist.end());
   num_verts = new_end - vrtlist.begin();
 
+  //copy to iv2ivg
   iv2ivg.setup(num_verts);
-
-  for (int i = 0; i < num_verts; i++)
-    iv2ivg(i) = *(vrtlist.begin() + i);
+  copy(vrtlist.begin(), new_end, iv2ivg.get_ptr_cpu());
 
 #ifdef _MPI
 

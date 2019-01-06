@@ -104,11 +104,11 @@ public:
 
   // return pointer
 
-  T* get_ptr_cpu(int in_pos_0);
+  T *get_ptr_cpu(int in_pos_0);
   T *get_ptr_cpu(int in_pos_0, int in_pos_1);
-  T *get_ptr_cpu(int in_pos_0, int in_pos_1, int in_pos_2); 
+  T *get_ptr_cpu(int in_pos_0, int in_pos_1, int in_pos_2);
   T *get_ptr_cpu(int in_pos_0, int in_pos_1, int in_pos_2, int in_pos_3);
-  T* get_ptr_gpu(int in_pos_0, int in_pos_1=0, int in_pos_2=0, int in_pos_3=0);
+  T *get_ptr_gpu(int in_pos_0, int in_pos_1 = 0, int in_pos_2 = 0, int in_pos_3 = 0);
 
   // return dimension
 
@@ -224,8 +224,7 @@ hf_array<T>::hf_array(const hf_array<T>& in_array)
   int temp_size = dim_0 * dim_1 * dim_2 * dim_3;
   cpu_data = new T[temp_size];
 
-  for (i = 0; i < temp_size; i++)
-    cpu_data[i] = in_array.cpu_data[i];
+  copy(in_array.cpu_data, in_array.cpu_data + temp_size, this->cpu_data);
 }
 
 // assignment
@@ -251,8 +250,7 @@ hf_array<T>& hf_array<T>::operator=(const hf_array<T>& in_array)
       int temp_size=dim_0*dim_1*dim_2*dim_3;
       cpu_data = new T[temp_size];
 
-      for(i=0; i<temp_size; i++)
-          cpu_data[i]=in_array.cpu_data[i];
+      copy(in_array.cpu_data, in_array.cpu_data + temp_size, this->cpu_data);
 
       cpu_flag=1;
       gpu_flag=0;

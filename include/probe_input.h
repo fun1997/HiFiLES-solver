@@ -39,23 +39,31 @@ public:
     //basic inputs
     hf_array<string> probe_fields;
     int n_probe;
+    int n_probe_global;
     int probe_freq;
     int n_probe_fields;
-    hf_array<double> pos_probe;
+    hf_array<double> pos_probe_global;
 
-    vector<hf_array<double> > surf_normal; 
-    vector<double> surf_area;
-    //from script
-    vector<int> line_start;
+    //from script(global)
     vector<int> surf_start;
+    vector<int> line_start;
+    vector<int> point_start;
     vector<string> line_name;
     vector<string> surf_name;
+
     //from mesh
     int mesh_dims,ele_dims;
-    //connetivity
-    hf_array<int> p2c;//probe point to cell number(local typewise)
-    hf_array<int> p2t;//probe point to cell type
-    hf_array<double> loc_probe;
+
+    //surface params(global)
+    vector<hf_array<double> > surf_normal; 
+    vector<double> surf_area;
+
+    //connetivity(local)
+    vector<int> p2c;//local probe point to cell number(local typewise)
+    vector<int> p2t;//local probe point to cell type
+    vector<int> p2global_p;//local probe point index to gloabl probal point index
+    hf_array<double> loc_probe;//location of local probe point
+
     //entrance
     void setup(char *fileNameC,struct solution* FlowSol, int rank);
 private:
@@ -65,7 +73,7 @@ private:
 
     void read_probe_script(string filename);
     void set_probe_line(hf_array<double>& in_p0, hf_array<double>& in_p1,const double in_init_incre,
-    const int in_n_pts,vector<hf_array<double> > &out_pos_line);
+                        const int in_n_pts,vector<hf_array<double> > &out_pos_line);
     //read in start index and return number of points
     void set_probe_circle(hf_array<double> &in_cent, hf_array<double> &in_ori, const double in_r, const int n_layer,
                           vector<hf_array<double> > &out_normal, vector<double> &out_area,
@@ -81,5 +89,5 @@ private:
     void set_loc_probepts(struct solution* FlowSol);
 
     int n_dims;//simulation dimension
-    string fileNameS,probe_source_file;//filenames
+    string fileNameS;//main input filename
 };

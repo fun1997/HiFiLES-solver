@@ -89,8 +89,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             if(sgs_model==3 || sgs_model==2 || sgs_model==4)
                 LES_filter = 1;
 
-        n_bdy_eles=0;
-
         // Initialize the element specific static members
         (*this).setup_ele_type_specific();
 
@@ -2703,7 +2701,7 @@ void eles::calc_src_upts_SA(void)
 /*! If using a RANS or LES near-wall model, calculate distance
  of each solution point to nearest no-slip wall by a brute-force method */
 
-void eles::calc_wall_distance(int n_seg_noslip_inters, int n_tri_noslip_inters, int n_quad_noslip_inters, hf_array< hf_array<double> > loc_noslip_bdy)
+void eles::calc_wall_distance(const int n_seg_noslip_inters, const int n_tri_noslip_inters, const int n_quad_noslip_inters, hf_array<hf_array<double>> &loc_noslip_bdy)
 {
     if(n_eles!=0)
     {
@@ -6236,13 +6234,13 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                     // calculate pressure coefficient at current point on the surface
                     cp = (p_l-run_input.p_c_ic)*factor;
 
-                    // Inviscid force coefficient, F/0.5rhou^2
+                    // Inviscid force coefficient, F/(0.5*rho*u^2*A)
                     for (int m=0; m<n_dims; m++)
                     {
                         Finv(m) = wgt * (p_l - run_input.p_c_ic) * norm(m) * detjac * factor / area_ref;
                     }
 
-                    // inviscid component of the lift and drag coefficients without area
+                    // inviscid component of the lift and drag coefficients
 
                     if (n_dims==2)
                     {
@@ -6330,7 +6328,7 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                         if (write_forces)
                             coeff_file << " " << setw(18) << setprecision(12) << cf;
 
-                        // viscous force
+                        // viscous force coefficient
                         for (int m = 0; m < n_dims; m++)
                         {
                             Fvis(m) = -wgt * taun(m) * detjac * factor / area_ref;
@@ -6353,14 +6351,14 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                     if (write_forces)
                         coeff_file << endl;
 
-                    // Add force and coefficient contributions from current face
+                    // Add force coefficient and lift/drag coefficient contributions from current face
                     for (int m=0; m<n_dims; m++)
                     {
                         inv_force(m) += Finv(m);
                         vis_force(m) += Fvis(m);
                     }
-                    temp_cl += cl/area_ref;
-                    temp_cd += cd/area_ref;
+                    temp_cl += cl;
+                    temp_cd += cd;
                 }
             }
         }

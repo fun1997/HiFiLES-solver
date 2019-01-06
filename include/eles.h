@@ -277,7 +277,7 @@ public:
   void set_transforms_vol_cubpts(void);
 
 	/*! Calculate distance of solution points to no-slip wall */
-	void calc_wall_distance(int n_seg_noslip_inters, int n_tri_noslip_inters, int n_quad_noslip_inters, hf_array< hf_array<double> > loc_noslip_bdy);
+	void calc_wall_distance(const int n_seg_noslip_inters, const int n_tri_noslip_inters, const int n_quad_noslip_inters, hf_array< hf_array<double> > &loc_noslip_bdy);
 
   /*! calculate position */
   void calc_pos(hf_array<double> in_loc, int in_ele, hf_array<double>& out_pos);

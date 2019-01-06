@@ -212,15 +212,6 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
       FlowSol->mesh_eles(i)->dealias_over_integration();
 }
 
-#ifdef _MPI
-void set_rank_nproc(int in_rank, int in_nproc, struct solution* FlowSol)
-{
-  FlowSol->rank = in_rank;
-  FlowSol->nproc = in_nproc;
-  FlowSol->error_states.setup(FlowSol->nproc);
-}
-#endif
-
 // get pointer to transformed discontinuous solution at a flux point
 
 double* get_disu_fpts_ptr(int in_ele_type, int in_ele, int in_field, int in_local_inter, int in_fpt, struct solution* FlowSol)

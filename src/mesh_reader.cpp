@@ -39,7 +39,7 @@ void mesh_reader::read_header(void)
 
 void mesh_reader::partial_read_connectivity(int kstart, int in_num_cells)
 {
-    if (kstart >= mesh_ptr->num_cells_global || in_num_cells > mesh_ptr->num_cells_global)
+    if (kstart >= mesh_ptr->num_cells_global || in_num_cells > (mesh_ptr->num_cells_global - kstart))
         FatalError("Illegal block of elements to read");
 
     mesh_ptr->num_cells = in_num_cells; //store number of cells read by this processor in mesh obj
