@@ -85,10 +85,11 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("test_case", test_case, 0); //0: no testcase; 1: isentropic vortex; 5: couette flow
     opts.getScalarValue("n_steps", n_steps);
     opts.getScalarValue("restart_flag", restart_flag, 0);
-    if (restart_flag == 1)
+    if (restart_flag) //0: new case; 1: ascii restart file;2: hdf5 restart file
     {
         opts.getScalarValue("restart_iter", restart_iter);
-        opts.getScalarValue("n_restart_files", n_restart_files);
+        if (restart_flag == 1)//ascii files need to know number of files
+            opts.getScalarValue("n_restart_files", n_restart_files);
     }
 
     /* ---- Visualization / Monitoring / Output Parameters ---- */
@@ -106,7 +107,7 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("res_norm_type", res_norm_type, 2);
     opts.getScalarValue("error_norm_type", error_norm_type, 2);
     opts.getScalarValue("p_res", p_res, 2);
-    opts.getScalarValue("write_type", write_type, 0);//default vtu
+    opts.getScalarValue("write_type", write_type, 0); //0: vtu/pvtu; 1: tec; 2: cgns
     opts.getScalarValue("probe", probe, 0);
     opts.getVectorValueOptional("integral_quantities", integral_quantities);
     opts.getVectorValueOptional("diagnostic_fields", diagnostic_fields);
@@ -259,6 +260,8 @@ void input::read_input_file(string fileName, int rank)
             opts.getScalarValue("expf_fac", expf_fac, 36.0);
             opts.getScalarValue("expf_order", expf_order, 4.0);
         }
+        else
+            FatalError("Shock capturing method not implemented!")
     }
 
     /* ---- FR Element Solution Point / Correction Function Parameters ---- */

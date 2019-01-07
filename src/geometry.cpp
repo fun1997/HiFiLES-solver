@@ -401,69 +401,69 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
   int bcid_f, found, rtag;
   int ic_l, ic_r;
 
-  for (int i = 0; i < mesh_data.num_inters; i++)
+  for (int i = 0; i < mesh_data.n_unmatched_inters; i++)//for each unmatched interface
   {
-    bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
-    if (bcid_f == -1)//an internal or mpi internal face, skip
+    int i1 = mesh_data.unmatched_inters(i); //index of unmatched interface
+    bcid_f = mesh_data.bc_id(mesh_data.f2c(i1, 0), mesh_data.f2loc_f(i1, 0));
+    if (bcid_f == -1 || bcid_f == -3) //mpi internal face or coupled cyclic face, skip
       continue;
+
     if (run_input.bc_list(bcid_f).get_bc_flag() == CYCLIC)
     { //if is cyclic interface
 
       //calculate position of center of each cyclic interface
-      for (int m = 0; m < FlowSol->n_dims; m++)
-        loc_center_inter_0(m) = 0.;
+      loc_center_inter_0.initialize_to_zero();
 
-      for (int k = 0; k < mesh_data.f2nv(i); k++)
+      for (int k = 0; k < mesh_data.f2nv(i1); k++)
         for (int m = 0; m < FlowSol->n_dims; m++)
-          loc_center_inter_0(m) += mesh_data.xv(mesh_data.f2v(i, k), m) / (double)mesh_data.f2nv(i);
+          loc_center_inter_0(m) += mesh_data.xv(mesh_data.f2v(i1, k), m) / (double)mesh_data.f2nv(i1);
 
       found = 0;
-      for (int j = 0; j < mesh_data.n_unmatched_inters; j++)//loop over all unmatched interfaces including other bdy and mpi internal face
+      for (int j = i+1; j < mesh_data.n_unmatched_inters; j++)//loop over all other uncounted and unmatched interfaces including other bdy and mpi internal face
       {
 
         int i2 = mesh_data.unmatched_inters(j); //index of unmatched interface
 
-        if (bcid_f != mesh_data.bc_id(mesh_data.f2c(i2, 0), mesh_data.f2loc_f(i2, 0)))
-          continue; //mpi face, other boundary face or not the same group of cyclic face or counted faces
+        if (bcid_f != mesh_data.bc_id(mesh_data.f2c(i2, 0), mesh_data.f2loc_f(i2, 0)) || mesh_data.f2nv(i1) != mesh_data.f2nv(i2))
+          continue; //mpi face, coupled cyclic face or other boundary face or not the same kind of face
 
-        for (int m = 0; m < FlowSol->n_dims; m++)
-          loc_center_inter_1(m) = 0.;
+        loc_center_inter_1.initialize_to_zero();
 
         //calculate center of the unmatched interface
         for (int k = 0; k < mesh_data.f2nv(i2); k++)
           for (int m = 0; m < FlowSol->n_dims; m++)
             loc_center_inter_1(m) += mesh_data.xv(mesh_data.f2v(i2, k), m) / (double)mesh_data.f2nv(i2);
 
-        if (check_cyclic(delta_cyclic, loc_center_inter_0, loc_center_inter_1, tol, FlowSol)) //TODO: if the unmatched interface is the corresponding cyclic face
+        if (check_cyclic(delta_cyclic, loc_center_inter_0, loc_center_inter_1, tol, FlowSol))//if matched
         {
 
           found = 1;
-          mesh_data.f2c(i, 1) = mesh_data.f2c(i2, 0); //couple up
+          mesh_data.f2c(i1, 1) = mesh_data.f2c(i2, 0); //couple up
 
-          mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0)) = -1;   //become default interior face
+          mesh_data.bc_id(mesh_data.f2c(i1, 0), mesh_data.f2loc_f(i1, 0)) = -1;   //become default interior face
           mesh_data.bc_id(mesh_data.f2c(i2, 0), mesh_data.f2loc_f(i2, 0)) = -3; //set the matched interface as coupled cyclic interface(=delete that face)
 
-          mesh_data.f2loc_f(i, 1) = mesh_data.f2loc_f(i2, 0);
+          mesh_data.f2loc_f(i1, 1) = mesh_data.f2loc_f(i2, 0);
 
           n_cyc_loc++;
-          for (int k = 0; k < mesh_data.f2nv(i); k++)
+          for (int k = 0; k < mesh_data.f2nv(i1); k++)
           {
             for (int m = 0; m < FlowSol->n_dims; m++)
             {
-              loc_vert_0(k, m) = mesh_data.xv(mesh_data.f2v(i, k), m);
+              loc_vert_0(k, m) = mesh_data.xv(mesh_data.f2v(i1, k), m);
               loc_vert_1(k, m) = mesh_data.xv(mesh_data.f2v(i2, k), m);
             }
           }
-          compare_cyclic_faces(loc_vert_0, loc_vert_1, mesh_data.f2nv(i), rtag, delta_cyclic, tol, FlowSol);
-          mesh_data.rot_tag(i) = rtag;
+          compare_cyclic_faces(loc_vert_0, loc_vert_1, mesh_data.f2nv(i1), rtag, delta_cyclic, tol, FlowSol);
+          mesh_data.rot_tag(i1) = rtag;
           break;
         }
       }
 
       if (found == 0) // Corresponding cyclic edges belongs to another processsor or doesn't exist
       {
-        mesh_data.f2c(i, 1) = -1;
-        mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0)) = -1; //set to be mpi_interface
+        mesh_data.f2c(i1, 1) = -1;
+        mesh_data.bc_id(mesh_data.f2c(i1, 0), mesh_data.f2loc_f(i1, 0)) = -1; //set to be mpi_interface
       }
     }
   }
@@ -475,7 +475,7 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
   //  Initialize MPI faces
   //  --------------------------------
 
-  int max_mpi_inters = mesh_data.n_unmatched_inters; //place holder for face arrays
+  int max_mpi_inters = mesh_data.n_unmatched_inters-2*n_cyc_loc; //place holder for face arrays
   hf_array<int> f_mpi2f(max_mpi_inters);
   FlowSol->n_mpi_inters = 0;
   int n_seg_mpi_inters = 0;
