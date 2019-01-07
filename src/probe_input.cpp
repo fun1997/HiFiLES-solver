@@ -249,9 +249,9 @@ void probe_input::read_probe_script(string filename)
     if (!script_f)
         FatalError("Unable to open file");
 
-    while (!script_f.eof())//while not end of file, read new group
+    while (script_f >> kwd)//while not end of file, read new group
     {
-        script_f >> kwd; //read keyword
+         //read keyword
         if (kwd == "surf") //if is surface
         {
             if (n_dims == 2)
