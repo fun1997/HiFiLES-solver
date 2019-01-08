@@ -121,7 +121,7 @@ void probe_input::read_probe_input(int rank)
                 cout << "Line: " << nm << " loaded." << endl;
 
             if(point_start.size()-1)
-            cout << "Points: " <<*(point_start.end()-1)-*(point_start.begin())<<"loaded." << endl;
+            cout << "Points: " <<*(point_start.end()-1)-*(point_start.begin())<<" loaded." << endl;
         }
     }
     else if (run_input.probe == 2) //probes on gambit mesh surface/in volume
@@ -225,7 +225,11 @@ void probe_input::read_probe_script(string filename)
 #define SKIP_SPACE(A, B)                       \
     A.get(B);                                  \
     while (B == ' ' || B == '\n' || B == '\r') \
-        A.get(B);
+    {                                          \
+        A.get(B);                              \
+        if (A.eof())                           \
+            break;                             \
+    }
 
 #define COMP_SYN(VAR, SYN)          \
     if (VAR!=SYN)        \
@@ -335,12 +339,17 @@ void probe_input::read_probe_script(string filename)
 
                 //detect end of block
                 SKIP_SPACE(script_f, dlm);
-                if (dlm == '}') //if encounter "}"
-                    break;
-                if(!script_f.eof())//if not end of file
-                    script_f.seekg(-1, script_f.cur);
-                else
+                if (script_f.eof()) //if end of file
+                {
                     FatalError("Syntax Error, Expecting '}' ");
+                }
+                else
+                {
+                    if (dlm == '}') //if encounter "}"
+                        break;
+                    else
+                        script_f.seekg(-1, script_f.cur);
+                }
             } //end of block
             surf_kstart = pos_surf.size();//update new start index of surf
         }
@@ -401,12 +410,17 @@ void probe_input::read_probe_script(string filename)
 
                 //detect end of block
                 SKIP_SPACE(script_f, dlm);
-                if (dlm == '}') //if encounter "}"
-                    break;
-                if (!script_f.eof()) //if not end of file
-                    script_f.seekg(-1, script_f.cur);
-                else
+                if (script_f.eof()) //if end of file
+                {
                     FatalError("Syntax Error, Expecting '}' ");
+                }
+                else
+                {
+                    if (dlm == '}') //if encounter "}"
+                        break;
+                    else
+                        script_f.seekg(-1, script_f.cur);
+                }
             }
             point_kstart = pos_point.size();//update new start index
         }
@@ -800,8 +814,10 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
         {
             hf_array<double> temp_vec(n_dims);
             hf_array<double> temp_vec2(n_dims);
+            temp_vec.initialize_to_zero();
+            temp_vec2.initialize_to_zero();
             hf_array<double> temp_normal;
-            for (int k = 0; k < n_dims; k++) //every dimension
+            for (int k = 0; k < mesh_dims; k++) //every mesh dimension
             {
                 temp_vec(k) = probe_msh.xv(probe_msh.c2v(i, 1), k) - probe_msh.xv(probe_msh.c2v(i, 0), k);
                 temp_vec2(k) = probe_msh.xv(probe_msh.c2v(i, 2), k) - probe_msh.xv(probe_msh.c2v(i, 1), k);
@@ -824,12 +840,15 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
         {
             hf_array<double> temp_vec(n_dims);
             hf_array<double> temp_vec2(n_dims);
+            temp_vec.initialize_to_zero();
+            temp_vec2.initialize_to_zero();
             hf_array<double> temp_normal;
             for (int j = 0; j < probe_msh.ctype(i) + 1; j++) //1->2 part
             {
                 if ((probe_msh.ctype(i) == 1 && probe_msh.c2n_v(i) > 4) || (probe_msh.ctype(i) == 0 && probe_msh.c2n_v(i) > 3))
                     FatalError("2nd order surf not supported for area calculation");
-                for (int k = 0; k < n_dims; k++) //every dimension
+               
+                for (int k = 0; k < mesh_dims; k++) //every mesh dimension
                 {
                     temp_vec(k) = probe_msh.xv(probe_msh.c2v(i, 1 + j), k) - probe_msh.xv(probe_msh.c2v(i, j), k);
                     temp_vec2(k) = probe_msh.xv(probe_msh.c2v(i, 2 + j), k) - probe_msh.xv(probe_msh.c2v(i, 1 + j), k);
