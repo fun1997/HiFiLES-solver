@@ -706,24 +706,19 @@ void eles_tets::set_exp_filter(void)
 {
   exp_filter.setup(n_upts_per_ele, n_upts_per_ele);
   exp_filter.initialize_to_zero();
-  int i, j, k, l, mode;
+  int i, j, k, mode;
   double eta;
-  for (l = 0; l < n_upts_per_ele; l++) //mode
+  
+  mode = 0;
+  for (k = 0; k < order + 1; k++) //sum of x,y,z mode
   {
-    mode = 0;
-    for (k = 0; k < order + 1; k++) //sum of x,y,z mode
+    for (j = 0; j < k + 1; j++) //j<=sum
     {
-      for (j = 0; j < k + 1; j++) //j<=sum
+      for (i = 0; i < k - j + 1; i++) //i<=sum-j
       {
-        for (i = 0; i < k - j + 1; i++) //i<=sum-j
-        {
-          if (mode == l) // found the correct mode
-          {
-            eta = (double)k / (double)(order);
-            exp_filter(l, l) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
-          }
-          mode++;
-        }
+        eta = (double)k / (double)(order);
+        exp_filter(mode, mode) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
+        mode++;
       }
     }
   }

@@ -664,10 +664,9 @@ void eles_pris::set_exp_filter(void)
 {
   exp_filter.setup(n_upts_per_ele, n_upts_per_ele);
   exp_filter.initialize_to_zero();
-  int i, j, k, l, m, mode;
+  int i, j, k, l, mode;
   double eta;
-  for (m = 0; m < n_upts_per_ele; m++) //mode
-  {
+
     mode = 0;
     for (l = 0; l < 2 * order + 1; l++) //sum of x,y,z mode
     {
@@ -678,17 +677,13 @@ void eles_pris::set_exp_filter(void)
           i = l - k - j;
           if (k <= order && i + j <= order)
           {
-            if (mode == m) // found the correct mode
-            {
               eta = (double)l / (double)(2*order);
-              exp_filter(m, m) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
-            }
+              exp_filter(mode, mode) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
             mode++;
           }
         }
       }
     }
-  }
 
   exp_filter = mult_arrays(exp_filter, inv_vandermonde);
   exp_filter = mult_arrays(vandermonde, exp_filter);
