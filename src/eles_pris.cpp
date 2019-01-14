@@ -732,12 +732,12 @@ void eles_pris::shock_det_persson(void)
       get_pris_basis_index(j, order, x, y, z);
       if (run_input.over_int)
       {
-        if (x + y >= run_input.N_under && z >= run_input.N_under)
+        if (x + y >= run_input.N_under || z >= run_input.N_under)
           sensor(ic) += temp_modal(j, ic) * norm_basis_persson(j);
       }
       else
       {
-        if (x + y == order && z == order)
+        if (x + y == order || z == order)
           sensor(ic) += temp_modal(j, ic) * norm_basis_persson(j);
       }
     }

@@ -23,8 +23,8 @@
 # You should have received a copy of the GNU General Public License
 # along with HiFiLES.  If not, see <http://www.gnu.org/licenses/>.
 #####################################################
-AC_INIT([HiFiLES], [0.5], [HiFiLES-dev@lists.stanford.edu],
-        [HiFiLES], [http://hifiles.stanford.edu])
+AC_INIT([HiFiLES], [1.5], [weiqishen1994@ufl.edu],
+        [HiFiLES], [https://github.com/weiqishen/HiFiLES-solver])
 AC_PREREQ([2.59])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([subdir-objects foreign])
@@ -56,12 +56,15 @@ AC_ARG_WITH(MPI-include,
     AS_HELP_STRING([--with-MPI-include[=ARG]], [MPI include directory, ARG = path to mpi.h, needed for METIS]),
     [with_MPI_include=$withval], [with_MPI_include="NO"])
 
-AC_ARG_WITH(Tecio-lib,
-    AS_HELP_STRING([--with-Tecio-lib[=ARG]], [Tecio library directory, ARG = path to libtecio.a]), 
-    [with_Tecio_lib=$withval], [with_Tecio_lib="NO"])
-AC_ARG_WITH(Tecio-include,
-    AS_HELP_STRING([--with-Tecio-include[=ARG]], [Tecio include directory, ARG = path to TECIO.h]), 
-    [with_Tecio_include=$withval], [with_Tecio_include="NO"])
+AC_ARG_WITH(HDF5,
+    AS_HELP_STRING([--with-HDF5[=ARG]], [Build using support for CGNS, ARG = yes/no]), 
+    [with_HDF5=$withval], [with_HDF5="NO"])
+AC_ARG_WITH(HDF5-include,
+    AS_HELP_STRING([--with-HDF5-include[=ARG]], [HDF5 include directory, ARG = path to hdf5.h]), 
+    [with_HDF5_include=$withval], [with_HDF5_include="NO"])
+AC_ARG_WITH(HDF5-lib,
+    AS_HELP_STRING([--with-HDF5-lib[=ARG]], [HDF5 library directory, ARG = path to libhdf5.a]), 
+    [with_HDF5_lib=$withval], [with_HDF5_lib="NO"])
 
 AC_ARG_WITH(ParMetis-lib,
    	AS_HELP_STRING([--with-ParMetis-lib[=ARG]], [ParMetis library directory, ARG = path to libparmetis.a]), 
@@ -88,7 +91,7 @@ AC_ARG_WITH(BLAS-include,
     [with_BLAS_include=$withval], [with_BLAS_include="NO"])
 
 AC_ARG_WITH(CGNS,
-    AS_HELP_STRING([--with-CGNS[=ARG]], [Build using support for a CGNS variant, ARG= yes/no]), 
+    AS_HELP_STRING([--with-CGNS[=ARG]], [Build using support for CGNS, ARG= yes/no]), 
     [with_CGNS=$withval], [with_CGNS="NO"])
 
 AC_ARG_WITH(CGNS-lib,
@@ -98,10 +101,6 @@ AC_ARG_WITH(CGNS-lib,
 AC_ARG_WITH(CGNS-include,
     AS_HELP_STRING([--with-CGNS-include[=ARG]], [CGNS include directory, ARG = path to cgnslib.h/pcgnslib.h]), 
     [with_CGNS_include=$withval], [with_CGNS_include="NO"])
-
-AC_ARG_WITH(HDF5-lib,
-    AS_HELP_STRING([--with-HDF5-lib[=ARG]], [HDF5 include directory, ARG = path to libhdf5.a]), 
-    [with_HDF5_lib=$withval], [with_HDF5_lib="NO"])
 
 AC_ARG_WITH(CXX,
     AS_HELP_STRING([--with-CXX[=ARG]], [Optional: Specify C++ compiler, ARG = C++ compiler]), [with_CXX=$withval], [with_CXX="GCC"])
@@ -119,6 +118,10 @@ else
   CXXFLAGS="-g -O0"
 fi
 
+if test "$with_CXX" == "icpc"
+then
+  CXXFLAGS += " -std=c++11"
+fi
 # --------------------------------------------------------------
 # Build up contributed packages that we will build from source
 # --------------------------------------------------------------
@@ -287,54 +290,40 @@ fi
 AC_SUBST([PARMETIS_CXX])
 AC_SUBST([PARMETIS_LD])
 
-########################### Tecplot
-Teciolib=libtecio.a
-Tecioheader=TECIO.h
-have_Tecio="NO"
+########################### HDF5
+hdf5lib=libhdf5.a
+hdf5header=hdf5.h
+have_hdf5="NO"
 
 # check for lib
-if test "$with_Tecio_lib" != "NO" 
+if test "$with_HDF5" != "NO"
 then
-  AC_CHECK_FILE([$with_Tecio_lib/$Teciolib],[have_Tecio="YES"],[have_Tecio="NO"]) 
-  if test "$have_Tecio" == "NO"
+  AC_CHECK_FILE([$with_HDF5_include/$hdf5header],[have_HDF5="YES"],[have_HDF5="NO"])
+  if test "$have_HDF5" != "NO"
   then
-    Teciolib=libtecio.a
-    AC_CHECK_FILE([$with_Tecio_lib/$Teciolib],[have_Tecio="YES"],[have_Tecio="NO"])
-  fi
-  if test "$have_Tecio" == "NO"
-  then
-    AC_MSG_ERROR([Tecplot linking requested but library file not found.])
-  fi
-fi
-
-# check for header
-if test "$have_Tecio" != "NO"
-then
-  if test "$with_Tecio_include" != "NO"
-  then
-    AC_CHECK_FILE([$with_Tecio_include/$Tecioheader],[have_Tecio="YES"],[have_Tecio="NO"]) 
-    if test "$have_Tecio" == "NO"
-    then
-      AC_MSG_ERROR([Tecplot linking requested but header file not found.])
-    fi
+    AC_CHECK_FILE([$with_HDF5_lib/$hdf5lib],[have_HDF5="yes"],[have_HDF5="NO"])
   else
-    have_Tecio="NO"
-  fi  
-fi
+    AC_MSG_ERROR([HDF5 header files not found.])
+  fi
 
-if test "$have_Tecio" != "NO"
-then
-  AM_CONDITIONAL(BUILD_TECIO,true)
-  TECIO_CXX="-I"$with_Tecio_include
-  TECIO_LD=$with_Tecio_lib"/"$Teciolib
+  if test "$have_HDF5" != "NO"
+  then
+    HDF5_CXX=" -I $with_HDF5_include -D_HDF5"
+    HDF5_LD+=" $with_HDF5_lib/$hdf5lib /home/weiqishen/Documents/zlib-1.2.11/lib/libz.a -lm -ldl"
+    HDF5_LDFLAGS=
+  else
+      AC_MSG_ERROR([HDF5 linking requested but library files not found.])
+  fi
 else
-  AM_CONDITIONAL(BUILD_TECIO,false)
-  TECIO_CXX=-DNO_TECIO
-  TECIO_LD=
+    HDF5_CXX=" -D_NO_HDF5"
+    HDF5_LD=
+    HDF5_LDFLAGS=
+    have_HDF5="NO"
 fi
-AC_SUBST([TECIO_CXX])
-AC_SUBST([TECIO_LD])
 
+AC_SUBST([HDF5_CXX])
+AC_SUBST([HDF5_LDFLAGS])
+AC_SUBST([HDF5_LD])
 
 ########################### MPI
 
@@ -346,7 +335,7 @@ then
   then
     CXX="$with_MPI"	
     have_MPI="YES"
-    CXXFLAGS=$CXXFLAGS" -D_MPI"
+    CXXFLAGS+=" -D_MPI"
     MPI_INCLUDE="-I$with_MPI_include"
     AM_CONDITIONAL(BUILD_MPI,true)
 	
@@ -410,7 +399,7 @@ then
     else
 		AC_MSG_ERROR([MKL linking requested but library files not found.])
     fi
-elif [test "$with_BLAS" == "NO"] || [test "$have_BLAS" == "NO"]
+elif [test "$with_BLAS" == "NO"]
 then
     BLAS_CXX="-D_NO_BLAS"
     BLAS_LD=
@@ -426,31 +415,32 @@ AC_SUBST([BLAS_LD])
 cgnslib=libcgns.a
 cgnsinclude=cgnslib.h
 pcgnsinclude=pcgnslib.h
-hdf5lib=libhdf5.a
 if test "$with_CGNS" == "YES"
 then
-  AC_CHECK_FILES([$with_CGNS_lib/$cgnslib],[have_CGNS="YES"],[have_CGNS="NO"])
-  if test "$with_HDF5_lib" != "NO"
+  AC_CHECK_FILE([$with_CGNS_lib/$cgnslib],[have_CGNS="YES"],[have_CGNS="NO"])
+  if test "$have_CGNS"!="NO"
   then
-  AC_CHECK_FILES([$with_HDF5_lib/$hdf5lib],[have_CGNS="YES"],[have_CGNS="NO"]) 
-  fi
-  if test "$with_MPI" =="YES"
-  then
-    AC_CHECK_FILES([$with_CGNS_include/$pcgnsinclude],[have_CGNS="YES"],[have_CGNS="NO"]) 
+    if test "$with_MPI" != "NO"
+    then
+      if test "$have_HDF5" == "NO"
+      then 
+         AC_MSG_ERROR([CGNS linking requested but library files not found.])
+      fi
+      AC_CHECK_FILE([$with_CGNS_include/$pcgnsinclude],[have_CGNS="YES"],[have_CGNS="NO"]) 
+    else
+      AC_CHECK_FILE([$with_CGNS_include/$cgnsinclude],[have_CGNS="YES"],[have_CGNS="NO"]) 
+    fi
   else
-    AC_CHECK_FILES([$with_CGNS_include/$cgnsinclude],[have_CGNS="YES"],[have_CGNS="NO"]) 
+   AC_MSG_ERROR([CGNS linking requested but library files not found.])
   fi
+
   if test "$have_CGNS" != "NO"
 	then
       CGNS_CXX=" -I $with_CGNS_include -D_CGNS"
       CGNS_LD=" $with_CGNS_lib/$cgnslib"
-      if test "$with_HDF5_lib" != "NO"
-      then
-      CGNS_LD+=" $with_HDF5_lib/$hdf5lib"
-      fi
       CGNS_LDFLAGS=
   else
-      AC_MSG_ERROR([CGNS linking requested but library files not found.])
+      AC_MSG_ERROR([CGNS header files not found.])
   fi
 else
     CGNS_CXX="-D_NO_CGNS"
@@ -486,14 +476,14 @@ Build Configuration Summary:
     Version:              ${VERSION}
     Code Type:            ${code_type}
     Compiler:             ${CXX}
-    Preprocessor flags:   ${CPPFLAGS} ${BLAS_CXX} ${PARMETIS_CXX} ${CUDA_CXX} ${MPI_INCLUDE} ${CGNS_CXX}
+    Preprocessor flags:   ${CPPFLAGS} ${BLAS_CXX} ${PARMETIS_CXX} ${CUDA_CXX} ${MPI_INCLUDE} ${CGNS_CXX} ${HDF5_CXX}
     Compiler flags:       ${CXXFLAGS} ${NVCCFLAGS}
-    Linker flags:         ${LDFLAGS} ${BLAS_LDFLAGS} ${CUDA_LDFLSGS} ${CGNS_LDFLAGS}
-    Libraries:            ${BLAS_LD} ${PARMETIS_LD} ${CUDA_LIBS} ${CGNS_LD}
+    Linker flags:         ${LDFLAGS} ${BLAS_LDFLAGS} ${CUDA_LDFLSGS} ${CGNS_LDFLAGS} ${HDF5_LDFLAGS}
+    Libraries:            ${BLAS_LD} ${PARMETIS_LD} ${CUDA_LIBS} ${CGNS_LD} ${HDF5_LD}
     BLAS support:         $have_BLAS
     MPI support:          $have_MPI
     CUDA support:         $have_CUDA $CUDA_ARCH
-    TecIO support:        $have_Tecio
+    HDF5 support:         $have_HDF5
     CGNS support:         $have_CGNS
 Additionally, don't forget to set the environment variable HIFILES_HOME
 

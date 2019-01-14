@@ -31,8 +31,8 @@ NODE="CPU"              # CPU or GPU
 CODE="RELEASE"            # DEBUG or RELEASE
 BLAS="MKL"               # ATLAS, STANDARD, ACCLERATE, or NO
 PARALLEL="YES"           # YES or NO
-TECIO="NO"              # YES or NO
 METIS="NO"              # Build & link to the HiFiLES-supplied ParMETIS libraries? YES or NO
+HDF5="YES"              # Build with HDF5 support? YES or NO
 CGNS="YES"                # Build with CGNS support? YES or NO
 # ---------------------------------------------------------------
 # Compiler Selections [Change compilers or add full filepaths if needed]
@@ -44,8 +44,8 @@ MPICC="mpicxx"          # MPI C compiler
 BLAS_LIB="/home/weiqishen/Documents/intel/mkl/lib/intel64"
 BLAS_INCLUDE="/home/weiqishen/Documents/intel/mkl/include"
 
-TECIO_LIB="lib/tecio-2008/lib"
-TECIO_INCLUDE="lib/tecio-2008/include"
+HDF5_INCLUDE="/home/weiqishen/Documents/hdf5-1.10.2/hdf5/include"
+HDF5_LIB="/home/weiqishen/Documents/hdf5-1.10.2/hdf5/lib"
 
 # If building the supplied ParMETIS libraries, need the MPI header location
 MPI_INCLUDE="/usr/local/openmpi/include"       # location of mpi.h
@@ -59,7 +59,6 @@ METIS_INCLUDE="/home/weiqishen/Documents/parmetis-4.0.3/metis/include"      # lo
 
 CGNS_INCLUDE="/usr/local/include"   # location of cgnslib.h
 CGNS_LIB="/usr/local/lib"           # location of libcgns.a
-HDF5_LIB="/home/weiqishen/Documents/hdf5-1.10.2/hdf5/lib"
 
 # GPU Architechture Selection: -gencode=arch=compute_xx,code=sm_xx (default: 20)
 #   compute_10	 Basic features
@@ -89,16 +88,15 @@ else
     PARMETIS_LIB="NO"
     PARMETIS_INCLUDE="NO"
 fi
-if [[ "$TECIO" == "NO" ]]
+if [[ "$HDF5" == "NO" ]]
 then
-    TECIO_LIB="NO"
-    TECIO_INCLUDE="NO"
+    HDF5_INCLUDE="NO"
+    HDF5_LIB="NO"
 fi
 if [[ "$CGNS" == "NO" ]]
 then
     CGNS_INCLUDE="NO"
     CGNS_LIB="NO"
-    HDF5_LIB="NO"
 fi
 
 ./configure --prefix=$HIFILES_RUN/.. \
@@ -116,11 +114,11 @@ fi
             --with-ParMetis-include=$PARMETIS_INCLUDE \
             --with-Metis-lib=$METIS_LIB \
             --with-Metis-include=$METIS_INCLUDE \
-            --with-Tecio-lib=$TECIO_LIB \
-            --with-Tecio-include=$TECIO_INCLUDE \
             --with-CGNS=$CGNS \
             --with-CGNS-lib=$CGNS_LIB \
             --with-CGNS-include=$CGNS_INCLUDE \
+            --with-HDF5=$HDF5 \
+            --with-HDF5-include=$HDF5_INCLUDE \
             --with-HDF5-lib=$HDF5_LIB \
             --enable-metis=$METIS \
             --enable-release=$CODE

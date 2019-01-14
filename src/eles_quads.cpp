@@ -808,12 +808,12 @@ void eles_quads::shock_det_persson(void)
       get_legendre_basis_2D_index(j, order, x, y);
       if (run_input.over_int)
       {
-        if (x >= run_input.N_under && y >= run_input.N_under)
+        if (x >= run_input.N_under || y >= run_input.N_under)
           sensor(ic) += temp_modal(j, ic) * norm_basis_persson(j);
       }
       else
       {
-        if (x == order && y == order)
+        if (x == order || y == order)
           sensor(ic) += temp_modal(j, ic) * norm_basis_persson(j);
       }
     }
