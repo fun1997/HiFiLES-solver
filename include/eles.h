@@ -38,6 +38,11 @@ extern "C"
 #include "cblas.h"
 }
 #endif
+
+#ifdef _NO_BLAS
+#include <numeric>
+#endif
+
 #include "hf_array.h"
 #include "input.h"
 
@@ -908,7 +913,6 @@ protected:
   hf_array<double> inv_vandermonde_vol_cub;
 
   hf_array<double> exp_filter;
-  hf_array<double> area_coord_fpts;
   hf_array<double> concentration_array;
   hf_array<double> sensor;
   hf_array<double> over_int_filter;

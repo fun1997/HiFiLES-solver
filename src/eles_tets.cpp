@@ -78,10 +78,8 @@ void eles_tets::setup_ele_type_specific()
   //set shock capturing arrays
   if(run_input.shock_cap)
   {
-    if (run_input.shock_det == 1)//concentration
-    {
-      //set_concentration_array();
-    }
+    if (run_input.shock_det == 1) //concentration
+      FatalError("Concentration method not implemented.");
     if (run_input.shock_cap == 1)//exp filter
       set_exp_filter();
   }
@@ -730,83 +728,48 @@ void eles_tets::set_exp_filter(void)
 //detect shock use persson's method
 void eles_tets::shock_det_persson(void)
 {
-  int n_upts_under;
+  //calculate number of order-1 element
+  int n_mode_under;
   if (run_input.over_int)
-    n_upts_under = (run_input.N_under) * (run_input.N_under + 1) * (run_input.N_under + 2) / 6;
+    n_mode_under = (run_input.N_under) * (run_input.N_under + 1) * (run_input.N_under + 2) / 6;
   else
-    n_upts_under = order * (order + 1) * (order + 2) / 6;
+    n_mode_under = order * (order + 1) * (order + 2) / 6;
 
-  hf_array<double> temp_rho(n_upts_per_ele, n_eles);     //to store nodal value
-  hf_array<double> temp_rho_rho(n_upts_per_ele, n_eles); //to store square value/modal value
+  hf_array<double> temp_modal(n_upts_per_ele, n_eles);     //store modal value
 
-  hf_array<double> inner_prod_uu(n_eles);
-  hf_array<double> inner_prod_un_un(n_eles);
-
-  if (upts_type == 1) //lobatto upts need interpolation to cubature points
-  {
-    temp_rho.initialize_to_zero();
+//step 1. convert nodal to modal value
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, opp_volume_cubpts.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho.get_ptr_cpu(), n_upts_per_ele);
+  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(), n_upts_per_ele, 0.0, temp_modal.get_ptr_cpu(), n_upts_per_ele);
 #else
-    dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, opp_volume_cubpts.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_rho.get_ptr_cpu());
+  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_modal.get_ptr_cpu());
+#endif
+
+  //step 2. perform inplace \hat{u}^2 store in temp_modal
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  vdSqr(n_upts_per_ele * n_eles, temp_modal.get_ptr_cpu(), temp_modal.get_ptr_cpu());
+#else
+  transform(temp_modal.get_ptr_cpu(), temp_modal.get_ptr_cpu(n_upts_per_ele * n_eles), temp_modal.get_ptr_cpu(), [](double x) { return x * x; });
+#endif
+
+  //step 3. use Parseval's theorem to calculate (u-u_n,u-u_n)
+  for (int i = 0; i < n_eles; i++)
+  {
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+    sensor(i) = cblas_dasum(n_upts_per_ele - n_mode_under, temp_modal.get_ptr_cpu(n_mode_under, i), 1);
+#else
+    sensor(i) = accumulate(temp_modal.get_ptr_cpu(n_mode_under, i), temp_modal.get_ptr_cpu(0, i + 1), 0.);
 #endif
   }
-  else //legendre upts directly copy arrays
+  
+  //step 4. use Parseval's theorem to calculate (u,u) and calculate ((u-u_n,u-u_n)/(u,u))
+  for (int i = 0; i < n_eles; i++)
   {
-    for (int i = 0; i < n_upts_per_ele * n_eles; i++)
-      temp_rho(i) = disu_upts(0)(i);
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+    sensor(i) /= cblas_dasum(n_upts_per_ele, temp_modal.get_ptr_cpu(0, i), 1);
+#else
+    sensor(i) /= accumulate(temp_modal.get_ptr_cpu(0, i), temp_modal.get_ptr_cpu(0, i + 1), 0.);
+#endif
   }
-
-  //perform u*u at cub pts store in temp_rho_rho
-  for (int i = 0; i < n_upts_per_ele * n_eles; i++)
-    temp_rho_rho(i) = temp_rho(i) * temp_rho(i);
-
-  //calculate (u,u) store in inner_prod_u_u
-  inner_prod_uu.initialize_to_zero();
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-  cblas_dgemv(CblasColMajor, CblasTrans, n_upts_per_ele, n_eles, 1.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, weight_volume_cubpts.get_ptr_cpu(), 1, 0.0, inner_prod_uu.get_ptr_cpu(), 1);
-#else
-  for (int i = 0; i < n_eles; i++)
-    for (int j = 0; j < n_upts_per_ele; j++)
-      inner_prod_uu(i) += temp_rho_rho(j, i) * weight_volume_cubpts(j);
-#endif
-
-//calculate u-u_n
-//transform to modal space store in temp_rho_rho
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, inv_vandermonde_vol_cub.get_ptr_cpu(), n_upts_per_ele, temp_rho.get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele);
-#else
-  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde_vol_cub.get_ptr_cpu(), temp_rho.get_ptr_cpu(), temp_rho_rho.get_ptr_cpu());
-#endif
-
-  //clear lower modes, take into consideration over_integration
-  for (int ic = 0; ic < n_eles; ic++)
-    for (int j = 0; j < n_upts_under; j++)
-      temp_rho_rho(j, ic) = 0.0;
-
-//transform back to nodal store in temp_rho
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, vandermonde_vol_cub.get_ptr_cpu(), n_upts_per_ele, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, 0.0, temp_rho.get_ptr_cpu(), n_upts_per_ele);
-#else
-  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, vandermonde_vol_cub.get_ptr_cpu(), temp_rho_rho.get_ptr_cpu(), temp_rho.get_ptr_cpu());
-#endif
-
-  //perform (u-u_n)*(u-u_n) store in temp_rho_rho
-  for (int i = 0; i < n_upts_per_ele * n_eles; i++)
-    temp_rho_rho(i) = temp_rho(i) * temp_rho(i);
-
-  //calculate (u-u_n,u-u_n) store in inner_prod_un_un
-  inner_prod_un_un.initialize_to_zero();
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-  cblas_dgemv(CblasColMajor, CblasTrans, n_upts_per_ele, n_eles, 1.0, temp_rho_rho.get_ptr_cpu(), n_upts_per_ele, weight_volume_cubpts.get_ptr_cpu(), 1, 0.0, inner_prod_un_un.get_ptr_cpu(), 1);
-#else
-  for (int i = 0; i < n_eles; i++)
-    for (int j = 0; j < n_upts_per_ele; j++)
-      inner_prod_un_un(i) += temp_rho_rho(j, i) * weight_volume_cubpts(j);
-#endif
-  //calculate log((u-u_n,u-u_n)/(u,u)) store in sensor
-  for (int i = 0; i < n_eles; i++)
-    sensor(i) = inner_prod_un_un(i) / inner_prod_uu(i);
 }
 
 // initialize the vandermonde matrix

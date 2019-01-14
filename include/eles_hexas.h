@@ -123,6 +123,7 @@ protected:
 
   void set_vandermonde_vol_cub(void);
 
+  void calc_norm_basis(void);
   void shock_det_persson(void);
   
   /*! setup the concentration hf_array required for concentration method for shock capturing */
@@ -152,6 +153,8 @@ protected:
   hf_array<double> vandermonde1D;
   hf_array<double> inv_vandermonde1D;
   
+  hf_array<double> norm_basis_persson;
+
   /*! Matrix of filter weights at solution points in 1D */
   hf_array<double> filter_upts_1D;
   

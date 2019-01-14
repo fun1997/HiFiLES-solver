@@ -123,6 +123,7 @@ protected:
 
   void set_vandermonde_vol_cub(void);
 
+  void calc_norm_basis(void);
   void shock_det_persson(void);
   
   /*! set exponential filter */
@@ -156,6 +157,8 @@ protected:
   hf_array<double> inv_vandermonde_tri;
   hf_array<double> vandermonde_tri_rest;
   hf_array<double> inv_vandermonde_tri_rest;
+
+  hf_array<double> norm_basis_persson;
 
   /*! element edge lengths for h_ref calculation */
   hf_array<double> length;
