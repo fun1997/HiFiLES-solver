@@ -43,13 +43,16 @@ public:
     int probe_freq;
     int n_probe_fields;
     hf_array<double> pos_probe_global;
+    string probe_source_file;//probe source filename
 
     //from script(global)
+    vector<int> vol_start;
     vector<int> surf_start;
     vector<int> line_start;
     vector<int> point_start;
-    vector<string> line_name;
+    vector<string> vol_name;
     vector<string> surf_name;
+    vector<string> line_name;
 
     //from mesh
     int mesh_dims,ele_dims;
@@ -83,6 +86,9 @@ private:
                         const int n_layer_r, const double in_l,
                         const int n_layer_l, vector<hf_array<double> > &out_normal,
                         vector<double> &out_area, vector<hf_array<double> > &out_pos_cone);
+                        
+    void set_probe_cube(hf_array<double> &in_origin, hf_array<int> &in_n_xyz, hf_array<double> &in_d_xyz,
+                        vector<hf_array<double> > &out_pos_cube);
 
     void set_probe_mesh(string filename);
 

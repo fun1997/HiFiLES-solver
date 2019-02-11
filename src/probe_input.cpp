@@ -66,22 +66,32 @@ void probe_input::create_folder(int rank)
         struct stat st = {0};
         if (run_input.probe == 1) //from script
         {
+            for (auto &temp_folder : vol_name)
+                if (stat(temp_folder.c_str(), &st) == -1)
+                    mkdir(temp_folder.c_str(), 0755);
             for (auto &temp_folder : surf_name)
                 if (stat(temp_folder.c_str(), &st) == -1)
                     mkdir(temp_folder.c_str(), 0755);
             for (auto &temp_folder : line_name)
                 if (stat(temp_folder.c_str(), &st) == -1)
                     mkdir(temp_folder.c_str(), 0755);
-            if (point_start.size()-1)
+            if (point_start.size() - 1)
                 if (stat("points", &st) == -1)
                     mkdir("points", 0755);
         }
         else //mesh file
         {
-            if (stat("probes", &st) == -1)
-            {
-                mkdir("probes", 0755);
-            }
+            //extract mesh file basename
+            const size_t last_slash_idx = probe_source_file.find_last_of("\\/");
+            if (last_slash_idx != string::npos)
+                probe_source_file.erase(0, last_slash_idx + 1);
+
+            // Remove extension if present.
+            const size_t period_idx = probe_source_file.rfind('.');
+            if (period_idx != string::npos)
+                probe_source_file.erase(period_idx);
+            if (stat(probe_source_file.c_str(), &st) == -1)
+                mkdir(probe_source_file.c_str(), 0755);
         }
     }
 #ifdef _MPI
@@ -108,27 +118,27 @@ void probe_input::read_probe_input(int rank)
 
     if (run_input.probe == 1) //read script
     {
-        string probe_source_file;
         probf.getScalarValue("probe_source_file", probe_source_file);
         read_probe_script(probe_source_file);
 
         if (rank == 0)
         {
+            for (auto nm : vol_name)
+                cout << "Volume: " << nm << " loaded." << endl;
             for (auto nm : surf_name)
                 cout << "Surface: " << nm << " loaded." << endl;
-
             for (auto nm : line_name)
                 cout << "Line: " << nm << " loaded." << endl;
-
-            if(point_start.size()-1)
-            cout << "Points: " <<*(point_start.end()-1)-*(point_start.begin())<<" loaded." << endl;
+            if (point_start.size() - 1)
+                cout << "Points: " << *(point_start.end() - 1) - *(point_start.begin()) << " points loaded." << endl;
         }
     }
     else if (run_input.probe == 2) //probes on gambit mesh surface/in volume
     {
-        string probe_source_file;
         probf.getScalarValue("probe_source_file", probe_source_file);
         set_probe_mesh(probe_source_file);
+        if (rank == 0)
+            cout << "Mesh: " << probe_source_file << " loaded." << endl;
     }
     else
     {
@@ -142,14 +152,14 @@ void probe_input::set_probe_connectivity(struct solution *FlowSol, int rank)
     if (rank == 0)
         cout << "Setting up probe points connectivity.." << flush;
 
+    int temp_p2c;
+    hf_array<double> temp_pos(n_dims);
     for (int j = 0; j < n_probe_global; j++) //for each global probe
     {
         for (int i = 0; i < FlowSol->n_ele_types; i++) //for each element type
         {
             if (FlowSol->mesh_eles(i)->get_n_eles() != 0)
             {
-                int temp_p2c;
-                hf_array<double> temp_pos(n_dims);
                 for (int k = 0; k < n_dims; k++)
                     temp_pos(k) = pos_probe_global(k, j);
                 temp_p2c = FlowSol->mesh_eles(i)->calc_p2c(temp_pos);
@@ -164,7 +174,7 @@ void probe_input::set_probe_connectivity(struct solution *FlowSol, int rank)
             }
         }
     }
-    n_probe = p2global_p.size();//number of local probe point before eliminating repeating points
+    n_probe = p2global_p.size(); //number of local probe point before eliminating repeating points
 
 #ifdef _MPI
     //allgather number of probe on each processor
@@ -208,13 +218,6 @@ void probe_input::set_probe_connectivity(struct solution *FlowSol, int rank)
         cout << "Calculating location of probes in reference domain.." << flush;
     set_loc_probepts(FlowSol);
 
-    /*
-    for(int i=0; i<n_probe; i++)
-       if(p2c(i)!=-1)
-           cout<<"probe "<<i<<" is found in local element No."<<p2c(i)<<
-               ", element type: "<<p2t(i)<<", rank: "<<rank<<endl;
-    FatalError("Test end!")
-    */
     if (rank == 0)
         cout << "done" << endl;
 }
@@ -222,20 +225,16 @@ void probe_input::set_probe_connectivity(struct solution *FlowSol, int rank)
 void probe_input::read_probe_script(string filename)
 {
     //macros to skip white spaces and compare syntax
-#define SKIP_SPACE(A, B)                       \
-    A.get(B);                                  \
-    while (B == ' ' || B == '\n' || B == '\r') \
-    {                                          \
-        A.get(B);                              \
-        if (A.eof())                           \
-            break;                             \
-    }
+#define SKIP_SPACE(A, B) \
+    do                   \
+    {                    \
+        A.get(B);        \
+    } while ((B == ' ' || B == '\n' || B == '\r') && !A.eof());
 
 #define COMP_SYN(VAR, SYN)          \
-    if (VAR!=SYN)        \
-    {                               \
-        FatalError("Syntax error"); \
-    }
+    if (VAR != SYN)                 \
+        FatalError("Syntax error")
+
     //declare strings and buffers
     ifstream script_f;
     string kwd, name0, name1;
@@ -244,7 +243,9 @@ void probe_input::read_probe_script(string filename)
     vector<hf_array<double> > pos_point;
     vector<hf_array<double> > pos_line;
     vector<hf_array<double> > pos_surf;
+    vector<hf_array<double> > pos_vol;
     //declare start index for each type of probe
+    int vol_kstart = 0;
     int surf_kstart = 0;
     int line_kstart = 0;
     int point_kstart = 0;
@@ -255,8 +256,74 @@ void probe_input::read_probe_script(string filename)
 
     while (script_f >> kwd)//while not end of file, read new group
     {
-         //read keyword
-        if (kwd == "surf") //if is surface
+         //read keywords
+         if(kwd=="volume")//if is volume
+         {
+             //store name
+             script_f >> name0;
+             //look for "{"
+             SKIP_SPACE(script_f, dlm);
+             COMP_SYN(dlm, '{');
+             //initialize volume block
+             vol_start.push_back(vol_kstart); //log start index
+             vol_name.push_back(name0);
+
+             while (1) //read contents in volume block
+             {
+                 script_f >> name1;
+                 if (name1 == "cube")
+                 {
+                     hf_array<int> n_xyz(3);
+                     n_xyz(2) = 1;
+                     hf_array<double> origin(n_dims);
+                     hf_array<double> d_xyz(n_dims);
+
+                     for (int ct = 0; ct < 3; ct++) //read 3 groups of parameters
+                     {
+                         SKIP_SPACE(script_f, dlm);
+                         COMP_SYN(dlm, '(');
+                         if (ct == 0) //start point
+                             for (int i = 0; i < n_dims; i++)
+                                 script_f >> origin(i);
+                         else if (ct == 1) //n points each direction
+                             for (int i = 0; i < n_dims; i++)
+                                 script_f >> n_xyz(i);
+                         else //interval in each direction
+                             for (int i = 0; i < n_dims; i++)
+                                 script_f >> d_xyz(i);
+                         //look for ")"
+                         SKIP_SPACE(script_f, dlm);
+                         COMP_SYN(dlm, ')');
+                     }
+                     //load positions of probes into pos_vol
+                     set_probe_cube(origin, n_xyz, d_xyz, pos_vol);
+                 }
+                 else //element not support
+                 {
+                     printf("%s volume is not supported", name1.c_str());
+                     FatalError("exiting")
+                 }
+
+                 //detect end of block
+                 SKIP_SPACE(script_f, dlm);
+                 if (script_f.eof()) //if end of file
+                 {
+                     FatalError("Syntax Error, Expecting '}' ");
+                 }
+                 else
+                 {
+                     if (dlm == '}') //if encounter "}"
+                         break;
+                     else
+                         script_f.seekg(-1, script_f.cur);
+                 }
+            } //end of block
+            if (pos_vol.size() != vol_kstart)
+                vol_kstart = pos_vol.size(); //update new start index of volume
+            else
+                FatalError("No volume probes read!");
+         }
+        else if (kwd == "surface") //if is surface
         {
             if (n_dims == 2)
                 FatalError("2D simulation doesn't support 3D surface");
@@ -351,7 +418,11 @@ void probe_input::read_probe_script(string filename)
                         script_f.seekg(-1, script_f.cur);
                 }
             } //end of block
-            surf_kstart = pos_surf.size();//update new start index of surf
+
+            if (pos_surf.size() != surf_kstart)
+                surf_kstart = pos_surf.size(); //update new start index of surf
+            else
+                FatalError("No surface probes read!");
         }
         else if (kwd == "line") //read a line
         {
@@ -383,7 +454,11 @@ void probe_input::read_probe_script(string filename)
                 COMP_SYN(dlm, ')');
             }
             set_probe_line(p_0, p_1, init_incre, npt_line, pos_line);
-            line_kstart = pos_line.size(); //update new start index of line
+
+            if (pos_line.size() != line_kstart)
+                line_kstart = pos_line.size(); //update new start index of line
+            else
+                FatalError("No line probes read!");
         }
         else if (kwd=="point")
         {
@@ -433,31 +508,41 @@ void probe_input::read_probe_script(string filename)
     script_f.close();
 
     //set total number of probes for each type(next start index)
+    vol_start.push_back(vol_kstart);
     surf_start.push_back(surf_kstart);
     line_start.push_back(line_kstart);
     point_start.push_back(point_kstart);
 
     //combine them into pos_probe_global array(first surf then line finally points)
-    n_probe_global = surf_kstart + line_kstart + point_kstart;
+    n_probe_global = vol_kstart + surf_kstart + line_kstart + point_kstart;
     pos_probe_global.setup(n_dims, n_probe_global);
+
+    //copy volume position
+    for (int i = 0; i < pos_vol.size(); i++)
+        for (int j = 0; j < n_dims; j++)
+            pos_probe_global(j, i) = pos_vol[i][j];
     //copy surface position
     for (int i = 0; i < pos_surf.size(); i++)
         for (int j = 0; j < n_dims; j++)
-            pos_probe_global(j, i) = pos_surf[i][j];
+            pos_probe_global(j, i + vol_kstart) = pos_surf[i][j];
     //copy line position
     for (int i = 0; i < pos_line.size(); i++)
         for (int j = 0; j < n_dims; j++)
-            pos_probe_global(j, i + surf_kstart) = pos_line[i][j];
-    //line local start index become global start index
-    for (auto &id : line_start)
-        id += surf_kstart;
+            pos_probe_global(j, i + vol_kstart + surf_kstart) = pos_line[i][j];
     //copy point position
     for (int i = 0; i < pos_point.size(); i++)
         for (int j = 0; j < n_dims; j++)
-            pos_probe_global(j, i + surf_kstart + line_kstart) = pos_point[i][j];
+            pos_probe_global(j, i + vol_kstart + surf_kstart + line_kstart) = pos_point[i][j];
+
+    //surf local start index become global start index
+    for (auto &id : surf_start)
+        id += vol_kstart;
+    //line local start index become global start index
+    for (auto &id : line_start)
+        id += vol_kstart + surf_kstart;
     //point local start index become global start index
     for (auto &id : point_start)
-        id += surf_kstart + line_kstart;
+        id += vol_kstart + surf_kstart + line_kstart;
 }
 
 void probe_input::set_probe_line(hf_array<double> &in_p0, hf_array<double> &in_p1, const double in_init_incre,
@@ -493,10 +578,11 @@ void probe_input::set_probe_line(hf_array<double> &in_p0, hf_array<double> &in_p
 
         if (std::isnan(growth_rate))
             FatalError("Growth rate NaN!");
+
         //calculate probe coordiantes
+        hf_array<double> temp_pos(n_dims);
         for (int i = 0; i < in_n_pts; i++)
         {
-            hf_array<double> temp_pos(n_dims);
             for (int j = 0; j < n_dims; j++)
                 temp_pos(j) = in_p0(j) + in_init_incre * (pow(growth_rate, (double)i) - 1.) / (growth_rate - 1.) / l_length * (in_p1(j) - in_p0(j));
             out_pos_line.push_back(temp_pos);
@@ -505,9 +591,9 @@ void probe_input::set_probe_line(hf_array<double> &in_p0, hf_array<double> &in_p
     else //equidistance
     {
         growth_rate = 1.0;
+        hf_array<double> temp_pos(n_dims);
         for (int i = 0; i < in_n_pts; i++)
         {
-            hf_array<double> temp_pos(n_dims);
             for (int j = 0; j < n_dims; j++)
                 temp_pos(j) = in_p0(j) + i * in_init_incre / l_length * (in_p1(j) - in_p0(j));
             out_pos_line.push_back(temp_pos);
@@ -605,24 +691,28 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
             }
         }
     }
+
     //calculate cell centroid
+    hf_array<double> temp_pos(n_dims, 3);
+    hf_array<double> temp_pos_centroid;
     for (int i = 0; i < n_cell; i++)
     {
         //store coordinates of all vertex belongs to this cell
-        hf_array<double> temp_pos(n_dims, 3);
         for (int j = 0; j < 3; j++)
             for (int k = 0; k < n_dims; k++)
                 temp_pos(k, j) = probe_xv(probe_c2v(i, j), k);
-        hf_array<double> temp_pos_centroid;
         temp_pos_centroid = calc_centroid(temp_pos);
         out_pos_circle.push_back(temp_pos_centroid);
     }
+
     //calculate face normal/area
+    hf_array<double> temp_vec(n_dims);
+    hf_array<double> temp_vec2(n_dims);
+    hf_array<double> temp_normal;
+    double temp_area;
+    double temp_length;
     for (int i = 0; i < n_cell; i++)
     {
-        hf_array<double> temp_vec(n_dims);
-        hf_array<double> temp_vec2(n_dims);
-        hf_array<double> temp_normal;
         for (int k = 0; k < n_dims; k++) //every dimension
         {
             temp_vec(k) = probe_xv(probe_c2v(i, 1), k) - probe_xv(probe_c2v(i, 0), k);
@@ -631,8 +721,7 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
         temp_normal = cross_prod_3d(temp_vec, temp_vec2);
 
         //calculate area
-        double temp_area;
-        double temp_length = 0.0;
+        temp_length = 0.0;
         for (int k = 0; k < n_dims; k++)
             temp_length += temp_normal(k) * temp_normal(k);
         temp_length = sqrt(temp_length);
@@ -732,23 +821,26 @@ void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &i
         }
     }
     //calculate cell centroid
+    hf_array<double> temp_pos(n_dims, 3);
+    hf_array<double> temp_pos_centroid;
     for (int i = 0; i < n_cell; i++)
     {
         //store coordinates of all vertex belongs to this cell
-        hf_array<double> temp_pos(n_dims, 3);
         for (int j = 0; j < 3; j++)
             for (int k = 0; k < n_dims; k++)
                 temp_pos(k, j) = probe_xv(probe_c2v(i, j), k);
-        hf_array<double> temp_pos_centroid;
         temp_pos_centroid = calc_centroid(temp_pos);
         out_pos_cone.push_back(temp_pos_centroid);
     }
+
     //calculate face normal/area
+    hf_array<double> temp_vec(n_dims);
+    hf_array<double> temp_vec2(n_dims);
+    hf_array<double> temp_normal;
+    double temp_area;
+    double temp_length;
     for (int i = 0; i < n_cell; i++)
     {
-        hf_array<double> temp_vec(n_dims);
-        hf_array<double> temp_vec2(n_dims);
-        hf_array<double> temp_normal;
         for (int k = 0; k < n_dims; k++) //every dimension
         {
             temp_vec(k) = probe_xv(probe_c2v(i, 1), k) - probe_xv(probe_c2v(i, 0), k);
@@ -757,8 +849,7 @@ void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &i
         temp_normal = cross_prod_3d(temp_vec, temp_vec2);
 
         //calculate area
-        double temp_area;
-        double temp_length = 0.0;
+        temp_length = 0.0;
         for (int k = 0; k < n_dims; k++)
             temp_length += temp_normal(k) * temp_normal(k);
         temp_length = sqrt(temp_length);
@@ -770,6 +861,22 @@ void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &i
             temp_normal(j) /= temp_length;
         out_normal.push_back(temp_normal);
     }
+}
+
+void probe_input::set_probe_cube(hf_array<double> &in_origin, hf_array<int> &in_n_xyz, hf_array<double> &in_d_xyz,
+                                 vector<hf_array<double> > &out_pos_cube)
+{
+    hf_array<double> temp_pos(n_dims);
+    hf_array<int> ct(3);
+
+    for (ct[2] = 0; ct[2] < in_n_xyz[2]; ct[2]++)
+        for (ct[1] = 0; ct[1] < in_n_xyz[1]; ct[1]++)
+            for (ct[0] = 0; ct[0] < in_n_xyz[0]; ct[0]++)
+            {
+                for (int l = 0; l < n_dims; l++)
+                    temp_pos[l] = in_origin[l] + ct[l] * in_d_xyz[l];
+                out_pos_cube.push_back(temp_pos);
+            }
 }
 
 void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 2D planes and 3D volumes
@@ -792,15 +899,16 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
 
     /*! calculate face centroid and copy it to pos_probe*/
     pos_probe_global.setup(n_dims, n_probe_global);
+    hf_array<double> temp_pos;
+    hf_array<double> temp_pos_centroid;
     for (int i = 0; i < n_probe_global; i++)
     {
         //store coordinates of all vertex belongs to this cell
-        hf_array<double> temp_pos(n_dims, probe_msh.c2n_v(i));
+        temp_pos.setup(n_dims, probe_msh.c2n_v(i));
         temp_pos.initialize_to_zero();
         for (int j = 0; j < probe_msh.c2n_v(i); j++)
             for (int k = 0; k < mesh_dims; k++) //up to probe mesh coord dimension
                 temp_pos(k, j) = probe_msh.xv(probe_msh.c2v(i, j), k);
-        hf_array<double> temp_pos_centroid;
         temp_pos_centroid = calc_centroid(temp_pos);
         for (int j = 0; j < n_dims; j++)
             pos_probe_global(j, i) = temp_pos_centroid(j);
@@ -810,13 +918,14 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
     if (ele_dims == 2 && n_dims == 3) //if surface mesh and 3D simulation
     {
         //calculate face normal
+        hf_array<double> temp_vec(n_dims);
+        hf_array<double> temp_vec2(n_dims);
+        hf_array<double> temp_normal;
+        temp_vec.initialize_to_zero();
+        temp_vec2.initialize_to_zero();
+        double temp_length;
         for (int i = 0; i < n_probe_global; i++)
         {
-            hf_array<double> temp_vec(n_dims);
-            hf_array<double> temp_vec2(n_dims);
-            temp_vec.initialize_to_zero();
-            temp_vec2.initialize_to_zero();
-            hf_array<double> temp_normal;
             for (int k = 0; k < mesh_dims; k++) //every mesh dimension
             {
                 temp_vec(k) = probe_msh.xv(probe_msh.c2v(i, 1), k) - probe_msh.xv(probe_msh.c2v(i, 0), k);
@@ -825,7 +934,7 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
             temp_normal = cross_prod_3d(temp_vec, temp_vec2);
 
             //normalize the normal vector
-            double temp_length = 0.0;
+            temp_length = 0.0;
             for (int j = 0; j < n_dims; j++)
                 temp_length += temp_normal(j) * temp_normal(j);
             temp_length = sqrt(temp_length);
@@ -836,13 +945,9 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
 
         //calculate face area
         surf_area.assign(n_probe_global, 0.0);
+        double temp_area;
         for (int i = 0; i < n_probe_global; i++)
         {
-            hf_array<double> temp_vec(n_dims);
-            hf_array<double> temp_vec2(n_dims);
-            temp_vec.initialize_to_zero();
-            temp_vec2.initialize_to_zero();
-            hf_array<double> temp_normal;
             for (int j = 0; j < probe_msh.ctype(i) + 1; j++) //1->2 part
             {
                 if ((probe_msh.ctype(i) == 1 && probe_msh.c2n_v(i) > 4) || (probe_msh.ctype(i) == 0 && probe_msh.c2n_v(i) > 3))
@@ -854,7 +959,7 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
                     temp_vec2(k) = probe_msh.xv(probe_msh.c2v(i, 2 + j), k) - probe_msh.xv(probe_msh.c2v(i, 1 + j), k);
                 }
                 temp_normal = cross_prod_3d(temp_vec, temp_vec2);
-                double temp_area = 0.0;
+                temp_area = 0.0;
                 for (int k = 0; k < n_dims; k++)
                     temp_area += temp_normal(k) * temp_normal(k);
                 temp_area = 0.5 * sqrt(temp_area);

@@ -1450,7 +1450,20 @@ void output::write_probe(void)
         //set the folder name
         if (run_input.probe == 1) //from script
         {
-          if (run_probe.p2global_p[i] < run_probe.line_start[0]) //is a surf
+          if (run_probe.p2global_p[i] < run_probe.surf_start[0]) //is a volume
+          {
+            surf_flag = false;
+            for (int id = 1; id < run_probe.vol_start.size(); id++)
+            {
+              if (run_probe.p2global_p[i] < run_probe.vol_start[id] && run_probe.p2global_p[i] >= run_probe.vol_start[id - 1])
+              {
+                folder = run_probe.vol_name[id - 1];
+                file_idx = run_probe.p2global_p[i] - run_probe.vol_start[id - 1];
+                break;
+              }
+            }
+          }
+          else if (run_probe.p2global_p[i] < run_probe.line_start[0]) //is a surf
           {
             surf_flag = true;
             for (int id = 1; id < run_probe.surf_start.size(); id++)
@@ -1489,7 +1502,7 @@ void output::write_probe(void)
             surf_flag = true;
           else
             surf_flag = false;
-          folder = "probes";
+          folder = run_probe.probe_source_file;
           file_idx = run_probe.p2global_p[i];
         }
         else
@@ -1536,18 +1549,18 @@ void output::write_probe(void)
           if (surf_flag == true)
           {
             wt_probe << "Surface normal" << endl;
-            wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i]][0]
-                     << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i]][1];
+            wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i] - run_probe.surf_start[0]][0]
+                     << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i] - run_probe.surf_start[0]][1];
             if (n_dims == 3)
-              wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i]][2] << endl;
+              wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i] - run_probe.surf_start[0]][2] << endl;
             else
               wt_probe << endl;
 
             wt_probe << "Surface area" << endl;
             if (viscous)
-              wt_probe << setw(20) << setprecision(10) << run_probe.surf_area[run_probe.p2global_p[i]] * run_input.L_ref * run_input.L_ref << endl;
+              wt_probe << setw(20) << setprecision(10) << run_probe.surf_area[run_probe.p2global_p[i] - run_probe.surf_start[0]] * run_input.L_ref * run_input.L_ref << endl;
             else
-              wt_probe << setw(20) << setprecision(10) << run_probe.surf_area[run_probe.p2global_p[i]] << endl;
+              wt_probe << setw(20) << setprecision(10) << run_probe.surf_area[run_probe.p2global_p[i] - run_probe.surf_start[0]] << endl;
           }
           /*! write field titles*/
           wt_probe << setw(20) << "time";
