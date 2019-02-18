@@ -214,7 +214,6 @@ hf_array<T>::hf_array(int in_dim_0, int in_dim_1, int in_dim_2, int in_dim_3)
 template <typename T>
 hf_array<T>::hf_array(const hf_array<T>& in_array)
 {
-  int i;
 
   dim_0=in_array.dim_0;
   dim_1=in_array.dim_1;
@@ -232,7 +231,6 @@ hf_array<T>::hf_array(const hf_array<T>& in_array)
 template <typename T>
 hf_array<T>& hf_array<T>::operator=(const hf_array<T>& in_array)
 {
-  int i;
 
   if(this == &in_array)
     {

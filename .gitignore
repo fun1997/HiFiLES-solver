@@ -28,9 +28,9 @@ autom4te.cache/*
 *.dylib
 
 # Compiled Static libraries
-# *.lai
-# *.la
-# *.a
+*.lai
+*.la
+*.a
 
 # QT IDE-generated files
 *.pro.user
@@ -52,6 +52,10 @@ autom4te.cache/*
 *.vtu
 *.pvtu
 *.plt
+*.cgns
+
+# data
+*.dat
 
 # Binary / run directory
 bin/

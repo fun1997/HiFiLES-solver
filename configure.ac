@@ -113,15 +113,11 @@ AC_ARG_ENABLE(release,
 # Specify whether to build debug or release version of the code
 # -------------------------------------------------------------
 if test "$code_type" == "RELEASE" ; then
-  CXXFLAGS="-O3"
+  CXXFLAGS="-O3 -std=c++14"
 else
-  CXXFLAGS="-g -O0"
+  CXXFLAGS="-g -O0 -Wall -std=c++14"
 fi
 
-if test "$with_CXX" == "icpc"
-then
-  CXXFLAGS += " -std=c++11"
-fi
 # --------------------------------------------------------------
 # Build up contributed packages that we will build from source
 # --------------------------------------------------------------
@@ -309,7 +305,7 @@ then
   if test "$have_HDF5" != "NO"
   then
     HDF5_CXX=" -I $with_HDF5_include -D_HDF5"
-    HDF5_LD+=" $with_HDF5_lib/$hdf5lib /home/weiqishen/Documents/zlib-1.2.11/lib/libz.a -lm -ldl"
+    HDF5_LD+=" $with_HDF5_lib/$hdf5lib -lm -ldl"
     HDF5_LDFLAGS=
   else
       AC_MSG_ERROR([HDF5 linking requested but library files not found.])
@@ -390,11 +386,11 @@ then
 # needs more work here (not terribly familiar with our MKL usage)
 elif test "$with_BLAS" == "MKL"
 then
-    AC_CHECK_FILES([$with_BLAS_lib/libmkl_intel_lp64.a $with_BLAS_lib/libmkl_sequential.a $with_BLAS_lib/libmkl_core.a],[have_BLAS="YES"],[have_BLAS="NO"]) 
+    AC_CHECK_FILES([$with_BLAS_lib/libmkl_intel_lp64.so $with_BLAS_lib/libmkl_sequential.so $with_BLAS_lib/libmkl_core.so],[have_BLAS="YES"],[have_BLAS="NO"]) 
     if test "$have_BLAS" != "NO"
 	  then
         BLAS_CXX="  -m64 -I $with_BLAS_include -D_MKL_BLAS"
-        BLAS_LD="  -L$with_BLAS_lib -Wl,--no-as-needed -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl"
+        BLAS_LD="  -L$with_BLAS_lib -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl"
         BLAS_LDFLAGS=
     else
 		AC_MSG_ERROR([MKL linking requested but library files not found.])
