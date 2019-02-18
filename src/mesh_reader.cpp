@@ -591,17 +591,15 @@ void mesh_reader::partial_read_connectivity_gmsh(int kstart, int in_num_cells)
                 }
                 else if (elmtype == 6 || elmtype == 18) // prisms
                 {
-                    mesh_ptr->ctype(i) == PRISM;
+                    mesh_ptr->ctype(i) = PRISM;
                     if (elmtype == 6) //linear prism
                     {
-                        mesh_ptr->c2n_v(i) == 6; // linear prism
+                        mesh_ptr->c2n_v(i) = 6; // linear prism
                         mesh_file >> mesh_ptr->c2v(i, 0) >> mesh_ptr->c2v(i, 1) >> mesh_ptr->c2v(i, 2) >> mesh_ptr->c2v(i, 3) >> mesh_ptr->c2v(i, 4) >> mesh_ptr->c2v(i, 5);
                     }
-
                     else if (elmtype == 18) // 15 points prism
                     {
-                        mesh_ptr->c2n_v(i) == 15;
-
+                        mesh_ptr->c2n_v(i) = 15;
                         mesh_file >> mesh_ptr->c2v(i, 0) >> mesh_ptr->c2v(i, 1) >> mesh_ptr->c2v(i, 2) >> mesh_ptr->c2v(i, 3) >> mesh_ptr->c2v(i, 4) >> mesh_ptr->c2v(i, 5) >> mesh_ptr->c2v(i, 6) >> mesh_ptr->c2v(i, 8) >> mesh_ptr->c2v(i, 9) >> mesh_ptr->c2v(i, 7) >> mesh_ptr->c2v(i, 10) >> mesh_ptr->c2v(i, 11) >> mesh_ptr->c2v(i, 12) >> mesh_ptr->c2v(i, 14) >> mesh_ptr->c2v(i, 13);
                     }
                 }

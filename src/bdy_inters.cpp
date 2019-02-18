@@ -304,7 +304,6 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
     double T_l,T_r;
     double vn_l;//initialize to 0 before use
     double v_sq;//initialize to 0 before use
-    double mach;
     double machn_l;
 
     int bc_flag=run_input.bc_list(bc_id).get_bc_flag();
@@ -432,7 +431,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
 
             double V_r;
             double c_l, c_r_sq, c_total_sq;
-            double R_plus, h_total;
+            double R_plus;
             double aa, bb, cc, dd;
             double Mach_sq, alpha;
             double p_total_temp ;
@@ -485,7 +484,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             R_plus = vn_l + 2.0*c_l/(gamma-1.0);
 
             // Specify total enthalpy
-            h_total = gamma*R_ref/(gamma-1.0)*T_total_temp;
+            //h_total = gamma*R_ref/(gamma-1.0)*T_total_temp;
 
             // Compute total speed of sound squared
             c_total_sq = gamma*R_ref*T_total_temp;
@@ -958,7 +957,6 @@ void bdy_inters::set_boundary_gradients(int bc_id, hf_array<double> &u_l, hf_arr
 {
     double v_sq;
     double inte;
-    double p_l;
 
     hf_array<double> grad_vel(n_dims, n_dims), grad_inte(n_dims); //component,dim
 

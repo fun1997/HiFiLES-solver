@@ -1453,7 +1453,7 @@ void output::write_probe(void)
           if (run_probe.p2global_p[i] < run_probe.surf_start[0]) //is a volume
           {
             surf_flag = false;
-            for (int id = 1; id < run_probe.vol_start.size(); id++)
+            for (size_t id = 1; id < run_probe.vol_start.size(); id++)
             {
               if (run_probe.p2global_p[i] < run_probe.vol_start[id] && run_probe.p2global_p[i] >= run_probe.vol_start[id - 1])
               {
@@ -1466,7 +1466,7 @@ void output::write_probe(void)
           else if (run_probe.p2global_p[i] < run_probe.line_start[0]) //is a surf
           {
             surf_flag = true;
-            for (int id = 1; id < run_probe.surf_start.size(); id++)
+            for (size_t id = 1; id < run_probe.surf_start.size(); id++)
             {
               if (run_probe.p2global_p[i] < run_probe.surf_start[id] && run_probe.p2global_p[i] >= run_probe.surf_start[id - 1])
               {
@@ -1479,7 +1479,7 @@ void output::write_probe(void)
           else if(run_probe.p2global_p[i] <run_probe.point_start[0]) //is a line
           {
             surf_flag = false;
-            for (int id = 1; id < run_probe.line_start.size(); id++)
+            for (size_t id = 1; id < run_probe.line_start.size(); id++)
             {
               if (run_probe.p2global_p[i] < run_probe.line_start[id] && run_probe.p2global_p[i] >= run_probe.line_start[id - 1])
               {
@@ -2316,7 +2316,6 @@ void output::CopyGPUCPU(void)
 #ifdef _CGNS
 void output::calc_connectivity(hf_array<cgsize_t> &out_conn, int ele_type, cgsize_t &start_index)
 {
-  int i, j, k;
   int n_eles, n_peles_per_ele, n_ppts_per_ele, n_verts_per_ele;
   hf_array<int> temp_con;
   

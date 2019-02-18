@@ -1164,15 +1164,13 @@ bool check_cyclic(hf_array<double> &delta_cyclic, hf_array<double> &loc_center_i
 void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<double> &in_xv, hf_array<int> &inout_f_mpi2f, hf_array<int> &out_mpifaces_part, hf_array<double> &delta_cyclic, int n_mpi_faces, double tol, struct solution *FlowSol)
 {
 
-  int iglob, v0, v1, v2, v3;
-  int icount, p2, rtag;
+  int iglob;
+  int icount;
 
   hf_array<int> matched(n_mpi_faces);
   hf_array<int> old_f_mpi2f;
 
   old_f_mpi2f = inout_f_mpi2f;
-
-  MPI_Status instatus;
 
   hf_array<double> delta_zero(FlowSol->n_dims);
   for (int m = 0; m < FlowSol->n_dims; m++)
@@ -1298,7 +1296,7 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
   int Nout, iglob;
   int n_vert_out;
   int count1, count2, count3;
-  int found, rtag;
+  int rtag;
 
   // Count the number of messages(processor) to send
   int request_count = 0;

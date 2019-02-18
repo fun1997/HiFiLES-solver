@@ -475,7 +475,7 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
   hf_array<double> fn_l(n_fields), fn_r(n_fields); //normal fluxes
   double S_L, S_R, S_star;                         //wave speeds
   hf_array<double> v_l(n_dims), v_r(n_dims);  //velocities
-  double p_l, p_r, a_l, a_r, h_l, h_r; //pressure, speed of sound, total enthalpy
+  double p_l, p_r, h_l, h_r; //pressure, speed of sound, total enthalpy
   double vn_l, vn_r, vsq_l, vsq_r;     //normal velocities and velocity squared
   double sq_rho, rrho, h_m, a_m, vn_m; //roe average
 
@@ -497,8 +497,8 @@ void inters::hllc_flux(hf_array<double> &u_l, hf_array<double> &u_r, hf_array<do
   //calculate pressure and speed of sound and total enthalpy of both sides
   p_l = (gamma - 1.0) * (u_l(n_dims + 1) - 0.5 * u_l(0) * vsq_l);
   p_r = (gamma - 1.0) * (u_r(n_dims + 1) - 0.5 * u_r(0) * vsq_r);
-  a_l = sqrt(gamma * p_l / u_l(0)); //speed of sound
-  a_r = sqrt(gamma * p_r / u_r(0));
+  //a_l = sqrt(gamma * p_l / u_l(0)); //speed of sound
+  //a_r = sqrt(gamma * p_r / u_r(0));
   h_l = (u_l(n_dims + 1) + p_l) / u_l(0); //total enthalpy
   h_r = (u_r(n_dims + 1) + p_r) / u_r(0);
 

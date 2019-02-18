@@ -4563,10 +4563,6 @@ void eles::set_transforms_upts(void)
         double yr, ys, yt;
         double zr, zs, zt;
 
-        double xrr, xss, xtt, xrs, xrt, xst;
-        double yrr, yss, ytt, yrs, yrt, yst;
-        double zrr, zss, ztt, zrs, zrt, zst;
-
         // Determinant of Jacobian (transformation matrix) (J = |G|)
         detjac_upts.setup(n_upts_per_ele,n_eles);
         // Determinant of Jacobian times inverse of Jacobian (Full vector transform from physcial->reference frame)
@@ -4687,10 +4683,6 @@ void eles::set_transforms_fpts(void)
     double xr, xs, xt;
     double yr, ys, yt;
     double zr, zs, zt;
-
-    double xrr, xss, xtt, xrs, xrt, xst;
-    double yrr, yss, ytt, yrs, yrt, yst;
-    double zrr, zss, ztt, zrs, zrt, zst;
 
         // Compute metrics term at flux points
         /// Determinant of Jacobian (transformation matrix)

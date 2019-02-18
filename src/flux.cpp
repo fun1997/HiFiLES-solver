@@ -145,9 +145,6 @@ void calc_visf_2d(hf_array<double>& in_u, hf_array<double>& in_grad_u, hf_array<
       double rt_ratio;
 
       double mu, mu_t, nu_tilde;
-      double p,T,R;
-      double inv_Re_c, Mach_c;
-      double T_gas_non, S_gas_non;
 
       // states
 
@@ -284,9 +281,6 @@ void calc_visf_3d(hf_array<double>& in_u, hf_array<double>& in_grad_u, hf_array<
       double rt_ratio;
 
       double mu, mu_t, nu_tilde;
-      double p,T,R;
-      double inv_Re_c, Mach_c;
-      double T_gas_non, S_gas_non;
 
       // states
 

@@ -116,6 +116,7 @@ cubature_1d& cubature_1d::operator=(const cubature_1d& in_cubature_1d)
       n_pts=in_cubature_1d.n_pts;
       locs=in_cubature_1d.locs;
       weights=in_cubature_1d.weights;
+      return *this;
     }
 }
 

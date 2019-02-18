@@ -198,7 +198,7 @@ void probe_input::set_probe_connectivity(struct solution *FlowSol, int rank)
             set_intersection(p2global_p.begin(), p2global_p.end(),
                              p2global_p_buffer.get_ptr_cpu(), p2global_p_buffer.get_ptr_cpu() + kprocs(i),
                              back_inserter(intersect));
-            for (int j = 0; j < intersect.size(); j++)
+            for (size_t j = 0; j < intersect.size(); j++)
             {
                 int id = index_locate_int(intersect[j], p2global_p.data(), p2global_p.size());
                 p2global_p.erase(p2global_p.begin() + id);
@@ -318,7 +318,7 @@ void probe_input::read_probe_script(string filename)
                          script_f.seekg(-1, script_f.cur);
                  }
             } //end of block
-            if (pos_vol.size() != vol_kstart)
+            if ((int)pos_vol.size() != vol_kstart)
                 vol_kstart = pos_vol.size(); //update new start index of volume
             else
                 FatalError("No volume probes read!");
@@ -419,7 +419,7 @@ void probe_input::read_probe_script(string filename)
                 }
             } //end of block
 
-            if (pos_surf.size() != surf_kstart)
+            if ((int)pos_surf.size() != surf_kstart)
                 surf_kstart = pos_surf.size(); //update new start index of surf
             else
                 FatalError("No surface probes read!");
@@ -455,7 +455,7 @@ void probe_input::read_probe_script(string filename)
             }
             set_probe_line(p_0, p_1, init_incre, npt_line, pos_line);
 
-            if (pos_line.size() != line_kstart)
+            if ((int)pos_line.size() != line_kstart)
                 line_kstart = pos_line.size(); //update new start index of line
             else
                 FatalError("No line probes read!");
@@ -518,19 +518,19 @@ void probe_input::read_probe_script(string filename)
     pos_probe_global.setup(n_dims, n_probe_global);
 
     //copy volume position
-    for (int i = 0; i < pos_vol.size(); i++)
+    for (size_t i = 0; i < pos_vol.size(); i++)
         for (int j = 0; j < n_dims; j++)
             pos_probe_global(j, i) = pos_vol[i][j];
     //copy surface position
-    for (int i = 0; i < pos_surf.size(); i++)
+    for (size_t i = 0; i < pos_surf.size(); i++)
         for (int j = 0; j < n_dims; j++)
             pos_probe_global(j, i + vol_kstart) = pos_surf[i][j];
     //copy line position
-    for (int i = 0; i < pos_line.size(); i++)
+    for (size_t i = 0; i < pos_line.size(); i++)
         for (int j = 0; j < n_dims; j++)
             pos_probe_global(j, i + vol_kstart + surf_kstart) = pos_line[i][j];
     //copy point position
-    for (int i = 0; i < pos_point.size(); i++)
+    for (size_t i = 0; i < pos_point.size(); i++)
         for (int j = 0; j < n_dims; j++)
             pos_probe_global(j, i + vol_kstart + surf_kstart + line_kstart) = pos_point[i][j];
 

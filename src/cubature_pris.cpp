@@ -85,6 +85,7 @@ cubature_pris& cubature_pris::operator=(const cubature_pris& in_cubature_pris)
       n_pts=in_cubature_pris.n_pts;
       locs=in_cubature_pris.locs;
       weights=in_cubature_pris.weights;
+      return *this;
     }
 }
 

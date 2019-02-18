@@ -845,8 +845,8 @@ void eles_pris::set_over_int_filter()
 {
   int N_under = run_input.N_under;
   int n_mode_under = (N_under + 1) * (N_under + 1) * (N_under + 2) / 2; //projected n_upts_per_ele
-  int n_mode_under_tri = (N_under + 1) * (N_under + 2) / 2;
-  int n_mode_under_1d = N_under + 1;
+  //int n_mode_under_tri = (N_under + 1) * (N_under + 2) / 2;
+  //int n_mode_under_1d = N_under + 1;
   hf_array<double> temp_proj(n_mode_under, n_cubpts_per_ele);
   hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
   hf_array<double> loc(n_dims);
