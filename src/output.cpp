@@ -258,7 +258,7 @@ void output::write_tec(int in_file_num)
         }
     }
 
-  if (run_input.turb_model==1) {
+  if (run_input.RANS==1) {
     fields += ", \"mu_tilde\"";
   }
 
@@ -576,7 +576,7 @@ void output::write_vtu(int in_file_num)
       write_pvtu << "			<PDataArray type=\"Float32\" Name=\"SpecificTotalEnergy\" />" << endl;
 
       /*! write out modified turbulent viscosity */
-      if (run_input.turb_model==1) {
+      if (run_input.RANS==1) {
         write_pvtu << "			<PDataArray type=\"Float32\" Name=\"Mu_Tilde\" />" << endl;
       }
 
@@ -769,7 +769,7 @@ void output::write_vtu(int in_file_num)
               write_vtu << "				</DataArray>" << endl;
 
               /*! modified turbulent viscosity */
-              if (run_input.turb_model == 1) {
+              if (run_input.RANS == 1) {
                 write_vtu << "				<DataArray type= \"Float32\" Name=\"Nu_Tilde\" format=\"ascii\">" << endl;
                 for(k=0;k<n_points;k++)
                 {
@@ -911,7 +911,7 @@ void output::write_CGNS(int in_file_num)
   /*! write parallel CGNS file*/
   int F, B, Z, S, Cx, Cy, Cz;
   int E[5];                                             //element node
-  int Fs_rho, Fs_rhou, Fs_rhov, Fs_rhow, Fs_rhoe, Fs_mu, Fs_s ; //field variable
+  int Fs_rho, Fs_rhou, Fs_rhov, Fs_rhow, Fs_rhoe, Fs_mu ; //field variable
   hf_array<int> Fs_diag, Fs_avg;
   char fname[256];
   cgsize_t sizes[3];
@@ -974,7 +974,7 @@ void output::write_CGNS(int in_file_num)
       cgp_error_exit();
   if (cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "EnergyStagnationDensity", &Fs_rhoe))
     cgp_error_exit();
-  if (run_input.turb_model)
+  if (run_input.RANS)
     if (cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "mu", &Fs_mu))
       cgp_error_exit();
   //diagnostic fields
@@ -1117,7 +1117,7 @@ void output::write_CGNS(int in_file_num)
       {
         if (cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 3)))
           cgp_error_exit();
-        if (run_input.turb_model)
+        if (run_input.RANS)
           if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 4)))
             cgp_error_exit();
       }
@@ -1126,7 +1126,7 @@ void output::write_CGNS(int in_file_num)
         if (cgp_field_write_data(F, B, Z, S, Fs_rhow, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 3)) ||
             cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 4)))
           cgp_error_exit();
-        if (run_input.turb_model)
+        if (run_input.RANS)
           if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 5)))
             cgp_error_exit();
       }
@@ -1166,7 +1166,7 @@ void output::write_CGNS(int in_file_num)
       {
         if (cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2, NULL))
           cgp_error_exit();
-        if (run_input.turb_model)
+        if (run_input.RANS)
           if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2, NULL))
             cgp_error_exit();
       }
@@ -1175,7 +1175,7 @@ void output::write_CGNS(int in_file_num)
         if (cgp_field_write_data(F, B, Z, S, Fs_rhow, &temp_ptr, &temp_ptr2, NULL) ||
             cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2,NULL))
           cgp_error_exit();
-        if (run_input.turb_model)
+        if (run_input.RANS)
           if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2,NULL))
             cgp_error_exit();
       }
@@ -1223,7 +1223,7 @@ void output::write_CGNS(int in_file_num)
 
   int F, B, Z, S, Cx, Cy, Cz;
   int E[5];                                             //element node
-  int Fs_rho, Fs_rhou, Fs_rhov, Fs_rhow, Fs_rhoe, Fs_mu, Fs_s ; //field variable
+  int Fs_rho, Fs_rhou, Fs_rhov, Fs_rhow, Fs_rhoe, Fs_mu ; //field variable
   hf_array<int> Fs_diag, Fs_avg;
   char fname[256];
   cgsize_t sizes[3];
@@ -1312,7 +1312,7 @@ void output::write_CGNS(int in_file_num)
         {
           if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "EnergyStagnationDensity", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(3 * n_ppts_per_ele), &Fs_rhoe))
             cg_error_exit();
-          if (run_input.turb_model)
+          if (run_input.RANS)
             if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "mu", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(4 * n_ppts_per_ele), &Fs_mu))
               cg_error_exit();
         }
@@ -1321,7 +1321,7 @@ void output::write_CGNS(int in_file_num)
           if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "MomentumZ", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(3 * n_ppts_per_ele), &Fs_rhow) ||
               cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "EnergyStagnationDensity", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(4 * n_ppts_per_ele), &Fs_rhoe))
             cg_error_exit();
-          if (run_input.turb_model)
+          if (run_input.RANS)
             if (cg_field_partial_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "mu", &temp_ptr, &temp_ptr2, disu_ppts_temp.get_ptr_cpu(5 * n_ppts_per_ele), &Fs_mu))
               cg_error_exit();
         }
@@ -1833,7 +1833,7 @@ void output::compute_error(int in_file_num)
       n_fields = 4;
     else
       n_fields = 5;
-    if (run_input.turb_model)
+    if (run_input.RANS)
       n_fields++;
   }
   else //advection/diffusion
@@ -1952,7 +1952,7 @@ void output::CalcNormResidual(void) {
       n_fields = 4;
     else
       n_fields = 5;
-    if (run_input.turb_model == 1)
+    if (run_input.RANS == 1)
     {
       n_fields++;
     }
@@ -2040,7 +2040,7 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
   if (FlowSol->n_dims==2) n_fields = 4;
   else n_fields = 5;
 
-  if (run_input.turb_model==1) {
+  if (run_input.RANS==1) {
     n_fields++;
   }
 
@@ -2077,7 +2077,7 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
         if (FlowSol->n_dims == 2)
         {
           write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
-          if (run_input.turb_model)
+          if (run_input.RANS)
           {
             write_hist[0] << ",\"mu_tilde\"";
           }
@@ -2088,7 +2088,7 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
         {
           write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>z</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
 
-          if (run_input.turb_model)
+          if (run_input.RANS)
           {
             write_hist[0] << ",\"<greek>mu</greek><sub>tilde</sub>\"";
           }

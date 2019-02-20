@@ -55,7 +55,7 @@ void calc_invf_2d(hf_array<double>& in_u, hf_array<double>& out_f)
       out_f(2,1)=p+(in_u(2)*vy);
       out_f(3,1)=vy*(in_u(3)+p);
 
-      if(run_input.turb_model==1) // SA model
+      if(run_input.RANS==1) // SA model
       {
         out_f(4,0) = in_u(4)*vx;
         out_f(4,1) = in_u(4)*vy;
@@ -107,7 +107,7 @@ void calc_invf_3d(hf_array<double>& in_u, hf_array<double>& out_f)
       out_f(3,2)=p+(in_u(3)*vz);
       out_f(4,2)=vz*(in_u(4)+p);
 
-      if(run_input.turb_model==1) // SA model
+      if(run_input.RANS==1) // SA model
       {
         out_f(5,0) = in_u(5)*vx;
         out_f(5,1) = in_u(5)*vy;
@@ -177,7 +177,7 @@ void calc_visf_2d(hf_array<double>& in_u, hf_array<double>& in_grad_u, hf_array<
       mu = mu + run_input.fix_vis*(run_input.mu_inf - mu);
 
       // turbulent eddy viscosity
-      if (run_input.turb_model==1) {
+      if (run_input.RANS==1) {
 
         nu_tilde = in_u(4)/rho;
 
@@ -225,7 +225,7 @@ void calc_visf_2d(hf_array<double>& in_u, hf_array<double>& in_grad_u, hf_array<
       out_f(2,1) = -tauyy;
       out_f(3,1) = -(u*tauxy+v*tauyy+(mu/run_input.prandtl + mu_t/run_input.prandtl_t)*(run_input.gamma)*de_dy);
 
-      if (run_input.turb_model==1) {
+      if (run_input.RANS==1) {
 
         double dnu_tilde_dx, dnu_tilde_dy;
         double Chi, psi;
@@ -324,7 +324,7 @@ void calc_visf_3d(hf_array<double>& in_u, hf_array<double>& in_grad_u, hf_array<
       mu = mu + run_input.fix_vis*(run_input.mu_inf - mu);
 
       // turbulent eddy viscosity
-      if (run_input.turb_model==1) {
+      if (run_input.RANS==1) {
 
         nu_tilde = in_u(5)/rho;
 
@@ -392,7 +392,7 @@ void calc_visf_3d(hf_array<double>& in_u, hf_array<double>& in_grad_u, hf_array<
       out_f(3,2) = -tauzz;
       out_f(4,2) = -(u*tauxz+v*tauyz+w*tauzz+(mu/run_input.prandtl + mu_t/run_input.prandtl_t)*(run_input.gamma)*de_dz);
 
-      if (run_input.turb_model==1)
+      if (run_input.RANS==1)
       {
         double dnu_tilde_dx, dnu_tilde_dy, dnu_tilde_dz;
         double Chi, psi;

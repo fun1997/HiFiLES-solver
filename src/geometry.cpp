@@ -739,7 +739,7 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
   }
 
   // calculate wall distance for non-WALE LES models or wall models or S-A models
-  if ((run_input.LES && ((run_input.SGS_model != 1 && run_input.SGS_model != 2) || run_input.wall_model)) || run_input.turb_model)
+  if ((run_input.LES && ((run_input.SGS_model != 1 && run_input.SGS_model != 2) || run_input.wall_model)) || run_input.RANS)
   {
 
     if (FlowSol->rank == 0)

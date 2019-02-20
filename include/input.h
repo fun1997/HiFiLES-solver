@@ -228,7 +228,7 @@ public:
     double patch_x;
 
     /* --- SA turblence model parameters ---*/
-    int turb_model;
+    int RANS;
     double c_v1;
     double c_v2;
     double c_v3;

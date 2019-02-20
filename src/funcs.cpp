@@ -1722,7 +1722,7 @@ double eval_grad_dubiner_basis_3d(double in_r, double in_s, double in_t, int in_
     }
   else
     {
-      cout << "ERROR: Invalid mode when evaluating basis ...." << endl;
+      FatalError( "ERROR: Invalid mode when evaluating basis ....");
     }
 
 }
@@ -1788,7 +1788,6 @@ double compute_eta(int vcjh_scheme, int order)
 int index_locate_int(int value, int* hf_array, int size)
 {
   int ju,jm,jl;
-  int ascnd;
 
   jl = 0;
   ju = size-1;

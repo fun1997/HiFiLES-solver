@@ -291,7 +291,7 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(double time_bound)
 
 #ifdef _GPU
     if (n_inters != 0)
-        evaluate_boundaryConditions_invFlux_gpu_kernel_wrapper(n_fpts_per_inter, n_dims, n_fields, n_inters, disu_fpts_l.get_ptr_gpu(), norm_tconf_fpts_l.get_ptr_gpu(), tdA_fpts_l.get_ptr_gpu(), ndA_dyn_fpts_l.get_ptr_gpu(), J_dyn_fpts_l.get_ptr_gpu(), norm_fpts.get_ptr_gpu(), norm_dyn_fpts.get_ptr_gpu(), pos_fpts.get_ptr_gpu(), pos_dyn_fpts.get_ptr_gpu(), grid_vel_fpts.get_ptr_gpu(), boundary_type.get_ptr_gpu(), bdy_params.get_ptr_gpu(), run_input.riemann_solve_type, delta_disu_fpts_l.get_ptr_gpu(), run_input.gamma, run_input.R_ref, viscous, motion, run_input.vis_riemann_solve_type, time_bound, run_input.wave_speed(0), run_input.wave_speed(1), run_input.wave_speed(2), run_input.lambda, run_input.equation, run_input.turb_model);
+        evaluate_boundaryConditions_invFlux_gpu_kernel_wrapper(n_fpts_per_inter, n_dims, n_fields, n_inters, disu_fpts_l.get_ptr_gpu(), norm_tconf_fpts_l.get_ptr_gpu(), tdA_fpts_l.get_ptr_gpu(), ndA_dyn_fpts_l.get_ptr_gpu(), J_dyn_fpts_l.get_ptr_gpu(), norm_fpts.get_ptr_gpu(), norm_dyn_fpts.get_ptr_gpu(), pos_fpts.get_ptr_gpu(), pos_dyn_fpts.get_ptr_gpu(), grid_vel_fpts.get_ptr_gpu(), boundary_type.get_ptr_gpu(), bdy_params.get_ptr_gpu(), run_input.riemann_solve_type, delta_disu_fpts_l.get_ptr_gpu(), run_input.gamma, run_input.R_ref, viscous, motion, run_input.vis_riemann_solve_type, time_bound, run_input.wave_speed(0), run_input.wave_speed(1), run_input.wave_speed(2), run_input.lambda, run_input.equation, run_input.RANS);
 #endif
 }
 
@@ -345,7 +345,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             e_r = p_l / (gamma - 1.0) + 0.5 * rho_r * v_sq;
 
             // SA model
-            if (run_input.turb_model == 1)
+            if (run_input.RANS == 1)
             {
                 // set turbulent eddy viscosity
                 u_r[n_dims+2] = run_input.mu_tilde_inf;
@@ -381,7 +381,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
                 e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
 
                 // SA model
-                if (run_input.turb_model == 1)
+                if (run_input.RANS == 1)
                 {
                     // set turbulent eddy viscosity
                     u_r[n_dims + 2] = run_input.mu_tilde_inf;
@@ -413,7 +413,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
                 e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
 
                 // SA model
-                if (run_input.turb_model == 1)
+                if (run_input.RANS == 1)
                 {
                     // extrapolate turbulent eddy viscosity
                     u_r[n_dims+2] = u_l[n_dims+2];
@@ -535,7 +535,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
 
             // SA model
-            if (run_input.turb_model == 1)
+            if (run_input.RANS == 1)
             {
                 // set turbulent eddy viscosity
                 u_r[n_dims+2] = run_input.mu_tilde_inf;
@@ -591,7 +591,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
 
             // SA model
-            if (run_input.turb_model == 1)
+            if (run_input.RANS == 1)
             {
                 // extrapolate turbulent eddy viscosity
                 u_r[n_dims+2] = u_l[n_dims+2];
@@ -688,7 +688,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             e_r = rho_r * (R_ref / (gamma - 1.0) * T_r) + 0.5 * rho_r * v_sq;
 
             // SA model
-            if (run_input.turb_model == 1)
+            if (run_input.RANS == 1)
             {
                 // zero turbulent eddy viscosity at the wall
                 u_r[n_dims+2] = 0.0;
@@ -721,7 +721,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             e_r = p_l / (gamma - 1.0) + 0.5 * rho_r * v_sq;
 
             // SA model
-            if (run_input.turb_model == 1)
+            if (run_input.RANS == 1)
             {
                 // zero turbulent eddy viscosity at the wall
                 u_r[n_dims+2] = 0.0;
@@ -789,7 +789,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
                 e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
 
                 // SA model
-                if (run_input.turb_model == 1)
+                if (run_input.RANS == 1)
                 {
                     // set turbulent eddy viscosity
                     u_r[n_dims+2] = run_input.mu_tilde_inf;
@@ -822,7 +822,7 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
                 e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
 
                 // SA model
-                if (run_input.turb_model == 1)
+                if (run_input.RANS == 1)
                 {
                     // extrapolate turbulent eddy viscosity
                     u_r[n_dims+2] = u_l[n_dims+2];
@@ -949,7 +949,7 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
 
 #ifdef _GPU
     if (n_inters!=0)
-        evaluate_boundaryConditions_viscFlux_gpu_kernel_wrapper(n_fpts_per_inter,n_dims,n_fields,n_inters,disu_fpts_l.get_ptr_gpu(),grad_disu_fpts_l.get_ptr_gpu(),norm_tconf_fpts_l.get_ptr_gpu(),tdA_fpts_l.get_ptr_gpu(),ndA_dyn_fpts_l.get_ptr_gpu(),J_dyn_fpts_l.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu(),pos_fpts.get_ptr_gpu(),pos_dyn_fpts.get_ptr_gpu(),sgsf_fpts_l.get_ptr_gpu(),boundary_type.get_ptr_gpu(),bdy_params.get_ptr_gpu(),delta_disu_fpts_l.get_ptr_gpu(),run_input.riemann_solve_type,run_input.vis_riemann_solve_type,run_input.R_ref,run_input.ldg_beta,run_input.ldg_tau,run_input.gamma,run_input.prandtl,run_input.rt_inf,run_input.mu_inf,run_input.c_sth,run_input.fix_vis, time_bound, run_input.equation, run_input.diff_coeff, LES, motion, run_input.turb_model, run_input.c_v1, run_input.omega, run_input.prandtl_t);
+        evaluate_boundaryConditions_viscFlux_gpu_kernel_wrapper(n_fpts_per_inter,n_dims,n_fields,n_inters,disu_fpts_l.get_ptr_gpu(),grad_disu_fpts_l.get_ptr_gpu(),norm_tconf_fpts_l.get_ptr_gpu(),tdA_fpts_l.get_ptr_gpu(),ndA_dyn_fpts_l.get_ptr_gpu(),J_dyn_fpts_l.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu(),pos_fpts.get_ptr_gpu(),pos_dyn_fpts.get_ptr_gpu(),sgsf_fpts_l.get_ptr_gpu(),boundary_type.get_ptr_gpu(),bdy_params.get_ptr_gpu(),delta_disu_fpts_l.get_ptr_gpu(),run_input.riemann_solve_type,run_input.vis_riemann_solve_type,run_input.R_ref,run_input.ldg_beta,run_input.ldg_tau,run_input.gamma,run_input.prandtl,run_input.rt_inf,run_input.mu_inf,run_input.c_sth,run_input.fix_vis, time_bound, run_input.equation, run_input.diff_coeff, LES, motion, run_input.RANS, run_input.c_v1, run_input.omega, run_input.prandtl_t);
 #endif
 }
 

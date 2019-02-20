@@ -201,7 +201,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     FlowSol->mesh_eles(i)->calculate_corrected_divergence();
 
   /*! Compute source term */
-  if (run_input.turb_model==1) {
+  if (run_input.RANS==1) {
     for (i=0; i<FlowSol->n_ele_types; i++)
       FlowSol->mesh_eles(i)->calc_src_upts_SA();
   }

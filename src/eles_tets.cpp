@@ -65,7 +65,7 @@ void eles_tets::setup_ele_type_specific()
   else
     FatalError("Equation not supported");
 
-  if (run_input.turb_model==1)
+  if (run_input.RANS==1)
     n_fields++;
 
   n_inters_per_ele=4;
@@ -244,7 +244,7 @@ void eles_tets::set_loc_upts(void)
 void eles_tets::set_tloc_fpts(void)
 {
 
-  int i,j,fpt;
+  int i,j;
   tloc_fpts.setup(n_dims,n_fpts_per_ele);
   
   hf_array<double> loc_tri_fpts(n_fpts_per_inter(0),2);

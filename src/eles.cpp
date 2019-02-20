@@ -199,7 +199,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         }
 
         // Allocate hf_array for wall distance if using a RANS-based turbulence model or LES
-        if (run_input.turb_model > 0)//S-A
+        if (run_input.RANS > 0)//S-A
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
             wall_distance_mag.setup(n_upts_per_ele,n_eles);
@@ -350,7 +350,7 @@ void eles::set_ics(double& time)
                 {
                     ics(3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
 
-                    if (run_input.turb_model==1)
+                    if (run_input.RANS==1)
                     {
                         ics(4) = run_input.mu_tilde_c_ic;
                     }
@@ -360,7 +360,7 @@ void eles::set_ics(double& time)
                     ics(3)=rho*vz;
                     ics(4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
 
-                    if(run_input.turb_model==1)
+                    if(run_input.RANS==1)
                     {
                         ics(5) = run_input.mu_tilde_c_ic;
                     }
@@ -462,7 +462,7 @@ void eles::set_ics(double& time)
                 {
                     ics(3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
 
-                    if (run_input.turb_model==1)
+                    if (run_input.RANS==1)
                     {
                         ics(4) = run_input.mu_tilde_c_ic;
                     }
@@ -472,7 +472,7 @@ void eles::set_ics(double& time)
                     ics(3)=rho*vz;
                     ics(4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
 
-                    if(run_input.turb_model==1)
+                    if(run_input.RANS==1)
                     {
                         ics(5) = run_input.mu_tilde_c_ic;
                     }
@@ -521,7 +521,7 @@ void eles::set_ics(double& time)
                 {
                     ics(3)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)));
 
-                    if (run_input.turb_model==1)
+                    if (run_input.RANS==1)
                     {
                         ics(4) = run_input.mu_tilde_c_ic;
                     }
@@ -531,7 +531,7 @@ void eles::set_ics(double& time)
                     ics(3)=rho*vz;
                     ics(4)=(p/(gamma-1.0))+(0.5*rho*((vx*vx)+(vy*vy)+(vz*vz)));
 
-                    if(run_input.turb_model==1)
+                    if(run_input.RANS==1)
                     {
                         ics(5) = run_input.mu_tilde_c_ic;
                     }
@@ -1380,7 +1380,7 @@ void eles::evaluate_invFlux(void)
 #endif
 
 #ifdef _GPU
-        evaluate_invFlux_gpu_kernel_wrapper(n_upts_per_ele,n_dims,n_fields,n_eles,disu_upts(0).get_ptr_gpu(),tdisf_upts.get_ptr_gpu(),detjac_upts.get_ptr_gpu(),J_dyn_upts.get_ptr_gpu(),JGinv_upts.get_ptr_gpu(),JGinv_dyn_upts.get_ptr_gpu(),grid_vel_upts.get_ptr_gpu(),run_input.gamma,motion,run_input.equation,run_input.wave_speed(0),run_input.wave_speed(1),run_input.wave_speed(2),run_input.turb_model);
+        evaluate_invFlux_gpu_kernel_wrapper(n_upts_per_ele,n_dims,n_fields,n_eles,disu_upts(0).get_ptr_gpu(),tdisf_upts.get_ptr_gpu(),detjac_upts.get_ptr_gpu(),J_dyn_upts.get_ptr_gpu(),JGinv_upts.get_ptr_gpu(),JGinv_dyn_upts.get_ptr_gpu(),grid_vel_upts.get_ptr_gpu(),run_input.gamma,motion,run_input.equation,run_input.wave_speed(0),run_input.wave_speed(1),run_input.wave_speed(2),run_input.RANS);
 #endif
     }
 }
@@ -2272,7 +2272,7 @@ void eles::evaluate_viscFlux(void)
 
 #ifdef _GPU
 
-        evaluate_viscFlux_gpu_kernel_wrapper(n_upts_per_ele, n_dims, n_fields, n_eles, ele_type, order, run_input.filter_ratio, LES, motion, sgs_model, wall_model, run_input.wall_layer_t, wall_distance.get_ptr_gpu(), twall.get_ptr_gpu(), Lu.get_ptr_gpu(), Le.get_ptr_gpu(), disu_upts(0).get_ptr_gpu(), tdisf_upts.get_ptr_gpu(), sgsf_upts.get_ptr_gpu(), grad_disu_upts.get_ptr_gpu(), detjac_upts.get_ptr_gpu(), J_dyn_upts.get_ptr_gpu(), JGinv_upts.get_ptr_gpu(), JGinv_dyn_upts.get_ptr_gpu(), run_input.gamma, run_input.prandtl, run_input.rt_inf, run_input.mu_inf, run_input.c_sth, run_input.fix_vis, run_input.equation, run_input.diff_coeff, run_input.turb_model, run_input.c_v1, run_input.omega, run_input.prandtl_t);
+        evaluate_viscFlux_gpu_kernel_wrapper(n_upts_per_ele, n_dims, n_fields, n_eles, ele_type, order, run_input.filter_ratio, LES, motion, sgs_model, wall_model, run_input.wall_layer_t, wall_distance.get_ptr_gpu(), twall.get_ptr_gpu(), Lu.get_ptr_gpu(), Le.get_ptr_gpu(), disu_upts(0).get_ptr_gpu(), tdisf_upts.get_ptr_gpu(), sgsf_upts.get_ptr_gpu(), grad_disu_upts.get_ptr_gpu(), detjac_upts.get_ptr_gpu(), J_dyn_upts.get_ptr_gpu(), JGinv_upts.get_ptr_gpu(), JGinv_dyn_upts.get_ptr_gpu(), run_input.gamma, run_input.prandtl, run_input.rt_inf, run_input.mu_inf, run_input.c_sth, run_input.fix_vis, run_input.equation, run_input.diff_coeff, run_input.RANS, run_input.c_v1, run_input.omega, run_input.prandtl_t);
 
 #endif
 
@@ -2807,7 +2807,7 @@ void eles::calc_wall_distance(const int n_seg_noslip_inters, const int n_tri_nos
                 }
                 for (n=0; n<n_dims; ++n) wall_distance(j,i,n) = vecmin(n);
 
-                if (run_input.turb_model > 0)
+                if (run_input.RANS > 0)
                 {
                     wall_distance_mag(j,i) = distmin;
                 }
@@ -4384,7 +4384,7 @@ void eles::calc_sensor_ppts(int in_ele, hf_array<double>& out_sensor_ppts)
 // calculate diagnostic fields at the plot points
 void eles::calc_diagnostic_fields_ppts(int in_ele, hf_array<double>& in_disu_ppts, hf_array<double>& in_grad_disu_ppts, hf_array<double>& in_sensor_ppts, hf_array<double>& out_diag_field_ppts, double& time)
 {
-    int i,j,k,m;
+    int j,k,m;
     double diagfield_upt;
     double u,v,w;
     double irho,pressure,v_sq;
