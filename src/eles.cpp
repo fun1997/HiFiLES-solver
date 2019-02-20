@@ -1007,9 +1007,9 @@ void eles::AdvanceSolution(int in_step, int adv_type)
                     for(inp=0; inp<n_upts_per_ele; inp++)
                     {
                         if (run_input.dt_type == 2)//local time step
-                            disu_upts(0)(inp, ic, i) -= dt_local(ic) * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                            disu_upts(0)(inp, ic, i) -= dt_local(ic) * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - src_upts(inp, ic, i));
                         else//global time step
-                            disu_upts(0)(inp, ic, i) -= run_input.dt * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                            disu_upts(0)(inp, ic, i) -= run_input.dt * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - src_upts(inp, ic, i));
                     }
                 }
             }
@@ -1044,9 +1044,9 @@ void eles::AdvanceSolution(int in_step, int adv_type)
                         for (inp = 0; inp < n_upts_per_ele; inp++)
                         {
                             if (run_input.dt_type == 2)//local time step
-                                disu_upts(0)(inp, ic, i) -= dt_local(ic) / 3.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                                disu_upts(0)(inp, ic, i) -= dt_local(ic) / 3.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - src_upts(inp, ic, i));
                             else//global time step
-                                disu_upts(0)(inp, ic, i) -= run_input.dt / 3.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                                disu_upts(0)(inp, ic, i) -= run_input.dt / 3.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - src_upts(inp, ic, i));
                         }
                     }
                 }
@@ -1060,7 +1060,7 @@ void eles::AdvanceSolution(int in_step, int adv_type)
                     {
                         for (inp = 0; inp < n_upts_per_ele; inp++)
                         {
-                            rhs = -div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) + run_input.const_src + src_upts(inp, ic, i); //function
+                            rhs = -div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) + src_upts(inp, ic, i); //function
                             if (run_input.dt_type == 2)//local time step
                                 disu_upts(0)(inp, ic, i) = 3.0 / 4.0 * disu_upts(0)(inp, ic, i) + 1.0 / 4.0 * disu_upts(1)(inp, ic, i) + dt_local(ic) / 4.0 * rhs;
                             else//global time step
@@ -1094,9 +1094,9 @@ void eles::AdvanceSolution(int in_step, int adv_type)
                         for (inp = 0; inp < n_upts_per_ele; inp++)
                         {
                             if (run_input.dt_type == 2)//local time step
-                                disu_upts(0)(inp, ic, i) -= dt_local(ic) / 2.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                                disu_upts(0)(inp, ic, i) -= dt_local(ic) / 2.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - src_upts(inp, ic, i));
                             else//global time step
-                                disu_upts(0)(inp, ic, i) -= run_input.dt / 2.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - run_input.const_src - src_upts(inp, ic, i));
+                                disu_upts(0)(inp, ic, i) -= run_input.dt / 2.0 * (div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) - src_upts(inp, ic, i));
                         }
                     }
                 }
@@ -1110,7 +1110,7 @@ void eles::AdvanceSolution(int in_step, int adv_type)
                     {
                         for (inp = 0; inp < n_upts_per_ele; inp++)
                         {
-                            rhs = -div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) + run_input.const_src + src_upts(inp, ic, i); //function
+                            rhs = -div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) + src_upts(inp, ic, i); //function
                             if (run_input.dt_type == 2)//local time step
                                 disu_upts(0)(inp, ic, i) = 1.0 / 3.0 * disu_upts(0)(inp, ic, i) + 2.0 / 3.0 * disu_upts(1)(inp, ic, i) + dt_local(ic) / 6.0 * rhs;
                             else//global time step
@@ -1144,7 +1144,7 @@ void eles::AdvanceSolution(int in_step, int adv_type)
                 {
                     for (inp=0; inp<n_upts_per_ele; inp++)
                     {
-                        rhs = -div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) + run_input.const_src + src_upts(inp, ic, i); //function
+                        rhs = -div_tconf_upts(0)(inp, ic, i) / detjac_upts(inp, ic) + src_upts(inp, ic, i); //function
                         if (run_input.dt_type == 2)
                             disu_upts(1)(inp, ic, i) = run_input.RK_a(in_step) * disu_upts(1)(inp, ic, i) + dt_local(ic) * rhs; //new delta x
                         else
@@ -5449,15 +5449,15 @@ double eles::compute_res_upts(int in_norm_type, int in_field)
         {
             if (in_norm_type == 0)
             {
-                sum = max(sum, abs(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-run_input.const_src-src_upts(j,i,in_field)));
+                sum = max(sum, abs(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-src_upts(j,i,in_field)));
             }
             if (in_norm_type == 1)
             {
-                sum += abs(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-run_input.const_src-src_upts(j,i,in_field));
+                sum += abs(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-src_upts(j,i,in_field));
             }
             else if (in_norm_type == 2)
             {
-                sum += (div_tconf_upts(0)(j, i, in_field)/detjac_upts(j,i)-run_input.const_src-src_upts(j,i,in_field))*(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-run_input.const_src-src_upts(j,i,in_field));
+                sum += (div_tconf_upts(0)(j, i, in_field)/detjac_upts(j,i)-src_upts(j,i,in_field))*(div_tconf_upts(0)(j, i, in_field)/detjac_upts(j, i)-src_upts(j,i,in_field));
             }
         }
     }

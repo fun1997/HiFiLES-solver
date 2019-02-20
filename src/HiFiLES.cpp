@@ -57,24 +57,27 @@ int main(int argc, char *argv[]) {
   ofstream write_hist;                /*!< Output files (forces, statistics, and history) */
   mesh* mesh_data=new mesh();         /*!< Store mesh information*/
 
-  /*! Check the command line input. */
-
-  if (argc < 2)
-  {
-    cout << "ERROR: No input file specified ... " << endl;
-    return (0);
-  }
-  else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "-help"))
-  {
-    cout << "For help, go to https://github.com/weiqishen/HiFiLES-solver/wiki" << endl;
-    return (0);
-  }
   /*! Initialize MPI. */
 
 #ifdef _MPI
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
+
+  /*! Check the command line input. */
+
+  if (argc < 2)
+  {
+    if (rank == 0)
+      cout << "ERROR: No input file specified ... " << endl;
+    return (0);
+  }
+  else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "-help"))
+  {
+    if (rank == 0)
+      cout << "For help, go to https://github.com/weiqishen/HiFiLES-solver/wiki" << endl;
+    return (0);
+  }
 
   if (rank == 0) {
     cout<<endl;

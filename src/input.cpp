@@ -90,6 +90,14 @@ void input::read_input_file(string fileName, int rank)
         opts.getScalarValue("restart_iter", restart_iter);
         if (restart_flag == 1)//ascii files need to know number of files
             opts.getScalarValue("n_restart_files", n_restart_files);
+        else if (restart_flag == 2) //HDF5 restart file
+        {
+#ifdef _HDF5
+            FatalError("HDF5 restart file input not implemented yet.");
+#else
+            FatalError("To read HDF5 resart file, HiFiLES have to be compiled with HDF5");
+#endif
+        }
     }
 
     /* ---- Visualization / Monitoring / Output Parameters ---- */
@@ -101,12 +109,12 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("calc_force", calc_force, 0);
     if (calc_force)
     {
-        opts.getScalarValue("monitor_cp_freq", monitor_cp_freq);//frequency to dump force file
-        opts.getScalarValue("area_ref", area_ref, 1.0);//non-dim reference area
+        opts.getScalarValue("monitor_cp_freq", monitor_cp_freq); //frequency to dump force file
+        opts.getScalarValue("area_ref", area_ref);               //reference area
     }
     opts.getScalarValue("res_norm_type", res_norm_type, 2);
     opts.getScalarValue("error_norm_type", error_norm_type, 2);
-    opts.getScalarValue("p_res", p_res, 2);
+    opts.getScalarValue("p_res", p_res, 2);           // number of points per edge for plotting
     opts.getScalarValue("write_type", write_type, 0); //0: vtu/pvtu; 1: tec; 2: cgns
     opts.getScalarValue("probe", probe, 0);
     opts.getVectorValueOptional("integral_quantities", integral_quantities);
@@ -134,10 +142,10 @@ void input::read_input_file(string fileName, int rank)
 
     /* ---- Basic Solver Parameters ---- */
 
-    opts.getScalarValue("riemann_solve_type", riemann_solve_type);//default Rusanov
-    opts.getScalarValue("vis_riemann_solve_type", vis_riemann_solve_type,0);//default LDG
-    opts.getScalarValue("adv_type", adv_type);
-    opts.getScalarValue("dt_type", dt_type);
+    opts.getScalarValue("riemann_solve_type", riemann_solve_type);            //default Rusanov
+    opts.getScalarValue("vis_riemann_solve_type", vis_riemann_solve_type, 0); //default LDG
+    opts.getScalarValue("adv_type", adv_type);                                //0: Euler; 1: RK24; 2:RK34; 3: RK45; 4: RK414
+    opts.getScalarValue("dt_type", dt_type);                                  //0: fixed; 1: global CFL; 2: local CFL
     if (dt_type == 2 && rank == 0)
     {
         cout << "!!!!!!" << endl;
@@ -156,13 +164,13 @@ void input::read_input_file(string fileName, int rank)
     }
     if (vis_riemann_solve_type == 0) //ldg
     {
-        opts.getScalarValue("ldg_tau", ldg_tau, 0.);//default least dissipation
-        opts.getScalarValue("ldg_beta", ldg_beta, 0.5);//default one sided
+        opts.getScalarValue("ldg_tau", ldg_tau, 0.);    //default least dissipation
+        opts.getScalarValue("ldg_beta", ldg_beta, 0.5); //default one sided
     }
 
     /* ---- Turbulence Modeling Parameters ---- */
 
-    opts.getScalarValue("turb_model", turb_model, 0);
+    opts.getScalarValue("RANS", RANS, 0);
     opts.getScalarValue("LES", LES, 0);
     if (LES)
     {
@@ -173,7 +181,7 @@ void input::read_input_file(string fileName, int rank)
         opts.getScalarValue("filter_ratio", filter_ratio);
         opts.getScalarValue("wall_model", wall_model);
         if (wall_model)
-            opts.getScalarValue("wall_layer_thickness", wall_layer_t);//non-dim distance between the first layer of solution points and wall
+            opts.getScalarValue("wall_layer_thickness", wall_layer_t); //distance between the first layer of solution points and wall
     }
 
     /* ---- Gas Parameters ---- */
@@ -243,7 +251,7 @@ void input::read_input_file(string fileName, int rank)
 
     /* ---- stationary shock/shock tube ic----*/
     if (ic_form == 9 || ic_form == 10)
-        opts.getScalarValue("x_shock_ic", x_shock_ic);//non-dim x-coord of shock wave
+        opts.getScalarValue("x_shock_ic", x_shock_ic); //x-coord of shock wave
 
     /* ---- Shock Capturing / dealiasing ---- */
     opts.getScalarValue("over_int", over_int, 0);
@@ -308,14 +316,15 @@ void input::read_input_file(string fileName, int rank)
 
     /* ---- Uncategorized / Other ---- */
 
-    opts.getScalarValue("const_src", const_src, 0.);
-    opts.getScalarValue("body_forcing", forcing, 0);
-    opts.getScalarValue("perturb_ic", perturb_ic, 0);
+    opts.getScalarValue("body_forcing", forcing, 0);//body force
+    opts.getScalarValue("perturb_ic", perturb_ic, 0);//pertubation initial condition
 
-    //for ic_form=6 polynomial initial conditions
+    //for ic_form=6 polynomial initial conditions, not checked, use with caution
     // NOTE: the input file line must look like "x_coeffs <# coeffs> x1 x2 x3..."
     if (ic_form == 6)
     {
+        if(rank==0)
+            cout << "Warning: make sure you know what you are doing. This feature hasn't been tested yet." << endl;
         opts.getVectorValue("x_coeffs", x_coeffs);
         opts.getVectorValue("y_coeffs", y_coeffs);
         opts.getVectorValue("z_coeffs", z_coeffs);
@@ -517,7 +526,7 @@ void input::setup_params(int rank)
 
     if (equation == 0)
     {
-        if (riemann_solve_type == 1) 
+        if (riemann_solve_type == 1)
             FatalError("Lax-Friedrich flux not supported with NS/RANS equation");
         if (ic_form == 2 || ic_form == 3 || ic_form == 4 || ic_form == 5)
             FatalError("Initial condition not supported with NS/RANS equation");
@@ -530,7 +539,7 @@ void input::setup_params(int rank)
             FatalError("Initial condition not supported with Advection-Diffusion equation");
     }
 
-    if (turb_model)
+    if (RANS)
     {
         if (riemann_solve_type == 2 || riemann_solve_type == 3)
             FatalError("Roe flux and HLLC flux not supported with RANS turbulent models");
@@ -557,30 +566,9 @@ void input::setup_params(int rank)
     // --------------------------
     if (viscous && equation == 0) //navier-stokes
     {
-
         if (rank == 0)
             cout << endl
                  << "---------------------- Non-dimensionalization ---------------------" << endl;
-
-        if (ic_form == 0)//isentropic vortex when viscous
-        {
-            fix_vis = 1.;
-            R_ref = 1.;
-            c_sth = 1.;
-            rt_inf = 1.;
-            mu_inf = 0.1;
-
-            if (rank == 0)
-            {
-                cout << "Using Isentropic vortex initial condition." << endl;
-                cout << "R_ref: " << R_ref << endl;
-                cout << "c_sth: " << c_sth << endl;
-                cout << "rt_inf: " << rt_inf << endl;
-                cout << "mu_inf: " << mu_inf << endl;
-            }
-        }
-        else // Any other type of initial condition
-        {
 
             // Dimensional reference quantities for temperature length and Density
 
@@ -605,7 +593,35 @@ void input::setup_params(int rank)
             rt_inf = T_gas * R_gas / (uvw_ref * uvw_ref); //T_gas*(R_ref/T_ref)
 
             //non-dimensionalize time step size if using fixed time step
-            dt /= time_ref;
+            if (dt_type == 0)
+                dt /= time_ref;
+
+            //non-dimensionalize spatial input params
+            if (calc_force)
+                area_ref /= (L_ref * L_ref);
+
+            dx_cyclic /= L_ref;
+            dy_cyclic /= L_ref;
+            dz_cyclic /= L_ref;
+
+            if (LES && wall_model)
+                wall_layer_t /= L_ref;
+
+            if (patch)
+            {
+                if (patch_type == 0)
+                {
+                    ra /= L_ref;
+                    rb /= L_ref;
+                    xc /= L_ref;
+                    yc /= L_ref;
+                }
+                else if (patch_type == 1)
+                    patch_x /= L_ref;
+            }
+
+            if (ic_form == 9 || ic_form == 10)
+                x_shock_ic /= L_ref;
 
             // Set up the dimensionless initial conditions
 
@@ -623,14 +639,13 @@ void input::setup_params(int rank)
                 mu_c_ic = mu_gas * pow(T_c_ic / T_gas, 1.5) * ((T_gas + S_gas) / (T_c_ic + S_gas));
             }
 
-            p_c_ic = rho_c_ic * R_gas * T_c_ic;
+            p_c_ic = rho_c_ic * R_gas * T_c_ic / p_ref;
             mu_c_ic = mu_c_ic / mu_ref;
             rho_c_ic = rho_c_ic / rho_ref;
-            p_c_ic = p_c_ic / p_ref;
             T_c_ic = T_c_ic / T_ref;
 
             // SA turblence model parameters
-            if (turb_model == 1)
+            if (RANS == 1)
             {
                 c_v1 = 7.1;
                 c_v2 = 0.7;
@@ -660,7 +675,7 @@ void input::setup_params(int rank)
                 cout << "L_ref: " << L_ref << " m" << endl;
                 cout << "time_ref: " << time_ref << " sec" << endl;
                 cout << "mu_ref: " << mu_ref << " kg/(m*s)" << endl;
-                cout << "Initial Values" << endl;
+                cout << "Non-dimensionalized initial values" << endl;
                 cout << "rho_c_ic=" << rho_c_ic << endl;
                 cout << "u_c_ic=" << u_c_ic << endl;
                 cout << "v_c_ic=" << v_c_ic << endl;
@@ -669,9 +684,8 @@ void input::setup_params(int rank)
                 cout << "T_c_ic=" << T_c_ic << endl;
                 cout << "mu_c_ic=" << mu_c_ic << endl;
             }
-        }
     }
-    else
+    else //adv-diff or Euler
     {
         //define all the reference value to be NaN
         T_ref = NAN;

@@ -66,7 +66,6 @@ public:
     double ldg_tau;
     double ldg_beta;
     double fix_vis;
-    double const_src;
     int order;
     int test_case;
 
