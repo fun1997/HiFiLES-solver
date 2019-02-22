@@ -68,8 +68,9 @@ class output
 
     ~output();
 
+#ifdef _CGNS
     void setup_CGNS();
-
+#endif
 
     //driver methods
 
@@ -79,14 +80,19 @@ class output
     /*! write an output file in VTK ASCII format */
     void write_vtu(int in_file_num);
 
+#ifdef _CGNS
     /*! write an output file in CGNS format */
     void write_CGNS(int in_file_num);
+#endif
 
     /*! write an probe data file */
     void write_probe(void);
 
     /*! writing a restart file */
-    void write_restart(int in_file_num);
+    void write_restart_ascii(int in_file_num);
+    #ifdef _HDF5
+    void write_restart_hdf5(int in_file_num);
+    #endif
 
     /*! monitor convergence of residual */
     void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist);

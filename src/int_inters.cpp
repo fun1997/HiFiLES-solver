@@ -50,12 +50,7 @@ using namespace std;
 
 // default constructor
 
-int_inters::int_inters()
-{
-  order=run_input.order;
-  viscous=run_input.viscous;
-  LES=run_input.LES;
-}
+int_inters::int_inters(){ }
 
 int_inters::~int_inters() { }
 

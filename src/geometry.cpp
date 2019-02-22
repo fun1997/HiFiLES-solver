@@ -54,13 +54,6 @@ void SetInput(struct solution *FlowSol)
   /*! Basic allocation using the input file. */
   FlowSol->rank = 0;
   FlowSol->nproc = 1;
-  FlowSol->n_steps = run_input.n_steps;
-  FlowSol->adv_type = run_input.adv_type;
-  FlowSol->viscous = run_input.viscous;
-  FlowSol->plot_freq = run_input.plot_freq;
-  FlowSol->restart_dump_freq = run_input.restart_dump_freq;
-  FlowSol->write_type = run_input.write_type;
-  FlowSol->ini_iter = 0;
 
 #ifdef _MPI
 
@@ -957,6 +950,7 @@ void ReadMesh(struct solution *FlowSol, mesh &mesh_data)
   /*------------------Parallel read element connectivity--------------------*/
   mesh_reader m_r(run_input.mesh_file, &mesh_data); //initialize mesh reader
   FlowSol->n_dims = mesh_data.n_dims;               //copy dimension to flowsol
+  FlowSol->num_cells_global = mesh_data.num_cells_global; //copy total number of cell to solution
 
   if (FlowSol->rank == 0)
     cout << "reading connectivity ... " << endl;

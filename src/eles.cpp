@@ -709,10 +709,8 @@ void eles::set_patch(void)
     }
 }
 
-void eles::read_restart_data(ifstream& restart_file)
+void eles::read_restart_data_ascii(ifstream& restart_file)
 {
-
-    if (n_eles==0) return;
 
     int num_eles_to_read;
     string ele_name,str;
@@ -807,8 +805,99 @@ void eles::read_restart_data(ifstream& restart_file)
     h_ref.cp_cpu_gpu();
 }
 
+#ifdef _HDF5
+void eles::read_restart_data_hdf5(hid_t &restart_file)
+{
+    hid_t dataset_id, plist_id, memspace_id, dataspace_id;
+    //dimensions for hyperslab
+    hsize_t dim[3];
+    hsize_t count[3];
+    hsize_t offset[3];
+    hf_array<double> disu_upts_rest;
 
-void eles::write_restart_data(ofstream& restart_file)
+    //open dataset
+    dataset_id = H5Dopen2(restart_file, "data", H5P_DEFAULT);
+    if (dataset_id < 0)
+        FatalError("Failed to open restart data");
+
+    plist_id = H5Pcreate(H5P_DATASET_XFER);
+#ifdef _MPI
+    //set collective read
+    H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+#endif
+
+    if (n_eles)
+    {
+        dim[0] = n_fields;
+        dim[1] = n_eles;
+        dim[2] = n_upts_per_ele_rest;
+        disu_upts_rest.setup(n_upts_per_ele_rest, n_eles, n_fields); 
+        disu_upts_rest.initialize_to_zero();
+        //set first subset to read
+        memspace_id = H5Screate_simple(3, dim, NULL); 
+        dataspace_id = H5Dget_space(dataset_id);
+        offset[0] = 0;
+        offset[1] = ele2global_ele(0); //based on ascending order of ele2global_ele
+        offset[2] = 0;
+        count[0] = dim[0];
+        count[1] = 1; 
+        count[2] = dim[2];
+        if (H5Sselect_hyperslab(dataspace_id, H5S_SELECT_SET, offset, NULL, count, NULL) < 0)
+            FatalError("Failed to find this element");
+        for (int i = 1; i < n_eles; i++) //for other elements of this type
+        {
+            //add other subsets to read
+            offset[1] = ele2global_ele(i);
+            if (H5Sselect_hyperslab(dataspace_id, H5S_SELECT_OR, offset, NULL, count, NULL) < 0)
+                FatalError("Failed to find this element");
+        }
+
+        H5Dread(dataset_id, H5T_NATIVE_DOUBLE, memspace_id, dataspace_id, plist_id, disu_upts_rest.get_ptr_cpu());
+        //close ibjects
+        H5Sclose(memspace_id);
+        H5Sclose(dataspace_id);
+
+        //extrapolate to solution points
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+        cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_fields_mul_n_eles, n_upts_per_ele_rest, 1.0, opp_r.get_ptr_cpu(), n_upts_per_ele, disu_upts_rest.get_ptr_cpu(), n_upts_per_ele_rest, 0.0, disu_upts(0).get_ptr_cpu(), n_upts_per_ele);
+#else
+        dgemm(n_upts_per_ele, n_fields_mul_n_eles, n_upts_per_ele_rest, 1.0, 0.0, opp_r.get_ptr_cpu(), disu_upts_rest.get_ptr_cpu(), disu_upts(0).get_ptr_cpu());
+#endif
+
+        restart_counter = 0;
+
+        // If required, calculate element reference lengths
+        if (run_input.dt_type > 0)
+        {
+            // Allocate hf_array
+            h_ref.setup(n_eles);
+            // Call element specific function to obtain length
+            for (int i = 0; i < n_eles; i++)
+                h_ref(i) = (*this).calc_h_ref_specific(i);
+        }
+        else
+        {
+            h_ref.setup(1);
+        }
+        h_ref.cp_cpu_gpu();
+    }
+#ifdef _MPI
+    else//read empty
+    {
+        dataspace_id=H5Dget_space(dataset_id);
+        H5Sselect_none(dataspace_id);
+        H5Dread(dataset_id, H5T_NATIVE_DOUBLE, dataspace_id, dataspace_id, plist_id, NULL);
+        H5Sclose(dataspace_id);
+    }
+#endif
+
+    //close objects
+    H5Pclose(plist_id);
+    H5Dclose(dataset_id);
+}
+#endif
+
+void eles::write_restart_data_ascii(ofstream& restart_file)
 {
     restart_file << "n_eles" << endl;
     restart_file << n_eles << endl;
@@ -833,6 +922,63 @@ void eles::write_restart_data(ofstream& restart_file)
     }
     restart_file << endl;
 }
+
+#ifdef _HDF5
+void eles::write_restart_data_hdf5(hid_t &in_dataset_id)
+{
+    //dimensions for hyperslab
+    hid_t plist_id, memspace_id, dataspace_id;
+    hsize_t dim[3];
+    hsize_t count[3];
+    hsize_t offset[3];
+
+    plist_id = H5Pcreate(H5P_DATASET_XFER);
+#ifdef _MPI
+    //set collective read
+    H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+#endif
+
+    if (n_eles)
+    {
+        dim[0] = n_fields;
+        dim[1] = n_eles;
+        dim[2] = n_upts_per_ele;
+        //set first subset to read
+        memspace_id = H5Screate_simple(3, dim, NULL);
+        dataspace_id = H5Dget_space(in_dataset_id);
+        offset[0] = 0;
+        offset[1] = ele2global_ele(0); //based on ascending order of ele2global_ele
+        offset[2] = 0;
+        count[0] = dim[0];
+        count[1] = 1;
+        count[2] = dim[2];
+        if (H5Sselect_hyperslab(dataspace_id, H5S_SELECT_SET, offset, NULL, count, NULL) < 0)
+            FatalError("Failed to find this element");
+        for (int i = 1; i < n_eles; i++) //for other elements of this type
+        {
+            //add other subsets to read
+            offset[1] = ele2global_ele(i);
+            if (H5Sselect_hyperslab(dataspace_id, H5S_SELECT_OR, offset, NULL, count, NULL) < 0)
+                FatalError("Failed to find this element");
+        }
+        H5Dwrite(in_dataset_id, H5T_NATIVE_DOUBLE, memspace_id, dataspace_id, plist_id, disu_upts(0).get_ptr_cpu());
+        //close objects
+        H5Sclose(memspace_id);
+        H5Sclose(dataspace_id);
+    }
+#ifdef _MPI
+    else
+    {
+        dataspace_id = H5Dget_space(in_dataset_id);
+        H5Sselect_none(dataspace_id);
+        H5Dwrite(in_dataset_id, H5T_NATIVE_DOUBLE, dataspace_id, dataspace_id, plist_id, NULL);
+        H5Sclose(dataspace_id);
+    }
+#endif
+    //close objects
+    H5Pclose(plist_id);
+}
+#endif
 
 #ifdef _GPU
 // move all to from cpu to gpu

@@ -89,7 +89,10 @@ void patch_solution(struct solution* FlowSol);
 void InitSolution(struct solution* FlowSol);
 
 /*! reading a restart file */
-void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol);
+void read_restart_ascii(int in_file_num, int in_n_files, struct solution* FlowSol);
+#ifdef _HDF5
+void read_restart_hdf5(int in_file_num, struct solution* FlowSol);
+#endif
 
 //calculate global time step size
 void calc_time_step(struct solution* FlowSol);

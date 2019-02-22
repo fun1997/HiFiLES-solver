@@ -43,6 +43,10 @@ extern "C"
 #include <numeric>
 #endif
 
+#ifdef _HDF5
+#include "hdf5.h"
+#endif
+
 #include "hf_array.h"
 #include "input.h"
 
@@ -77,10 +81,16 @@ public:
   void set_patch(void);
 
   /*! read data from restart file */
-  void read_restart_data(ifstream& restart_file);
+  void read_restart_data_ascii(ifstream& restart_file);
+#ifdef _HDF5
+  void read_restart_data_hdf5(hid_t &restart_file);
+#endif
 
   /*! write data to restart file */
-  void write_restart_data(ofstream& restart_file);
+  void write_restart_data_ascii(ofstream& restart_file);
+  #ifdef _HDF5
+  void write_restart_data_hdf5(hid_t& in_dataset_id);
+  #endif
 
   /*! calculate the discontinuous solution at the flux points */
   void extrapolate_solution(void);
@@ -336,9 +346,16 @@ public:
   /*! prototype for element reference length calculation */
   virtual double calc_h_ref_specific(int in_eles) = 0;
 
-  virtual int read_restart_info(ifstream& restart_file)=0;
+  virtual int read_restart_info_ascii(ifstream& restart_file) = 0;
 
-  virtual void write_restart_info(ofstream& restart_file)=0;
+#ifdef _HDF5
+  virtual void read_restart_info_hdf5(hid_t &restart_file, int in_rest_order) = 0;
+#endif
+
+  virtual void write_restart_info_ascii(ofstream &restart_file) = 0;
+#ifdef _HDF5
+  virtual void write_restart_info_hdf5(hid_t &restart_file) = 0;
+#endif
 
   /*! Compute interface jacobian determinant on face */
   virtual double compute_inter_detjac_inters_cubpts(int in_inter, hf_array<double> d_pos)=0;
@@ -916,8 +933,4 @@ protected:
   hf_array<double> concentration_array;
   hf_array<double> sensor;
   hf_array<double> over_int_filter;
-
-  /*! Global cell number of element as in the code */
-  hf_array<int> ele2global_ele_code;
-
 };

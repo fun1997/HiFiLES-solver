@@ -47,15 +47,12 @@ struct solution {
   //basic parameters
   int rank;//defined in SetInput
   int nproc;//defined in SetInput
-  int viscous;//defined in SetInput
   double time;//defined in InitSolution
   int n_ele_types;//defined in Initializing Elements
   int n_dims;//defined in mesh reading
-  int n_steps;//defined in SetInput
-  int adv_type;//defined in SetInput
   
   //restart/initialization parameter
-  int restart_dump_freq;//defined in SetInput
+  int num_cells_global;//defined in mesh reading
   int ini_iter;//defined in InitSolution
 
   //element parameters
@@ -80,10 +77,6 @@ struct solution {
   hf_array<double> integral_quantities;
   double coeff_lift;
   double coeff_drag;
-
-  //Plotting parameters
-  int plot_freq;//defined in setInput
-  int write_type;//defined in SetInput
 
 //mpi parameters
 #ifdef _MPI

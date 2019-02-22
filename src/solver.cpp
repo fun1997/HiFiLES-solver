@@ -37,14 +37,14 @@
 #include "../include/error.h"
 #include "../include/solution.h"
 
-#ifdef _TECIO
-#include "TECIO.h"
-#endif
-
 #ifdef _MPI
 #include "mpi.h"
 #include "metis.h"
 #include "parmetis.h"
+#endif
+
+#ifdef _HDF5
+#include "hdf5.h"
 #endif
 
 #ifdef _GPU
@@ -78,7 +78,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
       FlowSol->mesh_mpi_inters(i).send_solution();
 #endif
 
-  if (FlowSol->viscous) {
+  if (run_input.viscous) {
       /*! Compute the uncorrected transformed gradient of the solution at the solution points. */
       for(i=0; i<FlowSol->n_ele_types; i++)
         FlowSol->mesh_eles(i)->calculate_gradient();
@@ -124,7 +124,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     }
 #endif
 
-    if (FlowSol->viscous)
+    if (run_input.viscous)
     {
       /*! Compute physical corrected gradient of the solution at the solution and flux points. */
       for(i=0; i<FlowSol->n_ele_types; i++)
@@ -171,7 +171,7 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     for(i=0; i<FlowSol->n_ele_types; i++)
       FlowSol->mesh_eles(i)->calculate_divergence();
 
-    if (FlowSol->viscous) {
+    if (run_input.viscous) {
       /*! Compute transformed normal interface viscous flux and add to transformed normal inviscid flux. */
       for(i=0; i<FlowSol->n_int_inter_types; i++)
         FlowSol->mesh_int_inters(i).calculate_common_viscFlux();
@@ -303,7 +303,8 @@ void InitSolution(struct solution* FlowSol)
   // set initial conditions
   if (FlowSol->rank==0) cout << "Setting initial conditions... " << flush;
 
-  if (run_input.restart_flag==0) {
+  if (run_input.restart_flag==0) {//start new simulation
+    FlowSol->ini_iter = 0;
       for(int i=0;i<FlowSol->n_ele_types;i++) {
           if (FlowSol->mesh_eles(i)->get_n_eles()!=0)
 
@@ -311,12 +312,21 @@ void InitSolution(struct solution* FlowSol)
         }
 
     }
-  else
+    else if (run_input.restart_flag == 1) //read ascii restart files
     {
       FlowSol->ini_iter = run_input.restart_iter;
-      read_restart(run_input.restart_iter,run_input.n_restart_files,FlowSol);
+      read_restart_ascii(run_input.restart_iter, run_input.n_restart_files, FlowSol);
     }
-    
+    else if (run_input.restart_flag == 2) //read hdf5 restart file
+    {
+#ifdef _HDF5
+      FlowSol->ini_iter = run_input.restart_iter;
+      read_restart_hdf5(run_input.restart_iter, FlowSol);
+#else
+      FatalError("HiFiLES need to be compiled with HDF5 to read hdf5 format restart file");
+#endif
+    }
+
 #ifdef _MPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif // _MPI
@@ -334,7 +344,7 @@ void InitSolution(struct solution* FlowSol)
 
 }
 
-void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
+void read_restart_ascii(int in_file_num, int in_n_files, struct solution* FlowSol)
 {
 
   char file_name_s[50];
@@ -358,7 +368,7 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
 
               restart_file >> FlowSol->time;
 
-              int info_found = FlowSol->mesh_eles(i)->read_restart_info(restart_file);
+              int info_found = FlowSol->mesh_eles(i)->read_restart_info_ascii(restart_file);
               restart_file.close();
 
               if (info_found)
@@ -384,7 +394,7 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
       for (int i=0;i<FlowSol->n_ele_types;i++)  {
           if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
 
-              FlowSol->mesh_eles(i)->read_restart_data(restart_file);
+              FlowSol->mesh_eles(i)->read_restart_data_ascii(restart_file);
 
             }
         }
@@ -398,6 +408,62 @@ void read_restart(int in_file_num, int in_n_files, struct solution* FlowSol)
         FatalError("Some elements are not found in the restart files, check n_restart_files");
     }
 }
+
+#ifdef _HDF5
+void read_restart_hdf5(int in_file_num, struct solution *FlowSol)
+{
+  char file_name_s[50];
+  hid_t plist_id, restart_file, time_id, order_id;
+  int restart_order;
+  hf_array<bool> have_ele_type(FlowSol->n_ele_types);
+
+  sprintf(file_name_s, "Rest_%.09d.h5", in_file_num);
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+    have_ele_type(i) = (FlowSol->mesh_eles(i)->get_n_eles() > 0);
+  plist_id = H5Pcreate(H5P_FILE_ACCESS);
+
+#ifdef _MPI
+  //Parallel read restart file
+  H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+  hf_array<bool> have_ele_type_global(FlowSol->n_ele_types);
+  MPI_Allreduce(have_ele_type.get_ptr_cpu(), have_ele_type_global.get_ptr_cpu(), FlowSol->n_ele_types, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
+  have_ele_type = have_ele_type_global; //copy back
+#endif
+
+  //open file
+  restart_file = H5Fopen(file_name_s, H5F_ACC_RDONLY, plist_id);
+  if (restart_file < 0)
+    FatalError("Failed to open restart file");
+  //read attr
+  time_id = H5Aopen(restart_file, "nd_time", H5P_DEFAULT);
+  H5Aread(time_id, H5T_NATIVE_DOUBLE, &FlowSol->time);
+  H5Aclose(time_id);
+  order_id = H5Aopen(restart_file, "order", H5P_DEFAULT);
+  H5Aread(order_id, H5T_NATIVE_INT32, &restart_order);
+  H5Aclose(order_id);
+  
+  //each type of element read
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+  {
+    if (have_ele_type(i)) //if globally have such element
+    {
+      FlowSol->mesh_eles(i)->read_restart_info_hdf5(restart_file, restart_order); //all procesors read info
+      FlowSol->mesh_eles(i)->read_restart_data_hdf5(restart_file);                //all procesors read data
+    }
+  }
+
+  //close objects
+  H5Pclose(plist_id);
+  H5Fclose(restart_file);
+
+  //check if all elements are read into the program
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+  {
+    if (FlowSol->mesh_eles(i)->get_n_eles() != 0 && FlowSol->mesh_eles(i)->restart_counter)
+      FatalError("Some elements are not found in the restart files, check n_restart_files");
+  }
+}
+#endif
 
 void calc_time_step(struct solution *FlowSol)
 {

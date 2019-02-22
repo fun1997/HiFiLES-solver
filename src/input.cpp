@@ -92,9 +92,7 @@ void input::read_input_file(string fileName, int rank)
             opts.getScalarValue("n_restart_files", n_restart_files);
         else if (restart_flag == 2) //HDF5 restart file
         {
-#ifdef _HDF5
-            FatalError("HDF5 restart file input not implemented yet.");
-#else
+#ifndef _HDF5
             FatalError("To read HDF5 resart file, HiFiLES have to be compiled with HDF5");
 #endif
         }
@@ -567,8 +565,10 @@ void input::setup_params(int rank)
     if (viscous && equation == 0) //navier-stokes
     {
         if (rank == 0)
-            cout << endl
-                 << "---------------------- Non-dimensionalization ---------------------" << endl;
+        {
+            cout << endl;
+            cout<< "---------------------- Non-dimensionalization ---------------------" << endl;
+        }
 
             // Dimensional reference quantities for temperature length and Density
 

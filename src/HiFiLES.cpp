@@ -129,13 +129,13 @@ int main(int argc, char *argv[]) {
 
   /*! Variable initialization. */
 
-  if (FlowSol.adv_type == 0)
+  if (run_input.adv_type == 0)
     RKSteps = 1; //Euler
-  else if (FlowSol.adv_type == 1 || FlowSol.adv_type == 2)
+  else if (run_input.adv_type == 1 || run_input.adv_type == 2)
     RKSteps = 4; //RK24/34
-  else if (FlowSol.adv_type == 3)
+  else if (run_input.adv_type == 3)
     RKSteps = 5; //RK45
-  else if (FlowSol.adv_type == 4)
+  else if (run_input.adv_type == 4)
     RKSteps = 14; //RK414
 
   /*! Initialize forces, integral quantities, and residuals. */
@@ -158,11 +158,17 @@ int main(int argc, char *argv[]) {
 #endif
 
   /*! Dump initial Paraview, tecplot or CGNS files. */
-  
-  if (FlowSol.write_type == 0) run_output.write_vtu(FlowSol.ini_iter+i_steps);
-  else if (FlowSol.write_type == 1) run_output.write_tec(FlowSol.ini_iter+i_steps);
-  else if(FlowSol.write_type == 2) run_output.write_CGNS(FlowSol.ini_iter+i_steps);
-  else FatalError("ERROR: Trying to write unrecognized file format ... ");
+
+  if (run_input.write_type == 0)
+    run_output.write_vtu(FlowSol.ini_iter + i_steps);
+  else if (run_input.write_type == 1)
+    run_output.write_tec(FlowSol.ini_iter + i_steps);
+#ifdef _CGNS
+  else if (run_input.write_type == 2)
+    run_output.write_CGNS(FlowSol.ini_iter + i_steps);
+#endif
+  else
+    FatalError("ERROR: Trying to write unrecognized file format ... ");
 
   if (FlowSol.rank == 0) cout << endl;
 
@@ -174,7 +180,7 @@ int main(int argc, char *argv[]) {
 
   /*! Main solver loop (outer loop). */
 
-  while (i_steps < FlowSol.n_steps)
+  while (i_steps < run_input.n_steps)
   {
 
     //compute time step if using automatic time step
@@ -190,7 +196,7 @@ int main(int argc, char *argv[]) {
       /*! Time integration using a RK scheme */
 
       for (j = 0; j < FlowSol.n_ele_types; j++)
-        FlowSol.mesh_eles(j)->AdvanceSolution(i, FlowSol.adv_type);
+        FlowSol.mesh_eles(j)->AdvanceSolution(i, run_input.adv_type);
     }
 
     /*! Shock capturing */
@@ -210,8 +216,8 @@ int main(int argc, char *argv[]) {
     /*! Copy solution and gradients from GPU to CPU, ready for the following routines */
 #ifdef _GPU
 
-    if(i_steps == 1 || i_steps%FlowSol.plot_freq == 0 ||
-       i_steps%run_input.monitor_res_freq == 0 || i_steps%FlowSol.restart_dump_freq==0) {
+    if(i_steps == 1 || i_steps%run_input.plot_freq == 0 ||
+       i_steps%run_input.monitor_res_freq == 0 || i_steps%run_input.restart_dump_freq==0) {
 
       run_output.CopyGPUCPU(&FlowSol);
 
@@ -252,11 +258,18 @@ int main(int argc, char *argv[]) {
     }
     /*! Dump Paraview, Tecplot or CGNS files. */
 
-    if(i_steps%FlowSol.plot_freq == 0) {
-      if(FlowSol.write_type == 0) run_output.write_vtu(FlowSol.ini_iter+i_steps);
-      else if(FlowSol.write_type == 1) run_output.write_tec(FlowSol.ini_iter+i_steps);
-      else if(FlowSol.write_type == 2) run_output.write_CGNS(FlowSol.ini_iter+i_steps);
-      else FatalError("ERROR: Trying to write unrecognized file format ... ");
+    if (i_steps % run_input.plot_freq == 0)
+    {
+      if (run_input.write_type == 0)
+        run_output.write_vtu(FlowSol.ini_iter + i_steps);
+      else if (run_input.write_type == 1)
+        run_output.write_tec(FlowSol.ini_iter + i_steps);
+#ifdef _CGNS
+      else if (run_input.write_type == 2)
+        run_output.write_CGNS(FlowSol.ini_iter + i_steps);
+#endif
+      else
+        FatalError("ERROR: Trying to write unrecognized file format ... ");
     }
 
     /*! Write probe file. */
@@ -269,10 +282,14 @@ int main(int argc, char *argv[]) {
 
     /*! Dump restart file. */
 
-    if(i_steps%FlowSol.restart_dump_freq==0) {
-      run_output.write_restart(FlowSol.ini_iter+i_steps);
-    }
-
+        if (i_steps % run_input.restart_dump_freq == 0)
+        {
+#ifdef _HDF5
+          run_output.write_restart_hdf5(FlowSol.ini_iter + i_steps);
+#else
+          run_output.write_restart_ascii(FlowSol.ini_iter + i_steps);
+#endif
+        }
   }
 
   /////////////////////////////////////////////////

@@ -768,7 +768,7 @@ void eles_pris::set_vandermonde_tri_restart()
   inv_vandermonde_tri_rest = inv_array(vandermonde_tri_rest);
 }
 
-int eles_pris::read_restart_info(ifstream& restart_file)
+int eles_pris::read_restart_info_ascii(ifstream& restart_file)
 {
 
   string str;
@@ -813,7 +813,73 @@ int eles_pris::read_restart_info(ifstream& restart_file)
 
 }
 
-void eles_pris::write_restart_info(ofstream& restart_file)
+#ifdef _HDF5
+void eles_pris::read_restart_info_hdf5(hid_t &restart_file, int in_rest_order)
+{
+  hid_t dataset_id, plist_id, memspace_id, dataspace_id;
+  hsize_t count;  // number of blocks
+  hsize_t offset; // start
+  //open dataset
+  dataset_id = H5Dopen2(restart_file, "PRIS", H5P_DEFAULT);
+  if (dataset_id < 0)
+    FatalError("Cannot find pris property");
+
+  plist_id = H5Pcreate(H5P_DATASET_XFER);
+#ifdef _MPI
+  //set collective read
+  H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+#endif
+
+  if (n_eles)
+  {
+    order_rest = in_rest_order;
+    n_upts_per_ele_rest = (order_rest + 2) * (order_rest + 1) * (order_rest + 1) / 2;
+    n_upts_tri_rest = (order_rest + 1) * (order_rest + 2) / 2;
+    loc_upts_pri_1d_rest.setup(order_rest + 1);
+    loc_upts_pri_tri_rest.setup(2, n_upts_tri_rest);
+
+    //read data
+    offset = 0;
+    count = order_rest + 1;
+    memspace_id = H5Screate_simple(1, &count, NULL); //row major: n_eles by n_upts_per_ele_rest* n_fields
+    dataspace_id = H5Dget_space(dataset_id);
+
+    if (H5Sselect_hyperslab(dataspace_id, H5S_SELECT_SET, &offset, NULL, &count, NULL) < 0)
+      FatalError("Failed to get hyperslab");
+    H5Dread(dataset_id, H5T_NATIVE_DOUBLE, memspace_id, dataspace_id, plist_id, loc_upts_pri_1d_rest.get_ptr_cpu()); //read 1d
+    H5Sclose(memspace_id);
+
+    offset = order_rest + 1;
+    count = 2 * n_upts_tri_rest;
+    memspace_id = H5Screate_simple(1, &count, NULL); //row major: n_eles by n_upts_per_ele_rest* n_fields
+
+    if (H5Sselect_hyperslab(dataspace_id, H5S_SELECT_SET, &offset, NULL, &count, NULL) < 0)
+      FatalError("Failed to get hyperslab");
+    H5Dread(dataset_id, H5T_NATIVE_DOUBLE, memspace_id, dataspace_id, plist_id, loc_upts_pri_tri_rest.get_ptr_cpu()); //read tri
+    H5Sclose(memspace_id);
+    H5Sclose(dataspace_id);
+    
+    set_vandermonde_tri_restart();
+    set_opp_r();
+  }
+#ifdef _MPI
+  else //read empty
+  {
+    dataspace_id = H5Dget_space(dataset_id);
+    H5Sselect_none(dataspace_id);
+    H5Dread(dataset_id, H5T_NATIVE_DOUBLE, dataspace_id, dataspace_id, plist_id, NULL);
+    H5Dread(dataset_id, H5T_NATIVE_DOUBLE, dataspace_id, dataspace_id, plist_id, NULL);
+    H5Sclose(dataspace_id);
+  }
+#endif
+
+  //close objects
+  H5Pclose(plist_id);
+  H5Dclose(dataset_id);
+}
+#endif
+
+void eles_pris::write_restart_info_ascii(ofstream& restart_file)
 {
   restart_file << "PRIS" << endl;
 
@@ -840,6 +906,55 @@ void eles_pris::write_restart_info(ofstream& restart_file)
       restart_file << endl;
     }
 }
+
+#ifdef _HDF5
+void eles_pris::write_restart_info_hdf5(hid_t &restart_file)
+{
+  hid_t dataset_id, plist_id, dataspace_id, memspace_id;
+  hsize_t count, offset;
+  hsize_t dim = run_input.order + 1 + 2 * (run_input.order + 1) * (run_input.order + 2) / 2;
+
+  //create PRIS dataset
+  dataspace_id = H5Screate_simple(1, &dim, NULL);
+  dataset_id = H5Dcreate2(restart_file, "PRIS", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  plist_id = H5Pcreate(H5P_DATASET_XFER);
+#ifdef _MPI
+  //set collective read
+  H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+#endif
+
+  //write loc_upts_pri_1d and loc_upts_pri_tri
+  if (n_eles)
+  {
+    offset = 0;
+    count = order + 1;
+    memspace_id = H5Screate_simple(1, &count, NULL);
+    if (H5Sselect_hyperslab(dataspace_id, H5S_SELECT_SET, &offset, NULL, &count, NULL) < 0)
+      FatalError("Failed to get hyperslab");
+    H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, memspace_id, dataspace_id, plist_id, loc_upts_pri_1d.get_ptr_cpu());
+    H5Sclose(memspace_id);
+
+    offset = order + 1;
+    count = 2 * (order + 1) * (order + 2) / 2;
+    memspace_id = H5Screate_simple(1, &count, NULL);
+    if (H5Sselect_hyperslab(dataspace_id, H5S_SELECT_SET, &offset, NULL, &count, NULL) < 0)
+      FatalError("Failed to get hyperslab");
+    H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, memspace_id, dataspace_id, plist_id, loc_upts_pri_tri.get_ptr_cpu());
+    H5Sclose(memspace_id);
+  }
+#ifdef _MPI
+  else
+  {
+    H5Sselect_none(dataspace_id);
+    H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, dataspace_id, dataspace_id, plist_id, NULL);
+    H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, dataspace_id, dataspace_id, plist_id, NULL);
+  }
+#endif
+  H5Pclose(plist_id);
+  H5Dclose(dataset_id);
+  H5Sclose(dataspace_id);
+}
+#endif
 
 void eles_pris::set_over_int_filter()
 {

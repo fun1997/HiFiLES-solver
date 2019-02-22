@@ -51,12 +51,7 @@ using namespace std;
 
 bdy_inters::bdy_inters()
 {
-    order=run_input.order;
-    viscous=run_input.viscous;
-    LES=run_input.LES;
     wall_model = run_input.wall_model;
-
-
 }
 
 bdy_inters::~bdy_inters() { }

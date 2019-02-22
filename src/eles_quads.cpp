@@ -640,7 +640,7 @@ void eles_quads::compute_filter_upts(void)
 
 //#### helper methods ####
 
-int eles_quads::read_restart_info(ifstream& restart_file)
+int eles_quads::read_restart_info_ascii(ifstream& restart_file)
 {
 
   string str;
@@ -670,8 +670,48 @@ int eles_quads::read_restart_info(ifstream& restart_file)
   return 1;
 }
 
-//
-void eles_quads::write_restart_info(ofstream& restart_file)
+#ifdef _HDF5
+void eles_quads::read_restart_info_hdf5(hid_t &restart_file, int in_rest_order)
+{
+  hid_t dataset_id, plist_id;
+
+  //open dataset
+  dataset_id = H5Dopen2(restart_file, "QUADS", H5P_DEFAULT);
+  if (dataset_id < 0)
+    FatalError("Cannot find quads property");
+
+  plist_id = H5Pcreate(H5P_DATASET_XFER);
+#ifdef _MPI
+  //set collective read
+  H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+#endif
+
+  if (n_eles)
+  {
+    order_rest = in_rest_order;
+    n_upts_per_ele_rest = (order_rest + 1) * (order_rest + 1);
+    loc_1d_upts_rest.setup(order_rest + 1);
+    //read data
+    H5Dread(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, plist_id, loc_1d_upts_rest.get_ptr_cpu());
+    set_opp_r();
+  }
+#ifdef _MPI
+  else //read empty
+  {
+    hid_t null_id=H5Dget_space(dataset_id);
+    H5Sselect_none(null_id);
+    H5Dread(dataset_id, H5T_NATIVE_DOUBLE, null_id, null_id, plist_id, NULL);
+    H5Sclose(null_id);
+  }
+#endif
+
+  //close objects
+  H5Pclose(plist_id);
+  H5Dclose(dataset_id);
+}
+#endif
+
+void eles_quads::write_restart_info_ascii(ofstream& restart_file)
 {
   restart_file << "QUADS" << endl;
 
@@ -688,6 +728,38 @@ void eles_quads::write_restart_info(ofstream& restart_file)
   restart_file << endl;
 
 }
+
+#ifdef _HDF5
+void eles_quads::write_restart_info_hdf5(hid_t &restart_file)
+{
+  hid_t dataset_id,plist_id,dataspace_id;
+  hsize_t dim = run_input.order + 1;
+
+  //create QUADS dataset
+  dataspace_id=H5Screate_simple(1,&dim,NULL);
+  dataset_id=H5Dcreate2(restart_file,"QUADS",H5T_NATIVE_DOUBLE,dataspace_id,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
+  plist_id = H5Pcreate(H5P_DATASET_XFER);
+#ifdef _MPI
+  //set collective read
+  H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+#endif
+  //write loc_1d_upts
+  if(n_eles)
+  {
+    H5Dwrite(dataset_id,H5T_NATIVE_DOUBLE,H5S_ALL,H5S_ALL,plist_id,loc_1d_upts.get_ptr_cpu());
+  }
+  #ifdef _MPI
+  else
+  {
+    H5Sselect_none(dataspace_id);
+    H5Dwrite(dataset_id,H5T_NATIVE_DOUBLE,dataspace_id,dataspace_id,plist_id,NULL);
+  }
+  #endif
+  H5Pclose(plist_id);
+  H5Dclose(dataset_id);
+  H5Sclose(dataspace_id);
+}
+#endif
 
 // initialize the vandermonde matrix
 void eles_quads::set_vandermonde1D(void)

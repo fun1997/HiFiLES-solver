@@ -74,10 +74,16 @@ public:
   void setup_ele_type_specific(void);
 
   /*! read restart info */
-  int read_restart_info(ifstream& restart_file);
+  int read_restart_info_ascii(ifstream& restart_file);
+#ifdef _HDF5
+  void read_restart_info_hdf5(hid_t &restart_file, int in_rest_order);
+#endif
 
   /*! write restart info */
-  void write_restart_info(ofstream& restart_file);
+  void write_restart_info_ascii(ofstream& restart_file);
+#ifdef _HDF5
+  void write_restart_info_hdf5(hid_t &restart_file);
+#endif
 
   /*! Compute interface jacobian determinant on face */
   double compute_inter_detjac_inters_cubpts(int in_inter, hf_array<double> d_pos);

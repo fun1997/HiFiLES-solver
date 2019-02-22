@@ -223,7 +223,7 @@ void mesh::repartition_mesh(int nproc, int rank)
 
   int cnt = 0;
   int inrequest_counter = 0;
-  for (int p = 0; p < nproc; p++) //for each processor, ensure increasing order of ic2icg
+  for (int p = 0; p < nproc; p++) //for each processor, ensure ascending order of ic2icg
   {
     if (inK[p] != 0) //if have data to receive
     {
@@ -248,7 +248,7 @@ void mesh::repartition_mesh(int nproc, int rank)
       outlist_ctype[p].setup(outK[p]);
       outlist_ic2icg[p].setup(outK[p]);
 
-      for (int i = 0; i < num_cells; i++) //loop over all local elements, ensure increasing order of ic2icg
+      for (int i = 0; i < num_cells; i++) //loop over all local elements, ensure ascending order of ic2icg
       {
         if (part[i] == p) //if this element send to processor p
         {

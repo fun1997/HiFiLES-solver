@@ -40,8 +40,8 @@
 #include "../include/funcs.h"
 #include "../include/error.h"
 
-#ifdef _TECIO
-#include "TECIO.h"
+#ifdef _HDF5
+#include "hdf5.h"
 #endif
 
 #ifdef _GPU
@@ -57,13 +57,15 @@ using namespace std;
 output::output(struct solution *in_sol)
 {
   FlowSol = in_sol;
+#ifdef _CGNS
   if (run_input.write_type == 2) //initialize cgns parameter
     setup_CGNS();
+#endif
 }
 
 output::~output() { }
 
-
+#ifdef _CGNS
 void output::setup_CGNS(void)
 {
   #ifdef _CGNS
@@ -157,6 +159,7 @@ void output::setup_CGNS(void)
 
 #endif // _CGNS
 }
+#endif
 
 // method to write out a tecplot file
 void output::write_tec(int in_file_num)
@@ -308,7 +311,7 @@ void output::write_tec(int in_file_num)
           }
           if (n_diag_fields > 0)
           {
-            if (FlowSol->viscous)
+            if (run_input.viscous)
             {
               grad_disu_ppts_temp.setup(n_ppts_per_ele,n_fields,n_dims);
               grad_disu_ppts_temp.initialize_to_zero();
@@ -367,7 +370,7 @@ void output::write_tec(int in_file_num)
               /*! Calculate the diagnostic fields at the plot points */
                 if(n_diag_fields > 0)
                 {
-                  if (FlowSol->viscous)
+                  if (run_input.viscous)
                     FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
                   if (run_input.shock_cap)
                     FlowSol->mesh_eles(i)->calc_sensor_ppts(j, sensor_ppts_temp);
@@ -670,7 +673,7 @@ void output::write_vtu(int in_file_num)
 
           if(n_diag_fields > 0) {
             /*! Temporary solution hf_array at plot points */
-            if (FlowSol->viscous)
+            if (run_input.viscous)
             {
               grad_disu_ppts_temp.setup(n_points,n_fields,n_dims);
               grad_disu_ppts_temp.initialize_to_zero();
@@ -704,7 +707,7 @@ void output::write_vtu(int in_file_num)
 
               if(n_diag_fields > 0) {
                 /*! Calculate the gradient of the prognostic fields at the plot points */
-                if (FlowSol->viscous)
+                if (run_input.viscous)
                   FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
 
                 if(run_input.shock_cap)
@@ -903,10 +906,9 @@ if(my_rank==0) cout<<"done."<<endl;
 }
 
 
-
+#ifdef _CGNS
 void output::write_CGNS(int in_file_num)
 {
-#ifdef _CGNS
 #ifdef _MPI
   /*! write parallel CGNS file*/
   int F, B, Z, S, Cx, Cy, Cz;
@@ -1047,7 +1049,7 @@ void output::write_CGNS(int in_file_num)
       }
       if (n_diag_fields)
       {
-        if (FlowSol->viscous)
+        if (run_input.viscous)
         {
           grad_disu_ppts_temp.setup(n_ppts_per_ele, n_fields, n_dims);
           grad_disu_ppts_temp.initialize_to_zero();
@@ -1075,7 +1077,7 @@ void output::write_CGNS(int in_file_num)
         /*! Calculate the diagnostic fields at the plot points */
         if (n_diag_fields > 0)
         {
-          if (FlowSol->viscous)
+          if (run_input.viscous)
             FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
           if (run_input.shock_cap)
             /*! Calculate the sensor at the plot points */
@@ -1279,7 +1281,7 @@ void output::write_CGNS(int in_file_num)
       }
       if (n_diag_fields)
       {
-        if (FlowSol->viscous)
+        if (run_input.viscous)
         {
           grad_disu_ppts_temp.setup(n_ppts_per_ele, n_fields, n_dims);
           grad_disu_ppts_temp.initialize_to_zero();
@@ -1329,7 +1331,7 @@ void output::write_CGNS(int in_file_num)
         /*! Calculate the diagnostic fields at the plot points */
         if (n_diag_fields > 0)
         {
-          if (FlowSol->viscous)
+          if (run_input.viscous)
             FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
           if (run_input.shock_cap)
             /*! Calculate the sensor at the plot points */
@@ -1397,9 +1399,8 @@ void output::write_CGNS(int in_file_num)
 #endif
   if (FlowSol->rank == 0)
     cout << "done" << endl;
-#endif
 }
-
+#endif
 
 /*! Method to write out a probe file.
 Used in run mode.
@@ -1651,7 +1652,7 @@ void output::write_probe(void)
     if (myrank==0) cout<<"done."<<endl;
 }
 
-void output::write_restart(int in_file_num)
+void output::write_restart_ascii(int in_file_num)
 {
 
   char file_name_s[256], folder[50];
@@ -1681,7 +1682,7 @@ if (FlowSol->nproc>1)
   sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,0);
 #endif
 
-  if (FlowSol->rank==0) cout << "Writing Restart file number " << in_file_num << " ...." << endl;
+  if (FlowSol->rank==0) cout << "Writing Restart file for step " << in_file_num << " ...." << flush;
 
   file_name = &file_name_s[0];
   restart_file.open(file_name);
@@ -1692,15 +1693,110 @@ if (FlowSol->nproc>1)
   for (int i=0;i<FlowSol->n_ele_types;i++) {
       if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
 
-          FlowSol->mesh_eles(i)->write_restart_info(restart_file);
-          FlowSol->mesh_eles(i)->write_restart_data(restart_file);
+          FlowSol->mesh_eles(i)->write_restart_info_ascii(restart_file);
+          FlowSol->mesh_eles(i)->write_restart_data_ascii(restart_file);
 
         }
     }
 
   restart_file.close();
-
+  if (FlowSol->rank == 0)
+    cout << "done" << endl;
 }
+
+#ifdef _HDF5
+void output::write_restart_hdf5(int in_file_num)
+{
+  char file_name_s[50];
+  hsize_t dim[3];//dimension of data dataset
+  hid_t restart_file, time_id, order_id, plist_id, attr_dspace, dataset_id, dataspace_id;
+  hf_array<bool> have_ele_type(FlowSol->n_ele_types);
+
+  sprintf(file_name_s, "Rest_%.09d.h5", in_file_num);
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+    have_ele_type(i) = (FlowSol->mesh_eles(i)->get_n_eles() > 0);
+  plist_id = H5Pcreate(H5P_FILE_ACCESS);
+
+  #ifdef _MPI
+  //Parallel read restart file
+  H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+  hf_array<bool> have_ele_type_global(FlowSol->n_ele_types);
+  MPI_Allreduce(have_ele_type.get_ptr_cpu(), have_ele_type_global.get_ptr_cpu(), FlowSol->n_ele_types, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
+  have_ele_type = have_ele_type_global; //copy back
+#endif
+
+  //find out dimension of data array to write num_cells_global by upts_per_ele*field
+  dim[1] = FlowSol->num_cells_global;
+  for (int i = 4; i >= 0; i--)
+  {
+    if (have_ele_type(i))
+    {
+      switch (i)
+      {
+      case TRI:
+        dim[0] = 4 + (run_input.RANS ? 1 : 0);
+        dim[2] = (run_input.order + 2) * (run_input.order + 1) / 2;
+        break;
+      case QUAD:
+        dim[0] = 4 + (run_input.RANS ? 1 : 0);
+        dim[2] = (run_input.order + 1) * (run_input.order + 1);
+        break;
+      case TET:
+        dim[0] = 5 + (run_input.RANS ? 1 : 0);
+        dim[2] = (run_input.order + 3) * (run_input.order + 2) * (run_input.order + 1) / 6;
+        break;
+      case PRISM:
+        dim[0] = 5 + (run_input.RANS ? 1 : 0);
+        dim[2] = (run_input.order + 2) * (run_input.order + 1) * (run_input.order + 1) / 2;
+        break;
+      case HEX:
+        dim[0] = 5 + (run_input.RANS ? 1 : 0);
+        dim[2] = (run_input.order + 1) * (run_input.order + 1) * (run_input.order + 1);
+        break;
+      }
+      break;
+    }
+  }
+
+  if (FlowSol->rank == 0)
+    cout << "Writing Restart file for step " << in_file_num << " ...." << flush;
+
+  //create file
+  restart_file = H5Fcreate(file_name_s, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+
+  //write time and order to attribution
+  attr_dspace = H5Screate(H5S_SCALAR);
+  time_id = H5Acreate2(restart_file, "nd_time", H5T_NATIVE_DOUBLE, attr_dspace, H5P_DEFAULT, H5P_DEFAULT);
+  H5Awrite(time_id, H5T_NATIVE_DOUBLE, &FlowSol->time);
+  H5Aclose(time_id);
+  order_id = H5Acreate2(restart_file, "order", H5T_NATIVE_INT32, attr_dspace, H5P_DEFAULT, H5P_DEFAULT);
+  H5Awrite(order_id, H5T_NATIVE_INT32, &run_input.order);
+  H5Aclose(order_id);
+  H5Sclose(attr_dspace);
+
+//create "data" dataset
+  dataspace_id = H5Screate_simple(3, dim, NULL);
+  dataset_id = H5Dcreate2(restart_file, "data", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Sclose(dataspace_id);
+  //each type of element write
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+  {
+    if (have_ele_type(i))
+    {
+      FlowSol->mesh_eles(i)->write_restart_info_hdf5(restart_file);
+      FlowSol->mesh_eles(i)->write_restart_data_hdf5(dataset_id);
+    }
+  }
+
+  //close objects
+  H5Dclose(dataset_id);
+  H5Pclose(plist_id);
+  H5Fclose(restart_file);
+
+  if (FlowSol->rank == 0)
+    cout << "done" << endl;
+}
+#endif
 
 void output::CalcForces(int in_file_num, bool write_forces)
 {
@@ -1854,7 +1950,7 @@ void output::compute_error(int in_file_num)
       for (int j = 0; j < n_fields; j++)
       {
         error(0, j) += temp_error(0, j);
-        if (FlowSol->viscous)
+        if (run_input.viscous)
           error(1, j) += temp_error(1, j);
       }
     }
@@ -1882,7 +1978,7 @@ void output::compute_error(int in_file_num)
       for (int j = 0; j < n_fields; j++)
       {
         error(0, j) = sqrt(error(0, j));
-        if (FlowSol->viscous)
+        if (run_input.viscous)
         {
           error(1, j) = sqrt(error(1, j));
         }
@@ -1909,7 +2005,7 @@ void output::compute_error(int in_file_num)
     for (int j = 0; j < n_fields; j++)
     {
       write_error << scientific << error(0, j);
-      if ((j == (n_fields - 1)) && FlowSol->viscous == 0)
+      if ((j == (n_fields - 1)) && run_input.viscous == 0)
       {
         write_error << endl;
       }
@@ -1919,7 +2015,7 @@ void output::compute_error(int in_file_num)
       }
     }
 
-    if (FlowSol->viscous)
+    if (run_input.viscous)
     {
       for (int j = 0; j < n_fields; j++)
       {
@@ -2299,7 +2395,7 @@ void output::CopyGPUCPU(void)
     if (FlowSol->mesh_eles(i)->get_n_eles()!=0)
     {
       FlowSol->mesh_eles(i)->cp_disu_upts_gpu_cpu();
-      if (FlowSol->viscous==1)
+      if (run_input.viscous==1)
       {
         FlowSol->mesh_eles(i)->cp_grad_disu_upts_gpu_cpu();
       }
