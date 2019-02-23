@@ -2812,20 +2812,8 @@ hf_array <double> mult_arrays(hf_array <double>& M1, hf_array <double>& M2)
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
 
           cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,dim_1_0,dim_2_1,dim_1_1,1.0,M1.get_ptr_cpu(),dim_1_0,M2.get_ptr_cpu(),dim_2_0,0.0,product.get_ptr_cpu(),dim_1_0);
-
-#elif defined _NO_BLAS
-            dgemm(dim_1_0,dim_2_1,dim_1_1,1.0,0.0,M1.get_ptr_cpu(),M2.get_ptr_cpu(),product.get_ptr_cpu());
 #else
-
-          for (int i=0;i<dim_1_0;++i) {
-              for (int j=0;j<dim_2_1;++j) {
-                  product(i,j) = 0.0;
-                  for (int k=0;k<dim_1_1;++k) {
-                      product(i,j) += M1(i,k)*M2(k,j);
-                    }
-                }
-            }
-
+            dgemm(dim_1_0,dim_2_1,dim_1_1,1.0,0.0,M1.get_ptr_cpu(),M2.get_ptr_cpu(),product.get_ptr_cpu());
 #endif
 
           return product;

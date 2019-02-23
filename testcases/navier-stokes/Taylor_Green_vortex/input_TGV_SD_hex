@@ -12,7 +12,7 @@ test_case  0        // 0: Normal (no analytical solution), 1:Isentropic Vortex, 
 order      1        // Order of basis polynomials
 dt_type    0        // 0: User-supplied, 1: Global, 2: Local
 dt         0.00001440389    
-n_steps    40000  //20t_c
+n_steps    100  //20t_c
 adv_type   3       // 0: Forward Euler,1:RK24,2:RK34,3: RK45,4: RK414
 tau        0.0
 pen_fact   0.5
@@ -34,8 +34,8 @@ wall_layer_thickness 3
 -----------------------
 Restart options
 -----------------------
-restart_flag      0
-
+restart_flag  0
+restart_iter 100
 -----------------------
 Mesh options
 -----------------------
@@ -47,13 +47,13 @@ dz_cyclic   6.2831853071795862
 -----------------------------------
 Monitoring, plotting parameters
 -----------------------------------
-p_res        2            // Plotting resolution, # of nodes per direction
+p_res        4            // Plotting resolution, # of nodes per direction
 write_type   0            // 0: Paraview, 1: Tecplot
 diagnostic_fields  4 vorticity q_criterion pressure mach
-monitor_res_freq   10
-plot_freq          10000
+monitor_res_freq   1
+plot_freq          100
 data_file_name     TGV_DG
-restart_dump_freq  40000
+restart_dump_freq  100
 res_norm_type      1              // 1:L1 norm, 2:L2 norm, 0:infinity norm <not implemented>
 error_norm_type    1              // 1:L1 norm, 2:L2 norm, 0:infinity norm <not implemented>
 res_norm_field     0              // Density

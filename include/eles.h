@@ -26,20 +26,14 @@
 #pragma once
 #if defined _ACCELERATE_BLAS
 #include <Accelerate/Accelerate.h>
-#endif
-
-#if defined _MKL_BLAS
+#elif defined _MKL_BLAS
 #include "mkl.h"
-#endif // _MKL_BLAS
-
-#if defined _STANDARD_BLAS
+#elif defined _STANDARD_BLAS
 extern "C"
 {
 #include "cblas.h"
 }
-#endif
-
-#ifdef _NO_BLAS
+#else
 #include <numeric>
 #endif
 
