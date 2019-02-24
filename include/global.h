@@ -1,13 +1,11 @@
 /*!
  * \file global.h
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
- *         - Current development: Aerospace Computing Laboratory (ACL)
+ * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
  *                                Aero/Astro Department. Stanford University.
- * \version 0.1.0
+ *         - Current development: Weiqi Shen
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
- * Copyright (C) 2014 Aerospace Computing Laboratory (ACL).
  *
  * HiFiLES is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,15 +23,21 @@
 
 #pragma once
 
+#ifdef _MPI
+#include "mpi.h"
+#endif
+#include "error.h"
+#include "hf_array.h"
 #include "input.h"
 #include "probe_input.h"
+#include "funcs.h"
+
 #define   MAX_PROCESSOR_AVAILABLE 5000
-/*! input 'run_input' has global scope */
+
 extern input run_input;
 extern probe_input run_probe;
 /*! double 'pi' has global scope */
 extern const double pi;
-
 //definitions
 #define MAX_V_PER_F 4
 #define MAX_F_PER_C 6

@@ -1,13 +1,11 @@
 /*!
  * \file hf_array.h
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
- *         - Current development: Aerospace Computing Laboratory (ACL)
+ * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
  *                                Aero/Astro Department. Stanford University.
- * \version 0.1.0
+ *         - Current development: Weiqi Shen
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
- * Copyright (C) 2014 Aerospace Computing Laboratory (ACL).
  *
  * HiFiLES is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -100,16 +98,18 @@ public:
   // return pointer
 
   T* get_ptr_cpu(void);
-  T* get_ptr_gpu(void);
-
+#ifdef _GPU
+  T *get_ptr_gpu(void);
+#endif
   // return pointer
 
   T *get_ptr_cpu(int in_pos_0);
   T *get_ptr_cpu(int in_pos_0, int in_pos_1);
   T *get_ptr_cpu(int in_pos_0, int in_pos_1, int in_pos_2);
   T *get_ptr_cpu(int in_pos_0, int in_pos_1, int in_pos_2, int in_pos_3);
+#ifdef _GPU
   T *get_ptr_gpu(int in_pos_0, int in_pos_1 = 0, int in_pos_2 = 0, int in_pos_3 = 0);
-
+#endif
   // return dimension
 
   int get_dim(int in_dim);
@@ -126,6 +126,7 @@ public:
 
   void print(void);
 
+#ifdef _GPU
   // move data from cpu to gpu
 
   void mv_cpu_gpu(void);
@@ -142,11 +143,10 @@ public:
 
   void cp_gpu_cpu(void);
 
-
   // remove data from cpu
 
   void rm_cpu(void);
-
+#endif
   /*! Initialize hf_array to zero - Valid for numeric data types (int, float, double) */
   void initialize_to_zero();
 
@@ -161,11 +161,12 @@ protected:
   int dim_3;
   
   T* cpu_data;
-  T* gpu_data;
-
   int cpu_flag;
-  int gpu_flag;
 
+#ifdef _GPU
+  T *gpu_data;
+  int gpu_flag;
+#endif
 };
 
 // definitions
@@ -189,7 +190,9 @@ hf_array<T>::hf_array()
   cpu_data = new T[dim_0*dim_1*dim_2*dim_3];
 
   cpu_flag=1;
-  gpu_flag=0;
+#ifdef _GPU
+  gpu_flag = 0;
+#endif
 }
 
 // constructor 1
@@ -206,7 +209,9 @@ hf_array<T>::hf_array(int in_dim_0, int in_dim_1, int in_dim_2, int in_dim_3)
 
 
   cpu_flag=1;
-  gpu_flag=0;
+#ifdef _GPU
+  gpu_flag = 0;
+#endif
 }
 
 // copy constructor
@@ -251,8 +256,9 @@ hf_array<T>& hf_array<T>::operator=(const hf_array<T>& in_array)
       copy(in_array.cpu_data, in_array.cpu_data + temp_size, this->cpu_data);
 
       cpu_flag=1;
-      gpu_flag=0;
-
+#ifdef _GPU
+      gpu_flag = 0;
+#endif
       return (*this);
     }
 }
@@ -263,7 +269,6 @@ template <typename T>
 hf_array<T>::~hf_array()
 {
   delete[] cpu_data;
-  // do we need to deallocate gpu memory here as well?
 }
 
 // #### methods ####
@@ -282,7 +287,9 @@ void hf_array<T>::setup(int in_dim_0, int in_dim_1, int in_dim_2, int in_dim_3)
 
   cpu_data=new T[dim_0*dim_1*dim_2*dim_3];
   cpu_flag=1;
-  gpu_flag=0;
+#ifdef _GPU
+  gpu_flag = 0;
+#endif
 }
 
 template <typename T>
@@ -325,7 +332,7 @@ T* hf_array<T>::get_ptr_cpu(void)
 
 
 // return pointer
-
+#ifdef _GPU
 template <typename T>
 T* hf_array<T>::get_ptr_gpu(void)
 {
@@ -337,7 +344,7 @@ T* hf_array<T>::get_ptr_gpu(void)
       FatalError("GPU hf_array does not exist");
     }
 }
-
+#endif
 
 
 // return pointer
@@ -367,7 +374,7 @@ T* hf_array<T>::get_ptr_cpu(int in_pos_0, int in_pos_1, int in_pos_2, int in_pos
     return cpu_data+in_pos_0+(dim_0*in_pos_1)+(dim_0*dim_1*in_pos_2)+(dim_0*dim_1*dim_2*in_pos_3); // column major with matrix indexing
 }
 
-
+#ifdef _GPU
 template <typename T>
 T* hf_array<T>::get_ptr_gpu(int in_pos_0, int in_pos_1, int in_pos_2, int in_pos_3)
 {
@@ -376,7 +383,7 @@ T* hf_array<T>::get_ptr_gpu(int in_pos_0, int in_pos_1, int in_pos_2, int in_pos
   else
     FatalError("GPU data does not exist, get ptr");
 }
-
+#endif
 
 // obtain dimension
 
@@ -474,14 +481,12 @@ void hf_array<T>::check_cuda_error(const char *message, const char *filename, co
       exit(-1);
     }
 }
-#endif
 
 // move data from cpu to gpu
 
 template <typename T>
 void hf_array<T>::mv_cpu_gpu(void)
 {
-#ifdef _GPU
 
   if (cpu_flag==0)
     FatalError("CPU data does not exist");
@@ -500,7 +505,6 @@ void hf_array<T>::mv_cpu_gpu(void)
 
   check_cuda_error("After Memcpy, asking for too much memory?",__FILE__,__LINE__);
 
-#endif
 }
 
 // move data from gpu to cpu
@@ -508,7 +512,6 @@ void hf_array<T>::mv_cpu_gpu(void)
 template <typename T>
 void hf_array<T>::mv_gpu_cpu(void)
 {
-#ifdef _GPU
 
   check_cuda_error("mv_gpu_cpu before",__FILE__, __LINE__);
   delete[] cpu_data;
@@ -522,7 +525,6 @@ void hf_array<T>::mv_gpu_cpu(void)
   gpu_flag=0;
 
   check_cuda_error("mv_gpu_cpu after",__FILE__, __LINE__);
-#endif
 }
 
 // copy data from gpu to cpu
@@ -530,7 +532,6 @@ void hf_array<T>::mv_gpu_cpu(void)
 template <typename T>
 void hf_array<T>::cp_gpu_cpu(void)
 {
-#ifdef _GPU
 
   //delete[] cpu_data;
   //cpu_data = new T[dim_0*dim_1*dim_2*dim_3];
@@ -548,7 +549,6 @@ void hf_array<T>::cp_gpu_cpu(void)
   cudaMemcpy(cpu_data,gpu_data,dim_0*dim_1*dim_2*dim_3*sizeof(T),cudaMemcpyDeviceToHost);
   check_cuda_error("cp_gpu_cpu after",__FILE__, __LINE__);
 
-#endif
 }
 
 // copy data from cpu to gpu
@@ -556,7 +556,6 @@ void hf_array<T>::cp_gpu_cpu(void)
 template <typename T>
 void hf_array<T>::cp_cpu_gpu(void)
 {
-#ifdef _GPU
 
   if (cpu_flag==0)
     FatalError("Cpu data does not exist");
@@ -570,8 +569,6 @@ void hf_array<T>::cp_cpu_gpu(void)
   cudaMemcpy(gpu_data,cpu_data,dim_0*dim_1*dim_2*dim_3*sizeof(T),cudaMemcpyHostToDevice);
 
   check_cuda_error("cp_cpu_gpu after",__FILE__, __LINE__);
-
-#endif
 }
 
 // remove data from cpu
@@ -579,7 +576,6 @@ void hf_array<T>::cp_cpu_gpu(void)
 template <typename T>
 void hf_array<T>::rm_cpu(void)
 {
-#ifdef _GPU
 
   check_cuda_error("rm_cpu before",__FILE__, __LINE__);
   delete[] cpu_data;
@@ -587,9 +583,8 @@ void hf_array<T>::rm_cpu(void)
 
   cpu_flag=0;
   check_cuda_error("rm_cpu after",__FILE__, __LINE__);
-
-#endif
 }
+#endif
 
 // Initialize values to zero (for numeric data types)
 template <typename T>

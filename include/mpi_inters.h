@@ -26,14 +26,7 @@
 #pragma once
 
 #include "inters.h"
-#include "hf_array.h"
 #include "solution.h"
-
-#ifdef _MPI
-#include "mpi.h"
-#endif
-
-struct solution; // forwards declaration
 
 class mpi_inters: public inters
 {

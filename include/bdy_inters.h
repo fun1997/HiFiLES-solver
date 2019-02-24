@@ -1,13 +1,11 @@
 /*!
  * \file bdy_inters.h
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
- *         - Current development: Aerospace Computing Laboratory (ACL)
+ * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
  *                                Aero/Astro Department. Stanford University.
- * \version 0.1.0
+ *         - Current development: Weiqi Shen
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
- * Copyright (C) 2014 Aerospace Computing Laboratory (ACL).
  *
  * HiFiLES is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,11 +24,7 @@
 #pragma once
 
 #include "inters.h"
-#include "bdy_inters.h"
-#include "hf_array.h"
 #include "solution.h"
-
-struct solution; // forwards declaration
 
 class bdy_inters: public inters
 {

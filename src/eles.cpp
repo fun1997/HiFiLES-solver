@@ -1,13 +1,11 @@
 /*!
  * \file eles.cpp
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
- *         - Current development: Aerospace Computing Laboratory (ACL)
+ * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
  *                                Aero/Astro Department. Stanford University.
- * \version 0.1.0
+ *         - Current development: Weiqi Shen
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
- * Copyright (C) 2014 Aerospace Computing Laboratory (ACL).
  *
  * HiFiLES is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,25 +25,16 @@
 #include <iomanip>
 #include <cmath>
 
-#ifdef _MPI
-#include "mpi.h"
-#include "metis.h"
-#include "parmetis.h"
-#endif
-
+#include "../include/global.h"
+#include "../include/eles.h"
 #if defined _GPU
 #include "cuda.h"
 #include "cuda_runtime_api.h"
 #include "cublas.h"
 #include "../include/cuda_kernels.h"
 #endif
-
-#include "../include/global.h"
-#include "../include/hf_array.h"
 #include "../include/flux.h"
 #include "../include/source.h"
-#include "../include/eles.h"
-#include "../include/funcs.h"
 
 using namespace std;
 
@@ -585,7 +574,9 @@ void eles::set_ics(double& time)
     {
         h_ref.setup(1);
     }
+#ifdef _GPU
     h_ref.cp_cpu_gpu();
+#endif
 }
 
 
@@ -802,7 +793,9 @@ void eles::read_restart_data_ascii(ifstream& restart_file)
     {
         h_ref.setup(1);
     }
+#ifdef _GPU
     h_ref.cp_cpu_gpu();
+#endif
 }
 
 #ifdef _HDF5
@@ -879,7 +872,9 @@ void eles::read_restart_data_hdf5(hid_t &restart_file)
         {
             h_ref.setup(1);
         }
-        h_ref.cp_cpu_gpu();
+#ifdef _GPU
+    h_ref.cp_cpu_gpu();
+#endif
     }
 #ifdef _MPI
     else//read empty
@@ -1771,19 +1766,14 @@ void eles::calculate_corrected_divergence(void)
         {
             if (std::isnan(div_tconf_upts(0)[ct]))
             {
-                int i, j, k;
-                j = ct % n_eles;
-                i = (ct / n_eles) % n_upts_per_ele;
-                k = ct / (n_eles * n_upts_per_ele);
-                printf("Residual is NaN at element No.%2d, field No.%2d, position: \n",j,k);
+                int i, j;
+                j = (ct / n_upts_per_ele) % n_fields; //eles
+                i = ct % n_upts_per_ele;              //upts
+                printf("Residual is NaN at non-dimensionalized position: \n");
                 for (int intd=0; intd<n_dims; intd++)
                     printf("%5.5f, ",pos_upts(i,j,intd));
                 printf("\n");
-#ifdef _MPI
-                cout<<"Rank: "<<rank<<" is failing,aborting..."<<endl;
-                MPI_Abort(MPI_COMM_WORLD,1);
-#endif // _MPI
-                FatalError("NaN in residual, exiting.");
+                FatalError("Aborting...");
             }
         }
 #endif
@@ -5219,7 +5209,7 @@ double* eles::get_loc_fpts_ptr_cpu(int in_inter_local_fpt, int in_ele_local_inte
 }
 
 // get a GPU pointer to the coordinates at a flux point
-
+#ifdef _GPU
 double* eles::get_loc_fpts_ptr_gpu(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele)
 {
     int i;
@@ -5235,7 +5225,7 @@ double* eles::get_loc_fpts_ptr_gpu(int in_inter_local_fpt, int in_ele_local_inte
 
     return pos_fpts.get_ptr_gpu(fpt,in_ele,in_dim);
 }
-
+#endif
 // get a pointer to delta of the transformed discontinuous solution at a flux point
 
 double* eles::get_delta_disu_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_field, int in_ele)

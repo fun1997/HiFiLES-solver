@@ -1,13 +1,11 @@
 /*!
  * \file input.cpp
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
- *         - Current development: Aerospace Computing Laboratory (ACL)
+ * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
  *                                Aero/Astro Department. Stanford University.
- * \version 0.1.0
+ *         - Current development: Weiqi Shen
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
- * Copyright (C) 2014 Aerospace Computing Laboratory (ACL).
  *
  * HiFiLES is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,9 +32,6 @@
 #include <map>
 
 #include "../include/global.h"
-#include "../include/input.h"
-#include "../include/hf_array.h"
-#include "../include/funcs.h"
 #include "../include/param_reader.h"
 
 using namespace std;
@@ -191,7 +186,7 @@ void input::read_input_file(string fileName, int rank)
     opts.getScalarValue("T_gas", T_gas, 291.15);
     opts.getScalarValue("R_gas", R_gas, 286.9);
     opts.getScalarValue("mu_gas", mu_gas, 1.827E-5);
-    opts.getScalarValue("fix_vis", fix_vis, 1.);
+    opts.getScalarValue("fix_vis", fix_vis, 1);
 
     //free_stream values are used for reference values
     opts.getScalarValue("Mach_free_stream", Mach_free_stream, 1.);

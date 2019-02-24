@@ -1,10 +1,9 @@
 /*!
  * \file probe_input.h
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
+ * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
+ *                                Aero/Astro Department. Stanford University.
  *         - Current development: Weiqi Shen
-                                  University of Florida
- * \version 0.1.0
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
  *
@@ -26,10 +25,9 @@
 #include <fstream>
 #include <vector>
 #include <map>
+#include "error.h"
 #include "hf_array.h"
-#include "param_reader.h"
 #include "solution.h"
-#include "funcs.h"
 
 class probe_input
 {

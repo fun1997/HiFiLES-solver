@@ -1,10 +1,9 @@
 /*!
  * \file probe_input.cpp
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
-  *         - Current development: Weiqi Shen
-                                  University of Florida
- * \version 0.1.0
+ * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
+ *                                Aero/Astro Department. Stanford University.
+ *         - Current development: Weiqi Shen
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
  *
@@ -21,11 +20,6 @@
  * You should have received a copy of the GNU General Public License
  * along with HiFiLES.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "../include/probe_input.h"
-#include "../include/hf_array.h"
-#include "../include/global.h"
-#include "../include/mesh.h"
-#include "../include/mesh_reader.h"
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
@@ -35,6 +29,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "../include/global.h"
+#include "../include/mesh.h"
+#include "../include/mesh_reader.h"
+#include "../include/param_reader.h"
 
 using namespace std;
 probe_input::probe_input()

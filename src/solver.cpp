@@ -1,13 +1,11 @@
 /*!
  * \file solver.cpp
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
- *         - Current development: Aerospace Computing Laboratory (ACL)
+ * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
  *                                Aero/Astro Department. Stanford University.
- * \version 0.1.0
+ *         - Current development: Weiqi Shen
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
- * Copyright (C) 2014 Aerospace Computing Laboratory (ACL).
  *
  * HiFiLES is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,22 +25,18 @@
 #include <sstream>
 #include <cmath>
 
-#include "../include/global.h"
-#include "../include/hf_array.h"
-#include "../include/input.h"
-#include "../include/geometry.h"
 #include "../include/solver.h"
-#include "../include/output.h"
-#include "../include/funcs.h"
-#include "../include/error.h"
-#include "../include/solution.h"
+#include "../include/eles_tris.h"
+#include "../include/eles_quads.h"
+#include "../include/eles_hexas.h"
+#include "../include/eles_tets.h"
+#include "../include/eles_pris.h"
+#include "../include/int_inters.h"
+#include "../include/bdy_inters.h"
 
 #ifdef _MPI
-#include "mpi.h"
-#include "metis.h"
-#include "parmetis.h"
+#include "../include/mpi_inters.h"
 #endif
-
 #ifdef _HDF5
 #include "hdf5.h"
 #endif
@@ -264,12 +258,12 @@ double* get_loc_fpts_ptr_cpu(int in_ele_type, int in_ele, int in_local_inter, in
 }
 
 // get GPU pointer to the coordinates at a flux point
-
+#ifdef _GPU
 double* get_loc_fpts_ptr_gpu(int in_ele_type, int in_ele, int in_local_inter, int in_fpt, int in_dim, struct solution* FlowSol)
 {
   return FlowSol->mesh_eles(in_ele_type)->get_loc_fpts_ptr_gpu(in_fpt,in_local_inter,in_dim,in_ele);
 }
-
+#endif
 // get pointer to delta of the transformed discontinuous solution at a flux point
 
 double* get_delta_disu_fpts_ptr(int in_ele_type, int in_ele, int in_field, int in_local_inter, int in_fpt, struct solution* FlowSol)
@@ -326,6 +320,10 @@ void InitSolution(struct solution* FlowSol)
       FatalError("HiFiLES need to be compiled with HDF5 to read hdf5 format restart file");
 #endif
     }
+
+//patch solution after flow field initialized
+  if(run_input.patch)
+      patch_solution(FlowSol);
 
 #ifdef _MPI
     MPI_Barrier(MPI_COMM_WORLD);

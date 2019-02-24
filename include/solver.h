@@ -1,13 +1,11 @@
 /*!
  * \file solver.h
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
- *         - Current development: Aerospace Computing Laboratory (ACL)
+ * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
  *                                Aero/Astro Department. Stanford University.
- * \version 0.1.0
+ *         - Current development: Weiqi Shen
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
- * Copyright (C) 2014 Aerospace Computing Laboratory (ACL).
  *
  * HiFiLES is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,23 +23,9 @@
 
 #pragma once
 
-#include "hf_array.h"
 #include <string>
-#include "input.h"
-#include "eles.h"
-#include "eles_tris.h"
-#include "eles_quads.h"
-#include "eles_hexas.h"
-#include "eles_tets.h"
-#include "eles_pris.h"
-#include "int_inters.h"
-#include "bdy_inters.h"
+#include "global.h"
 #include "solution.h"
-
-#ifdef _MPI
-#include "mpi.h"
-#include "mpi_inters.h"
-#endif
 
 /*!
  * \brief Calculate the residual.
@@ -70,8 +54,10 @@ double* get_norm_fpts_ptr(int in_ele_type, int in_ele, int in_local_inter, int i
 /*! get CPU pointer to coordinates at a flux point */
 double* get_loc_fpts_ptr_cpu(int in_ele_type, int in_ele, int in_local_inter, int in_fpt, int in_dim, struct solution* FlowSol);
 
+#ifdef _GPU
 /*! get GPU pointer to coordinates at a flux point */
 double* get_loc_fpts_ptr_gpu(int in_ele_type, int in_ele, int in_local_inter, int in_fpt, int in_dim, struct solution* FlowSol);
+#endif
 
 /*! get pointer to delta of the transformed discontinuous solution at a flux point */
 double* get_delta_disu_fpts_ptr(int in_ele_type, int in_ele, int in_field, int n_local_inter, int in_fpt, struct solution* FlowSol);

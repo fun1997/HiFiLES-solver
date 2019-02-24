@@ -1,13 +1,11 @@
 /*!
  * \file HiFiLES.cpp
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
- *         - Current development: Aerospace Computing Laboratory (ACL)
+ * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
  *                                Aero/Astro Department. Stanford University.
- * \version 0.1.0
+ *         - Current development: Weiqi Shen
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
- * Copyright (C) 2014 Aerospace Computing Laboratory (ACL).
  *
  * HiFiLES is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,18 +25,11 @@
 #include <fstream>
 
 #include "../include/global.h"
-#include "../include/hf_array.h"
-#include "../include/funcs.h"
-#include "../include/flux.h"
 #include "../include/geometry.h"
 #include "../include/solver.h"
 #include "../include/output.h"
 #include "../include/solution.h"
 #include "../include/mesh.h"
-
-#ifdef _MPI
-#include "mpi.h"
-#endif
 
 #ifdef _GPU
 #include "util.h"
@@ -69,13 +60,22 @@ int main(int argc, char *argv[]) {
   if (argc < 2)
   {
     if (rank == 0)
-      cout << "ERROR: No input file specified ... " << endl;
+      cout << "No input file specified. For help use -h or --help " << endl;
+#ifdef _MPI
+    MPI_Finalize();
+#endif
     return (0);
   }
   else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "-help"))
   {
     if (rank == 0)
-      cout << "For help, go to https://github.com/weiqishen/HiFiLES-solver/wiki" << endl;
+    {
+      cout << "To run, use HiFiLES <input_file>" << endl;
+      cout << " For more details, go to https://github.com/weiqishen/HiFiLES-solver/wiki" << endl;
+    }
+#ifdef _MPI
+    MPI_Finalize();
+#endif
     return (0);
   }
 
@@ -114,9 +114,6 @@ int main(int argc, char *argv[]) {
   /*! Initialize solution and patch solution if needed */
 
   InitSolution(&FlowSol);
-
-  if(run_input.patch)
-      patch_solution(&FlowSol);
 
   /*! Read the probe file if needed and store the information in run_probe. */
 
@@ -230,7 +227,8 @@ int main(int argc, char *argv[]) {
     /*! Compute time-averaged quantities. */
     if ( i_steps==1)//set start time for averaging
         run_input.spinup_time=FlowSol.time;
-    run_output.CalcTimeAverageQuantities();
+    if(run_input.n_average_fields)
+      run_output.CalcTimeAverageQuantities();
 
     if (i_steps == 1 || i_steps % run_input.monitor_res_freq == 0)
     {
@@ -315,5 +313,5 @@ int main(int argc, char *argv[]) {
 #ifdef _MPI
   MPI_Finalize();
 #endif
-
+return 0;
 }

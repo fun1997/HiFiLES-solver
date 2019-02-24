@@ -1,13 +1,11 @@
 /*!
  * \file eles.h
- * \author - Original code: SD++ developed by Patrice Castonguay, Antony Jameson,
- *                          Peter Vincent, David Williams (alphabetical by surname).
- *         - Current development: Aerospace Computing Laboratory (ACL)
+  * \author - Original code: HiFiLES Aerospace Computing Laboratory (ACL)
  *                                Aero/Astro Department. Stanford University.
- * \version 0.1.0
+ *         - Current development: Weiqi Shen
+ *                                University of Florida
  *
  * High Fidelity Large Eddy Simulation (HiFiLES) Code.
- * Copyright (C) 2014 Aerospace Computing Laboratory (ACL).
  *
  * HiFiLES is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +22,8 @@
  */
 
 #pragma once
+
+#include "global.h"
 #if defined _ACCELERATE_BLAS
 #include <Accelerate/Accelerate.h>
 #elif defined _MKL_BLAS
@@ -40,9 +40,6 @@ extern "C"
 #ifdef _HDF5
 #include "hdf5.h"
 #endif
-
-#include "hf_array.h"
-#include "input.h"
 
 #if defined _GPU
 #include "cuda_runtime_api.h"
@@ -191,8 +188,10 @@ public:
   /*! get a CPU pointer to the coordinates at a flux point */
   double* get_loc_fpts_ptr_cpu(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele);
 
+#ifdef _GPU
   /*! get a GPU pointer to the coordinates at a flux point */
   double* get_loc_fpts_ptr_gpu(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele);
+#endif
 
   /*! get a pointer to delta of the transformed discontinuous solution at a flux point */
   double* get_delta_disu_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_field, int in_ele);
