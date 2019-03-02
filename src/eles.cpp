@@ -1763,7 +1763,7 @@ void eles::calculate_corrected_divergence(void)
             if (std::isnan(div_tconf_upts(0)[ct]))
             {
                 int i, j;
-                j = (ct / n_upts_per_ele) % n_fields; //eles
+                j = (ct / n_upts_per_ele) % n_eles; //eles
                 i = ct % n_upts_per_ele;              //upts
                 printf("Residual is NaN at non-dimensionalized position: \n");
                 for (int intd=0; intd<n_dims; intd++)
