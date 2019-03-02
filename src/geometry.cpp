@@ -444,7 +444,6 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
 
       if (found == 0) // Corresponding cyclic edges belongs to another processsor or doesn't exist
       {
-        mesh_data.f2c(i1, 1) = -1;
         mesh_data.bc_id(mesh_data.f2c(i1, 0), mesh_data.f2loc_f(i1, 0)) = -1; //set to be mpi_interface
       }
     }
@@ -457,35 +456,35 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
   //  Initialize MPI faces
   //  --------------------------------
 
-  int max_mpi_inters = mesh_data.n_unmatched_inters-2*n_cyc_loc; //place holder for face arrays
+  int max_mpi_inters = mesh_data.n_unmatched_inters - 2 * n_cyc_loc; //place holder for face arrays
   hf_array<int> f_mpi2f(max_mpi_inters);
   FlowSol->n_mpi_inters = 0;
   int n_seg_mpi_inters = 0;
   int n_tri_mpi_inters = 0;
   int n_quad_mpi_inters = 0;
 
-  for (int i = 0; i < mesh_data.num_inters; i++)
+  for (int i = 0; i < mesh_data.n_unmatched_inters; i++)
   {
-    bcid_f = mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0));
-    ic_r = mesh_data.f2c(i, 1);
+    int i1 = mesh_data.unmatched_inters(i);//index of interface
+    bcid_f = mesh_data.bc_id(mesh_data.f2c(i1, 0), mesh_data.f2loc_f(i1, 0));
+    ic_r = mesh_data.f2c(i1, 1);
     if (ic_r == -1 && bcid_f == -1)
     { // if mpi_interface or mpi cyclic setting
       if (FlowSol->nproc == 1)
       {
-        cout << "ic=" << mesh_data.f2c(i, 0) << endl;
-        cout << "local_face=" << mesh_data.f2loc_f(i, 0) << endl;
+        cout << "ic=" << mesh_data.f2c(i1, 0) << endl;
+        cout << "local_face=" << mesh_data.f2loc_f(i1, 0) << endl;
         FatalError("Can't find coupled cyclic interface");
       }
 
-      mesh_data.bc_id(mesh_data.f2c(i, 0), mesh_data.f2loc_f(i, 0)) = -2; // flag as mpi_interface or mpi_cyclic
-      f_mpi2f(FlowSol->n_mpi_inters) = i;//set local mpiface to local face index
-      FlowSol->n_mpi_inters++;
+      mesh_data.bc_id(mesh_data.f2c(i1, 0), mesh_data.f2loc_f(i1, 0)) = -2; // flag as mpi_interface or mpi_cyclic
+      f_mpi2f(FlowSol->n_mpi_inters++) = i1;                               //set local mpiface to local face index
 
-      if (mesh_data.f2nv(i) == 2)
+      if (mesh_data.f2nv(i1) == 2)
         n_seg_mpi_inters++;
-      if (mesh_data.f2nv(i) == 3)
+      else if (mesh_data.f2nv(i1) == 3)
         n_tri_mpi_inters++;
-      if (mesh_data.f2nv(i) == 4)
+      else if (mesh_data.f2nv(i1) == 4)
         n_quad_mpi_inters++;
     }
   }
@@ -875,18 +874,18 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
     //seg
     temp_ptr = kstart_seg(FlowSol->rank) * n_fpts_per_inter_seg * FlowSol->n_dims;
     temp_blk_siz = n_seg_noslip_inters * n_fpts_per_inter_seg * FlowSol->n_dims;
-    for (int i = 0; i < temp_blk_siz; i++)
-      loc_noslip_bdy_global(0)(i + temp_ptr) = loc_noslip_bdy(0)(i);
+    copy(loc_noslip_bdy(0).get_ptr_cpu(), loc_noslip_bdy(0).get_ptr_cpu(temp_blk_siz),
+         loc_noslip_bdy_global(0).get_ptr_cpu(temp_ptr));
     //tri
     temp_ptr = kstart_tri(FlowSol->rank) * n_fpts_per_inter_tri * FlowSol->n_dims;
     temp_blk_siz = n_tri_noslip_inters * n_fpts_per_inter_tri * FlowSol->n_dims;
-    for (int i = 0; i < temp_blk_siz; i++)
-      loc_noslip_bdy_global(1)(i + temp_ptr) = loc_noslip_bdy(1)(i);
+    copy(loc_noslip_bdy(1).get_ptr_cpu(), loc_noslip_bdy(1).get_ptr_cpu(temp_blk_siz),
+         loc_noslip_bdy_global(1).get_ptr_cpu(temp_ptr));
     //quad
     temp_ptr = kstart_quad(FlowSol->rank) * n_fpts_per_inter_quad * FlowSol->n_dims;
     temp_blk_siz = n_quad_noslip_inters * n_fpts_per_inter_quad * FlowSol->n_dims;
-    for (int i = 0; i < temp_blk_siz; i++)
-      loc_noslip_bdy_global(2)(i + temp_ptr) = loc_noslip_bdy(2)(i);
+    copy(loc_noslip_bdy(2).get_ptr_cpu(), loc_noslip_bdy(2).get_ptr_cpu(temp_blk_siz),
+         loc_noslip_bdy_global(2).get_ptr_cpu(temp_ptr));
     // Broadcast coordinates of interface points to all partitions
     for (int np = 0; np < FlowSol->nproc; np++)
     {
@@ -1147,7 +1146,6 @@ bool check_cyclic(hf_array<double> &delta_cyclic, hf_array<double> &loc_center_i
 void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<double> &in_xv, hf_array<int> &inout_f_mpi2f, hf_array<int> &out_mpifaces_part, hf_array<double> &delta_cyclic, int n_mpi_faces, double tol, struct solution *FlowSol)
 {
 
-  int iglob;
   int icount;
 
   hf_array<int> matched(n_mpi_faces);
@@ -1156,28 +1154,23 @@ void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<doub
   old_f_mpi2f = inout_f_mpi2f;
 
   hf_array<double> delta_zero(FlowSol->n_dims);
-  for (int m = 0; m < FlowSol->n_dims; m++)
-    delta_zero(m) = 0.;
+  delta_zero.initialize_to_zero();
 
   // Calculate the centroid of each face
   hf_array<double> loc_center_inter(FlowSol->n_dims, n_mpi_faces);
+  loc_center_inter.initialize_to_zero();
 
   for (int i = 0; i < n_mpi_faces; i++)
   {
-    for (int m = 0; m < FlowSol->n_dims; m++)
-      loc_center_inter(m, i) = 0.;
-
-    iglob = old_f_mpi2f(i); //old index
-    for (int k = 0; k < in_f2nv(iglob); k++)
-      for (int m = 0; m < FlowSol->n_dims; m++)
-        loc_center_inter(m, i) += in_xv(in_f2v(iglob, k), m) / (double)in_f2nv(iglob);
+    for (int m = 0; m < FlowSol->n_dims; m++)           //for each dimension
+      for (int k = 0; k < in_f2nv(old_f_mpi2f(i)); k++) //for each vertex on the interface
+        loc_center_inter(m, i) += in_xv(in_f2v(old_f_mpi2f(i), k), m) / (double)in_f2nv(old_f_mpi2f(i));
   }
 
-  // Initialize hf_array matched with 0
-  for (int i = 0; i < n_mpi_faces; i++)
-    matched(i) = 0;
+  // Initialize matched with 0
+  matched.initialize_to_zero();
 
-  //Initialize hf_array mpifaces_part to 0
+  //local number of mpi interface send to each processor
   out_mpifaces_part.initialize_to_zero();
 
   // Exchange the number of mpi_faces to receive
@@ -1185,24 +1178,24 @@ void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<doub
   hf_array<int> mpifaces_from(FlowSol->nproc); //number of mpi interface on each processor
   MPI_Allgather(&n_mpi_faces, 1, MPI_INT, mpifaces_from.get_ptr_cpu(), 1, MPI_INT, MPI_COMM_WORLD);
 
-  // Allocate the xyz_cent with the max_mpi_faces size;
-  hf_array<double> in_loc_center_inter;
+  hf_array<double> in_loc_center_inter;//interface centeriod location buffer
   hf_array<double> loc_center_1(FlowSol->n_dims);
   hf_array<double> loc_center_2(FlowSol->n_dims);
 
   // Begin the exchange
   icount = 0;
-  for (int p = 0; p < FlowSol->nproc; p++)
+  for (int p = 0; p < FlowSol->nproc; p++)//index of processor to send data
   {
     if (p == FlowSol->rank) // Send data
     {
-      in_loc_center_inter = loc_center_inter; //load data need to send to other processors
+      in_loc_center_inter = loc_center_inter; //load data to buffer
     }
     else
-      in_loc_center_inter.setup(FlowSol->n_dims, mpifaces_from(p));                                                  //prepare receive buffer
+      in_loc_center_inter.setup(FlowSol->n_dims, mpifaces_from(p));//allocate space to buffer                                                  //prepare receive buffer
     MPI_Bcast(in_loc_center_inter.get_ptr_cpu(), FlowSol->n_dims * mpifaces_from(p), MPI_DOUBLE, p, MPI_COMM_WORLD); //broadcast to other processors or receive broadcast from p
 
-    if (p < FlowSol->rank) //if p < FlowSol->rank
+ //make sure f_mpi2f have same order across processors
+    if (p < FlowSol->rank)
     {
       // Loop over local mpi_edges
       for (int iloc = 0; iloc < n_mpi_faces; iloc++)
@@ -1222,8 +1215,7 @@ void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<doub
             {
               matched(iloc) = 1;
               out_mpifaces_part(p)++;
-              inout_f_mpi2f(icount) = old_f_mpi2f(iloc);
-              ; //old local prime, processor minor
+              inout_f_mpi2f(icount) = old_f_mpi2f(iloc); //old local prime, processor minor
               icount++;
               break;
             }
@@ -1231,7 +1223,7 @@ void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<doub
         }
       }
     }
-    else if (p > FlowSol->rank) // if p > FlowSol->rank
+    else if (p > FlowSol->rank) 
     {
       // Loop over remote edges
       for (int irem = 0; irem < mpifaces_from(p); irem++)
@@ -1266,9 +1258,8 @@ void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<doub
   {
     if (!matched(i))
     {
-      cout << "Some mpi_faces were not matched!!! could try changing tol, exiting!" << endl;
       cout << "rank=" << FlowSol->rank << "i=" << i << endl;
-      exit(1);
+      FatalError("Some mpi_faces were not matched!!! could try changing tol, exiting!");
     }
   }
 }
@@ -1276,7 +1267,7 @@ void match_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<doub
 void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<double> &in_xv, hf_array<int> &in_f_mpi2f, hf_array<int> &out_rot_tag_mpi, hf_array<int> &mpifaces_part, hf_array<double> delta_cyclic, int n_mpi_faces, double tol, struct solution *FlowSol)
 {
 
-  int Nout, iglob;
+  int Nout;
   int n_vert_out;
   int count1, count2, count3;
   int rtag;
@@ -1289,15 +1280,14 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
       request_count++;
   }
 
-  MPI_Request *mpi_in_requests = (MPI_Request *)malloc(request_count * sizeof(MPI_Request));
-  MPI_Request *mpi_out_requests = (MPI_Request *)malloc(request_count * sizeof(MPI_Request));
+  hf_array<MPI_Request> mpi_in_requests(request_count);
+  hf_array<MPI_Request> mpi_out_requests(request_count);
 
   // Count total number of vertices to send
   n_vert_out = 0;
   for (int i_mpi = 0; i_mpi < n_mpi_faces; i_mpi++)
   {
-    iglob = in_f_mpi2f(i_mpi);
-    n_vert_out += in_f2nv(iglob);
+    n_vert_out += in_f2nv(in_f_mpi2f(i_mpi));
   }
   //create an hf_array contain all vertex on local mpi interface
   hf_array<double> xyz_vert_out(FlowSol->n_dims, n_vert_out);
@@ -1306,7 +1296,7 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
   int Nmess = 0; //number of message to wait
   int sk = 0;    //start index for each message
 
-  count2 = 0;        //start index of interface on each processor
+  count2 = 0;        //start index of interface send to this processor
   count3 = 0;        //index of vertex in sending buffer
   request_count = 0; //request counter
 
@@ -1316,14 +1306,13 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
     for (int i = 0; i < mpifaces_part(p); i++) //for each interface send to/receive from p
     {
       int i_mpi = count2 + i;
-      iglob = in_f_mpi2f(i_mpi);
-      for (int k = 0; k < in_f2nv(iglob); k++) //for each vertex on that interface
+      for (int k = 0; k < in_f2nv(in_f_mpi2f(i_mpi)); k++) //for each vertex on that interface
       {
         for (int m = 0; m < FlowSol->n_dims; m++)
-          xyz_vert_out(m, count3) = in_xv(in_f2v(iglob, k), m); //copy to sending buffer
+          xyz_vert_out(m, count3) = in_xv(in_f2v(in_f_mpi2f(i_mpi), k), m); //copy to sending buffer
         count3++;
       }
-      count1 += in_f2nv(iglob);
+      count1 += in_f2nv(in_f_mpi2f(i_mpi));
     }
 
     Nout = count1;
@@ -1331,18 +1320,16 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
 
     if (Nout) //if have common interface with p
     {
-      MPI_Isend(xyz_vert_out.get_ptr_cpu(0, sk), Nout * FlowSol->n_dims, MPI_DOUBLE, p, p, MPI_COMM_WORLD, &mpi_out_requests[request_count]);           //from me to p tag p
-      MPI_Irecv(xyz_vert_in.get_ptr_cpu(0, sk), Nout * FlowSol->n_dims, MPI_DOUBLE, p, FlowSol->rank, MPI_COMM_WORLD, &mpi_in_requests[request_count]); //from p to me tag me
+      MPI_Isend(xyz_vert_out.get_ptr_cpu(0, sk), Nout * FlowSol->n_dims, MPI_DOUBLE, p, p, MPI_COMM_WORLD, mpi_out_requests.get_ptr_cpu(request_count));           //from me to p tag p
+      MPI_Irecv(xyz_vert_in.get_ptr_cpu(0, sk), Nout * FlowSol->n_dims, MPI_DOUBLE, p, FlowSol->rank, MPI_COMM_WORLD, mpi_in_requests.get_ptr_cpu(request_count)); //from p to me tag me
       sk += Nout;
       Nmess++;
       request_count++;
     }
   }
 
-  MPI_Waitall(Nmess, mpi_in_requests, MPI_STATUSES_IGNORE);
-  MPI_Waitall(Nmess, mpi_out_requests, MPI_STATUSES_IGNORE);
-
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Waitall(Nmess, mpi_in_requests.get_ptr_cpu(), MPI_STATUSES_IGNORE);
+  MPI_Waitall(Nmess, mpi_out_requests.get_ptr_cpu(), MPI_STATUSES_IGNORE);
 
   hf_array<double> loc_vert_0(MAX_V_PER_F, FlowSol->n_dims);
   hf_array<double> loc_vert_1(MAX_V_PER_F, FlowSol->n_dims);
@@ -1350,8 +1337,7 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
   count1 = 0;
   for (int i_mpi = 0; i_mpi < n_mpi_faces; i_mpi++) //for each local mpi interface
   {
-    iglob = in_f_mpi2f(i_mpi);
-    for (int k = 0; k < in_f2nv(iglob); k++) //for each vertex of that interface
+    for (int k = 0; k < in_f2nv(in_f_mpi2f(i_mpi)); k++) //for each vertex of that interface
     {
       for (int m = 0; m < FlowSol->n_dims; m++) //compare vertex from received and local
       {
@@ -1361,11 +1347,9 @@ void find_rot_mpifaces(hf_array<int> &in_f2v, hf_array<int> &in_f2nv, hf_array<d
       count1++;
     }
 
-    compare_mpi_faces(loc_vert_0, loc_vert_1, in_f2nv(iglob), rtag, delta_cyclic, tol, FlowSol);
+    compare_mpi_faces(loc_vert_0, loc_vert_1, in_f2nv(in_f_mpi2f(i_mpi)), rtag, delta_cyclic, tol, FlowSol);
     out_rot_tag_mpi(i_mpi) = rtag;
   }
-  free(mpi_in_requests);
-  free(mpi_out_requests);
 }
 
 // method to compare two faces and check if they match

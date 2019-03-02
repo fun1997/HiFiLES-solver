@@ -714,110 +714,6 @@ void compute_modal_filter_1d(hf_array <double>& filter_upts, hf_array<double>& v
 	#endif
 }
 
-// Compute a modal filter matrix for a triangular element, given Vandermonde matrix and inverse
-void compute_modal_filter_tri(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order)
-{
-	int i,j,ind=0;
-	double Cp=0.1;     // Dubiner SVV filter strength coeff.
-	double p=order;    // filter exponent
-	double alpha, eta;
-	hf_array <double> modal(N,N), mtemp(N,N);
-
-	modal.initialize_to_zero();
-	filter_upts.initialize_to_zero();
-
-  // Exponential filter (SVV method) (similar to Meister et al 2009)
-
-  // Full form: alpha = Cp*(p+1)*dt/delta
-  /*alpha = Cp*p;
-
-  for(i=0;i<p+1;i++) {
-    for(j=0;j<p-i+1;j++) {
-      eta = (i+j)/(p+1.0);
-      modal(ind,ind) = exp(-alpha*pow(eta,2*p));
-      ind++;
-    }
-  }*/
-
-  // Gaussian filter in modal space (from SD3D)
-  for(i=0;i<N;i++) {
-    eta = i/double(N);
-    modal(i,i) = exp(-pow(2.0*eta,2.0)/48.0);
-  }
-
-  // Sharp modal cutoff filter
-  //modal(N-1,N-1)=0.0;
-
-	//cout<<"modal coeffs:"<<endl;
-	//modal.print();
-
-	#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-
-	cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,N,N,N,1.0,vandermonde.get_ptr_cpu(),N,modal.get_ptr_cpu(),N,0.0,mtemp.get_ptr_cpu(),N);
-
-	cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,N,N,N,1.0,mtemp.get_ptr_cpu(),N,inv_vandermonde.get_ptr_cpu(),N,0.0,filter_upts.get_ptr_cpu(),N);
-
-	#else // inefficient matrix multiplication
-
-	mtemp = mult_arrays(vandermonde,modal);
-	filter_upts = mult_arrays(mtemp,inv_vandermonde);
-
-	#endif
-}
-
-// Compute a modal filter matrix for a tetrahedral element, given Vandermonde matrix and inverse
-void compute_modal_filter_tet(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order)
-{
-	int i,j,k,ind=0;
-	double Cp=0.1;     // Dubiner SVV filter strength coeff.
-	double p=order;    // filter exponent
-	double alpha, eta;
-	hf_array <double> modal(N,N), mtemp(N,N);
-
-	modal.initialize_to_zero();
-	filter_upts.initialize_to_zero();
-
-  // Exponential filter (SVV method) (similar to Meister et al 2009)
-
-  // Full form: alpha = Cp*(p+1)*dt/delta
-  /*alpha = Cp*p;
-
-  for(i=0;i<p+1;i++) {
-    for(j=0;j<p-i+1;j++) {
-      for(k=0;k<p-i-j+1;k++) {
-        eta = (i+j+k)/(p+1.0);
-        modal(ind,ind) = exp(-alpha*pow(eta,2*p));
-        ind++;
-      }
-    }
-  }*/
-
-  // Gaussian filter in modal space (from SD3D)
-  for(i=0;i<N;i++) {
-    eta = i/double(N);
-    modal(i,i) = exp(-pow(2.0*eta,2.0)/48.0);
-  }
-
-  // Sharp modal cutoff filter
-  //modal(N-1,N-1)=0.0;
-
-  //cout<<"modal coeffs:"<<endl;
-  //modal.print();
-
-  #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-
-  cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,N,N,N,1.0,vandermonde.get_ptr_cpu(),N,modal.get_ptr_cpu(),N,0.0,mtemp.get_ptr_cpu(),N);
-
-  cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,N,N,N,1.0,mtemp.get_ptr_cpu(),N,inv_vandermonde.get_ptr_cpu(),N,0.0,filter_upts.get_ptr_cpu(),N);
-
-  #else // inefficient matrix multiplication
-
-  mtemp = mult_arrays(vandermonde,modal);
-  filter_upts = mult_arrays(mtemp,inv_vandermonde);
-
-  #endif
-}
-
 void compute_filt_matrix_tri(hf_array<double>& Filt, hf_array<double>& vandermonde_tri, hf_array<double>& inv_vandermonde_tri, int n_upts_tri, int order, double c_tri, int vcjh_scheme_tri, hf_array<double>& loc_upts_tri)
 {
 
@@ -2031,6 +1927,7 @@ void eval_couette_flow(hf_array<double>& pos, double in_gamma, double in_R_ref, 
 // TODO: allow mixed terms e.g. xy, yz^2
 void eval_poly_ic(hf_array<double>& pos, double rho, hf_array<double>& ics, int n_dims)
 {
+  FatalError("Function deprecated!");
   // HACK: do not use profile outside the vertical bounds of the inlet in periodic hill case
   if(pos(1)<1.0)
     {

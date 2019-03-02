@@ -211,6 +211,13 @@ void output::write_tec(int in_file_num)
         if (stat(dumpnum_s, &st) == -1) {
             mkdir(dumpnum_s, 0755);
           }
+          else
+          {
+            //Delete old .plt files from directory
+            char str[256];
+            strcpy (str,dumpnum_s);
+            remove(strcat(str,"/*.plt"));
+          }
       }
   }
   else
@@ -267,22 +274,15 @@ void output::write_tec(int in_file_num)
   // append the names of the time-average diagnostic fields
   if(n_average_fields>0)
     {
-      fields += ", ";
-
       for(m=0;m<n_average_fields;m++)
-        fields += "\"" + run_input.average_fields(m) + "\", ";
-
+              fields += ", \"" + run_input.average_fields(m) +"\"";
     }
 
   // append the names of the diagnostic fields
   if(n_diag_fields>0)
     {
-      fields += ", ";
-
-      for(m=0;m<n_diag_fields-1;m++)
-        fields += "\"" + run_input.diagnostic_fields(m) + "\", ";
-
-      fields += "\"" + run_input.diagnostic_fields(n_diag_fields-1) + "\"";
+      for(m=0;m<n_diag_fields;m++)
+        fields += ", \"" + run_input.diagnostic_fields(m) + "\"";
     }
 
   // write field names to file
@@ -439,13 +439,7 @@ void output::write_tec(int in_file_num)
 
   write_tec.close();
 
-#ifdef _MPI
-  MPI_Barrier(MPI_COMM_WORLD);
   if (FlowSol->rank==0) cout << "done." << endl;
-#else
-  cout << "done." << endl;
-#endif
-
 }
 
 /*! Method to write out a Paraview .vtu file.
@@ -480,8 +474,6 @@ void output::write_vtu(int in_file_num)
   int n_cells;
   /*! No. of vertices per element */
   int n_verts;
-  /*! Element type */
-  int ele_type;
 
   /*! Plot point coordinates */
   hf_array<double> pos_ppts_temp;
@@ -558,12 +550,16 @@ void output::write_vtu(int in_file_num)
       if (stat(dumpnum, &st) == -1) {
           mkdir(dumpnum, 0755);
         }
-      /*! Delete old .vtu files from directory */
-      //remove(strcat(dumpnum,"/*.vtu"));
-    }
+        else
+        {
+        //Delete old .vtu files from directory
+          char str[256];
+          strcpy (str,dumpnum);
+          remove(strcat(str,"/*.vtu"));
+        }
 
   /*! Master node writes the .pvtu file */
-  if (my_rank == 0) {
+
       cout << "Writing Paraview file " << dumpnum << " ...." << flush;
 
       write_pvtu.open(pvtu);
@@ -612,17 +608,13 @@ void output::write_vtu(int in_file_num)
       write_pvtu.close();
     }
 
+  /*! Wait for all processes to get to this point, otherwise there won't be a directory to put .vtus into */
+  MPI_Barrier(MPI_COMM_WORLD);
+
 #else
 
   /*! In serial, don't write a .pvtu file. */
   cout << "Writing Paraview file " << dumpnum << " ... " << flush;
-
-#endif
-
-#ifdef _MPI
-
-  /*! Wait for all processes to get to this point, otherwise there won't be a directory to put .vtus into */
-  MPI_Barrier(MPI_COMM_WORLD);
 
 #endif
 
@@ -640,8 +632,6 @@ void output::write_vtu(int in_file_num)
       n_eles = FlowSol->mesh_eles(i)->get_n_eles();
       /*! Only proceed if there any elements of type i */
       if (n_eles!=0) {
-          /*! element type */
-          ele_type = FlowSol->mesh_eles(i)->get_ele_type();
 
           /*! no. of plot points per ele */
           n_points = FlowSol->mesh_eles(i)->get_n_ppts_per_ele();
@@ -686,8 +676,6 @@ void output::write_vtu(int in_file_num)
               
           }
 
-
-          con.setup(n_verts,n_cells);
           con = FlowSol->mesh_eles(i)->get_connectivity_plot();
 
           /*! Loop over individual elements and write their data as a separate VTK DataArray */
@@ -897,11 +885,7 @@ void output::write_vtu(int in_file_num)
   /*! Close the .vtu file */
   write_vtu.close();
 
-#ifdef _MPI
-if(my_rank==0) cout<<"done."<<endl;
-#else
-  cout << "done." << endl;
-#endif
+  if(my_rank==0) cout<<"done."<<endl;
 }
 
 
@@ -1671,6 +1655,14 @@ if (FlowSol->nproc>1)
         {
             mkdir(folder,0755);
         }
+        else
+        {
+          //Delete old .dat files from directory
+          char str[50];
+          strcpy (str,folder);
+          remove(strcat(str,"/*.dat"));
+        }
+        
     }
     MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -1816,15 +1808,22 @@ void output::CalcForces(int in_file_num, bool write_forces)
     my_rank = FlowSol->rank;
     // Master node creates a subdirectory to store cp_*.dat files
     if (my_rank == 0)
+    {
       if (stat(forcedir_s, &st) == -1)
         mkdir(forcedir_s, 0755);
+        else
+        {
+          //Delete old .dat files from directory
+          char str[256];
+          strcpy (str,forcedir_s);
+          remove(strcat(str,"/*.dat"));
+        }      
+    }
 
 #ifdef _MPI
     MPI_Barrier(MPI_COMM_WORLD); //wait for master node
-    sprintf(file_name_s, "%s/cp_%.09d_p%.04d.dat", forcedir_s, in_file_num, my_rank);
-#else
-    sprintf(file_name_s, "%s/cp_%.09d_p%.04d.dat", forcedir_s, in_file_num, 0);
 #endif
+    sprintf(file_name_s, "%s/cp_%.09d_p%.04d.dat", forcedir_s, in_file_num, my_rank);
 
     // open file for writing
     coeff_file.open(file_name_s);
@@ -1862,8 +1861,8 @@ void output::CalcForces(int in_file_num, bool write_forces)
 //calculate sum of forces and lift/drag coeff and copy to master node
   hf_array<double> inv_force_global(FlowSol->n_dims);
   hf_array<double> vis_force_global(FlowSol->n_dims);
-  double coeff_lift_global=0.0;
-  double coeff_drag_global=0.0;
+  double coeff_lift_global;
+  double coeff_drag_global;
 
   MPI_Reduce(FlowSol->inv_force.get_ptr_cpu(), inv_force_global.get_ptr_cpu(), FlowSol->n_dims, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(FlowSol->vis_force.get_ptr_cpu(), vis_force_global.get_ptr_cpu(), FlowSol->n_dims, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -1958,11 +1957,7 @@ void output::compute_error(int in_file_num)
 #ifdef _MPI
 
   hf_array<double> error_global(2, n_fields);
-  error_global.initialize_to_zero();
-
-  MPI_Barrier(MPI_COMM_WORLD);
   MPI_Reduce(error.get_ptr_cpu(), error_global.get_ptr_cpu(), 2 * n_fields, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
   error = error_global;
 #endif
 
@@ -2089,21 +2084,18 @@ void output::CalcNormResidual(void) {
 
 #ifdef _MPI
   hf_array<double> sum_global(n_fields);
-  sum_global.initialize_to_zero();
   if (run_input.res_norm_type == 0) {
     // Get maximum
     MPI_Reduce(sum.get_ptr_cpu(), sum_global.get_ptr_cpu(), n_fields, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   }
   else {
     // Get sum
-    int n_upts_global = 0;
+    int n_upts_global;
     MPI_Reduce(&n_upts, &n_upts_global, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(sum.get_ptr_cpu(), sum_global.get_ptr_cpu(), n_fields, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
     n_upts = n_upts_global;
   }
-
-  for(int i=0; i<n_fields; i++) sum[i] = sum_global[i];
+  sum = sum_global;
 
 #endif
 

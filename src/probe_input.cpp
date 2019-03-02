@@ -633,7 +633,7 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
     hf_array<double> rot_y(n_dims, n_dims);
     hf_array<double> rot_z(n_dims, n_dims);
     rot_y.initialize_to_zero();
-    if (sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.)) == 0)
+    if (sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.)) == 0)//no rotation about y axis
     {
         rot_y(0, 0) = 1;
         rot_y(0, 2) = 0;
@@ -641,7 +641,7 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
     else
     {
         rot_y(0, 0) = in_ori(0) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
-        rot_y(0, 2) = -in_ori(2) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));
+        rot_y(0, 2) = -in_ori(2) / sqrt(pow(in_ori(0), 2.) + pow(in_ori(2), 2.));//inverse direction of positive axis (right hand rule)
     }
     rot_y(1, 1) = 1;
     rot_y(2, 0) = -rot_y(0, 2);
@@ -655,9 +655,9 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
     rot_z(2, 2) = 1;
     //2. assemble final rotational matrix
     hf_array<double> transf = mult_arrays(rot_y, rot_z);
-    transf = transpose_array(transf);
+    transf = transpose_array(transf);//(y*z)^T
     //3. transform the vertex coordinate
-    probe_xv = mult_arrays(probe_xv, transf);
+    probe_xv = mult_arrays(probe_xv, transf);//A*(y*z)^T=y*z*A^T
     for (int i = 0; i < n_v; i++)
         for (int m = 0; m < n_dims; m++)
             probe_xv(i, m) += in_cent(m);
@@ -672,7 +672,7 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
         for (int is = 0; is < 6; is++) //for each section
         {
             int sec_beg = ths_ly_beg + is * il;      //beginning of the section
-            for (int ic1 = 0; ic1 < (1 + il); ic1++) //for each downside triangle in that section
+            for (int ic1 = 0; ic1 < (1 + il); ic1++) //for each downside triangle in that section, counter clockwise
             {
                 int cell_beg = sec_beg + ic1;
                 probe_c2v(ct, 0) = ths_ly_beg + ((cell_beg - ths_ly_beg) % nv_per_vlayer(il));
@@ -680,7 +680,7 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
                 probe_c2v(ct, 2) = cell_beg + nv_per_vlayer(il) + is;
                 ct++;
             }
-            for (int ic2 = 0; ic2 < il; ic2++) //for each upside triangle in that section
+            for (int ic2 = 0; ic2 < il; ic2++) //for each upside triangle in that section, counter clockwise
             {
                 int cell_beg = sec_beg + ic2;
                 probe_c2v(ct, 0) = cell_beg;
@@ -881,8 +881,6 @@ void probe_input::set_probe_cube(hf_array<double> &in_origin, hf_array<int> &in_
 void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 2D planes and 3D volumes
 {
     mesh probe_msh;
-    if (filename.compare(filename.size() - 3, 3, "neu")) //for now only gambit is supported
-        FatalError("Only gambit neutral file format is supported!");
 
     mesh_reader probe_mr(filename, &probe_msh);
 

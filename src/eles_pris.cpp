@@ -143,15 +143,6 @@ void eles_pris::setup_ele_type_specific()
   temp_f.setup(n_fields,n_dims);
 }
 
-// set shape
-
-/*
-void eles_pris::set_shape(int in_s_order)
-{
-    // fill in
-}
-*/
-
 void eles_pris::set_connectivity_plot()
 {
   int vertex_0, vertex_1, vertex_2, vertex_3, vertex_4, vertex_5;

@@ -58,8 +58,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
 {
 
     n_eles=in_n_eles;
-    if(run_input.restart_flag)
-        restart_counter=n_eles;
     max_n_spts_per_ele = in_max_n_spts_per_ele;
 
     if (n_eles!=0)
@@ -220,7 +218,11 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         src_upts.initialize_to_zero();
 
 
-        set_shape(in_max_n_spts_per_ele);
+        set_shape(in_max_n_spts_per_ele);//set shape array and n_spts_per_ele
+
+        // Allocate storage for the s_nodal_basis
+        d_nodal_s_basis.setup(max_n_spts_per_ele,n_dims);
+
         ele2global_ele.setup(n_eles);
         bcid.setup(n_eles,n_inters_per_ele);
 
@@ -263,7 +265,7 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
             sensor.initialize_to_zero();
         }
 
-        // Set connectivity hf_array. Needed for Paraview output.
+        // Set connectivity hf_array. Needed for output.
 
         connectivity_plot.setup(n_verts_per_ele,n_peles_per_ele);
 
@@ -379,37 +381,39 @@ void eles::set_ics(double& time)
             {
                 ics(0) = run_input.rho_c_ic;
             }
-            else if (run_input.ic_form==6) // Up to 4th order polynomials for u, v, w
+            else if (run_input.ic_form==6) // const rho p,Up to 4th order polynomials for u, v, w
             {
                 rho=run_input.rho_c_ic;
                 p=run_input.p_c_ic;
                 eval_poly_ic(pos,rho,ics,n_dims);
                 ics(0) = rho;
                 if(n_dims==2)
-                    ics(3)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2));
+                    ics(3)=p/(gamma-1.0)+0.5*(ics(1)*ics(1)+ics(2)*ics(2))/rho;
                 else if(n_dims==3)
-                    ics(4)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));
+                    ics(4)=p/(gamma-1.0)+0.5*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3))/rho;
             }
             else if (run_input.ic_form==7) // Taylor-Green Vortex initial conditions
             {
-                rho=run_input.rho_c_ic;
-                ics(0) = rho;
-                if(n_dims==2)
+                double V_0=run_input.uvw_c_ic / run_input.uvw_ref;
+                if (n_dims == 2)
                 {
                     // Simple 2D div-free vortex
-                    p = run_input.p_c_ic + rho/4.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)));
-                    ics(1) = rho*sin(pos(0))*cos(pos(1));//rho*u
-                    ics(2) = -rho*cos(pos(0))*sin(pos(1));//rho*v
-                    ics(3)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2));//e
+                    p = run_input.p_c_ic + run_input.rho_c_ic * pow(V_0, 2) / 4.0 *
+                                               (cos(2.0 * pos(0)) + cos(2.0 * pos(1)));     //p_0+rho_0*V_0^2/4*(cos(2x/L)+cos(2*y/L))
+                    ics(0) = p / (run_input.R_ref * run_input.T_c_ic);                      //p/(R*T_0)
+                    ics(1) = ics(0) * V_0 * sin(pos(0)) * cos(pos(1));                      //rho*V_0*sin(x/L)*cos(y/L)
+                    ics(2) = -ics(0) * V_0 * cos(pos(0)) * sin(pos(1));                     //-rho*V_0*cos(x/L)*sin(y/L)
+                    ics(3) = p / (gamma - 1.0) + 0.5 * (ics(1) * ics(1) + ics(2) * ics(2))/ics(0); //p/(gamma-1)+0.5(rhoV)^2/rho
                 }
                 else if(n_dims==3)
                 {
-                    // ONERA benchmark setup
-                    p = run_input.p_c_ic + rho/16.0*(cos(2.0*pos(0)) + cos(2.0*pos(1)))*(cos(2.0*pos(2)) + 2.0);
-                    ics(1) = rho*sin(pos(0))*cos(pos(1))*cos(pos(2));//rho*u
-                    ics(2) = -rho*cos(pos(0))*sin(pos(1))*cos(pos(2));//rho*v
+                    p = run_input.p_c_ic + run_input.rho_c_ic * pow(V_0, 2) / 16.0 *
+                                               (cos(2.0 * pos(0)) + cos(2.0 * pos(1))) * (cos(2.0 * pos(2)) + 2.0); //p_0+rho_0*V_0^2/16*(cos(2x/L)+cos(2*y/L))*(cos(2*z/L)+2)
+                    ics(0) = p / (run_input.R_ref * run_input.T_c_ic);                                              //p/(R*T_0)
+                    ics(1) = ics(0) * V_0 * sin(pos(0)) * cos(pos(1)) * cos(pos(2));                                //rho*V_0*sin(x/L)*cos(y/L)*cos(z/L)
+                    ics(2) = -ics(0) * V_0 * cos(pos(0)) * sin(pos(1)) * cos(pos(2));                               //rho*V_0*cos(x/L)*sin(y/L)*cos(z/L)
                     ics(3) = 0.0;
-                    ics(4)=p/(gamma-1.0)+0.5*rho*(ics(1)*ics(1)+ics(2)*ics(2)+ics(3)*ics(3));//e
+                    ics(4) = p / (gamma - 1.0) + 0.5 * (ics(1) * ics(1) + ics(2) * ics(2) + ics(3) * ics(3)) / ics(0); //p/(gamma-1)+0.5(rhoV)^2/rho
                 }
             }
             else if(run_input.ic_form==9)//stationary shock
@@ -525,15 +529,10 @@ void eles::set_ics(double& time)
                         ics(5) = run_input.mu_tilde_c_ic;
                     }
                 }
-                else
-                {
-                    cout << "ERROR: Invalid number of dimensions ... " << endl;
-                }
             }
             else
             {
-                cout << "ERROR: Invalid form of initial condition ... (File: " << __FILE__ << ", Line: " << __LINE__ << ")" << endl;
-                exit (1);
+               FatalError("ERROR: Invalid form of initial condition ...");
             }
 
             // Add perturbation to channel
@@ -766,7 +765,6 @@ void eles::read_restart_data_ascii(ifstream& restart_file)
                     disu_upts(0)(j,index,m) = value;
                 }
             }
-            restart_counter--;
         }
         else // Skip the data (doesn't belong to current processor)
         {
@@ -825,7 +823,7 @@ void eles::read_restart_data_hdf5(hid_t &restart_file)
         dim[1] = n_eles;
         dim[2] = n_upts_per_ele_rest;
         disu_upts_rest.setup(n_upts_per_ele_rest, n_eles, n_fields); 
-        disu_upts_rest.initialize_to_zero();
+        disu_upts(0).initialize_to_zero();//initialize solution array
         //set first subset to read
         memspace_id = H5Screate_simple(3, dim, NULL); 
         dataspace_id = H5Dget_space(dataset_id);
@@ -856,8 +854,6 @@ void eles::read_restart_data_hdf5(hid_t &restart_file)
 #else
         dgemm(n_upts_per_ele, n_fields_mul_n_eles, n_upts_per_ele_rest, 1.0, 0.0, opp_r.get_ptr_cpu(), disu_upts_rest.get_ptr_cpu(), disu_upts(0).get_ptr_cpu());
 #endif
-
-        restart_counter = 0;
 
         // If required, calculate element reference lengths
         if (run_input.dt_type > 0)
@@ -3606,11 +3602,6 @@ void eles::set_bcid(int in_ele,int in_inter, int in_bcid)
 void eles::set_n_spts(int in_ele, int in_n_spts)
 {
     n_spts_per_ele(in_ele) = in_n_spts;
-
-    // Allocate storage for the s_nodal_basis
-
-    d_nodal_s_basis.setup(in_n_spts,n_dims);
-
 }
 
 // set global element number

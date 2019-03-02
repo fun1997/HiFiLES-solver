@@ -176,6 +176,7 @@ double cubature_tri::get_weight(int in_pos)
     return weights(in_pos);
   else
     FatalError("No weights for this rule");
+    return -1;
 }
 
 

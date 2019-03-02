@@ -145,7 +145,7 @@ void mesh::repartition_mesh(int nproc, int rank)
 
   hf_array<real_t> tpwgts(nparts);
   for (int i = 0; i < nparts; i++)
-    tpwgts[i] = 1. / (double)nproc;
+    tpwgts[i] = 1. / (double)nparts;
 
   hf_array<real_t> ubvec(ncon);
   for (int i = 0; i < ncon; i++)
@@ -247,9 +247,9 @@ void mesh::repartition_mesh(int nproc, int rank)
     if (inK[p] != 0) //if have data to receive
     {
       MPI_Irecv(new_c2v.get_ptr_cpu(0, cnt), MAX_V_PER_C * inK[p], MPI_INT, p, p, MPI_COMM_WORLD, inrequests.get_ptr_cpu()+inrequest_counter);
-      MPI_Irecv(new_c2n_v.get_ptr_cpu(cnt), inK[p], MPI_INT, p, MAX_PROCESSOR_AVAILABLE + p, MPI_COMM_WORLD, inrequests_c2n_v.get_ptr_cpu()+inrequest_counter);
-      MPI_Irecv(new_ctype.get_ptr_cpu(cnt), inK[p], MPI_INT, p, 2 * MAX_PROCESSOR_AVAILABLE + p, MPI_COMM_WORLD, inrequests_ctype.get_ptr_cpu()+inrequest_counter);
-      MPI_Irecv(new_ic2icg.get_ptr_cpu(cnt), inK[p], MPI_INT, p, 3 * MAX_PROCESSOR_AVAILABLE + p, MPI_COMM_WORLD, inrequests_ic2icg.get_ptr_cpu()+inrequest_counter);
+      MPI_Irecv(new_c2n_v.get_ptr_cpu(cnt), inK[p], MPI_INT, p, nproc + p, MPI_COMM_WORLD, inrequests_c2n_v.get_ptr_cpu()+inrequest_counter);
+      MPI_Irecv(new_ctype.get_ptr_cpu(cnt), inK[p], MPI_INT, p, 2 * nproc + p, MPI_COMM_WORLD, inrequests_ctype.get_ptr_cpu()+inrequest_counter);
+      MPI_Irecv(new_ic2icg.get_ptr_cpu(cnt), inK[p], MPI_INT, p, 3 * nproc + p, MPI_COMM_WORLD, inrequests_ic2icg.get_ptr_cpu()+inrequest_counter);
       cnt = cnt + inK[p];
       inrequest_counter++;
     }
@@ -281,9 +281,9 @@ void mesh::repartition_mesh(int nproc, int rank)
         }
       }
       MPI_Isend(outlist[p].get_ptr_cpu(), MAX_V_PER_C * outK[p], MPI_INT, p, rank, MPI_COMM_WORLD, outrequests.get_ptr_cpu()+outrequest_counter);
-      MPI_Isend(outlist_c2n_v[p].get_ptr_cpu(), outK[p], MPI_INT, p, MAX_PROCESSOR_AVAILABLE + rank, MPI_COMM_WORLD, outrequests_c2n_v.get_ptr_cpu()+outrequest_counter);
-      MPI_Isend(outlist_ctype[p].get_ptr_cpu(), outK[p], MPI_INT, p, 2 * MAX_PROCESSOR_AVAILABLE + rank, MPI_COMM_WORLD, outrequests_ctype.get_ptr_cpu()+outrequest_counter);
-      MPI_Isend(outlist_ic2icg[p].get_ptr_cpu(), outK[p], MPI_INT, p, 3 * MAX_PROCESSOR_AVAILABLE + rank, MPI_COMM_WORLD, outrequests_ic2icg.get_ptr_cpu()+outrequest_counter);
+      MPI_Isend(outlist_c2n_v[p].get_ptr_cpu(), outK[p], MPI_INT, p, nproc + rank, MPI_COMM_WORLD, outrequests_c2n_v.get_ptr_cpu()+outrequest_counter);
+      MPI_Isend(outlist_ctype[p].get_ptr_cpu(), outK[p], MPI_INT, p, 2 * nproc + rank, MPI_COMM_WORLD, outrequests_ctype.get_ptr_cpu()+outrequest_counter);
+      MPI_Isend(outlist_ic2icg[p].get_ptr_cpu(), outK[p], MPI_INT, p, 3 * nproc + rank, MPI_COMM_WORLD, outrequests_ic2icg.get_ptr_cpu()+outrequest_counter);
       outrequest_counter++;
     }
   }

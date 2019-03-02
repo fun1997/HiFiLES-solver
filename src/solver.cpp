@@ -292,54 +292,56 @@ void patch_solution(struct solution* FlowSol)
     }
 }
 
-void InitSolution(struct solution* FlowSol)
+void InitSolution(struct solution *FlowSol)
 {
   // set initial conditions
-  if (FlowSol->rank==0) cout << "Setting initial conditions... " << flush;
+  if (FlowSol->rank == 0)
+    cout << "Setting initial conditions... " << flush;
 
-  if (run_input.restart_flag==0) {//start new simulation
+  if (run_input.restart_flag == 0)
+  { //start new simulation
     FlowSol->ini_iter = 0;
-      for(int i=0;i<FlowSol->n_ele_types;i++) {
-          if (FlowSol->mesh_eles(i)->get_n_eles()!=0)
-
-            FlowSol->mesh_eles(i)->set_ics(FlowSol->time);
-        }
-
-    }
-    else if (run_input.restart_flag == 1) //read ascii restart files
+    for (int i = 0; i < FlowSol->n_ele_types; i++)
     {
-      FlowSol->ini_iter = run_input.restart_iter;
-      read_restart_ascii(run_input.restart_iter, run_input.n_restart_files, FlowSol);
+      if (FlowSol->mesh_eles(i)->get_n_eles() != 0)
+
+        FlowSol->mesh_eles(i)->set_ics(FlowSol->time);
     }
-    else if (run_input.restart_flag == 2) //read hdf5 restart file
-    {
+  }
+  else if (run_input.restart_flag == 1) //read ascii restart files
+  {
+    FlowSol->ini_iter = run_input.restart_iter;
+    read_restart_ascii(run_input.restart_iter, run_input.n_restart_files, FlowSol);
+  }
+  else if (run_input.restart_flag == 2) //read hdf5 restart file
+  {
 #ifdef _HDF5
-      FlowSol->ini_iter = run_input.restart_iter;
-      read_restart_hdf5(run_input.restart_iter, FlowSol);
+    FlowSol->ini_iter = run_input.restart_iter;
+    read_restart_hdf5(run_input.restart_iter, FlowSol);
 #else
-      FatalError("HiFiLES need to be compiled with HDF5 to read hdf5 format restart file");
+    FatalError("HiFiLES need to be compiled with HDF5 to read hdf5 format restart file");
 #endif
-    }
+  }
 
-//patch solution after flow field initialized
-  if(run_input.patch)
-      patch_solution(FlowSol);
+  //patch solution after flow field initialized
+  if (run_input.patch)
+    patch_solution(FlowSol);
 
 #ifdef _MPI
-    MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);
 #endif // _MPI
-    if (FlowSol->rank == 0)
-      cout << "done" << endl;
-      // copy solution to gpu
+  if (FlowSol->rank == 0)
+    cout << "done" << endl;
+    // copy solution to gpu
 #ifdef _GPU
-  for(int i=0;i<FlowSol->n_ele_types;i++) {
-      if (FlowSol->mesh_eles(i)->get_n_eles()!=0) {
-          FlowSol->mesh_eles(i)->cp_disu_upts_cpu_gpu();
-
-        }
+  for (int i = 0; i < FlowSol->n_ele_types; i++)
+  {
+    if (FlowSol->mesh_eles(i)->get_n_eles() != 0)
+    {
+      FlowSol->mesh_eles(i)->cp_disu_upts_cpu_gpu();
     }
+  }
 #endif
-
 }
 
 void read_restart_ascii(int in_file_num, int in_n_files, struct solution* FlowSol)
@@ -398,13 +400,6 @@ void read_restart_ascii(int in_file_num, int in_n_files, struct solution* FlowSo
         }
       restart_file.close();
     }
-
-    //check if all elements are read into the program
-    for (int i = 0; i < FlowSol->n_ele_types; i++)
-    {
-      if (FlowSol->mesh_eles(i)->get_n_eles() != 0 && FlowSol->mesh_eles(i)->restart_counter)
-        FatalError("Some elements are not found in the restart files, check n_restart_files");
-    }
 }
 
 #ifdef _HDF5
@@ -453,13 +448,6 @@ void read_restart_hdf5(int in_file_num, struct solution *FlowSol)
   //close objects
   H5Pclose(plist_id);
   H5Fclose(restart_file);
-
-  //check if all elements are read into the program
-  for (int i = 0; i < FlowSol->n_ele_types; i++)
-  {
-    if (FlowSol->mesh_eles(i)->get_n_eles() != 0 && FlowSol->mesh_eles(i)->restart_counter)
-      FatalError("Some elements are not found in the restart files, check n_restart_files");
-  }
 }
 #endif
 

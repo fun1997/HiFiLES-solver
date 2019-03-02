@@ -32,8 +32,6 @@
 #include "probe_input.h"
 #include "funcs.h"
 
-#define   MAX_PROCESSOR_AVAILABLE 5000
-
 extern input run_input;
 extern probe_input run_probe;
 /*! double 'pi' has global scope */

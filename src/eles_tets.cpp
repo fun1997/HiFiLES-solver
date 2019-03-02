@@ -613,14 +613,14 @@ void eles_tets::compute_filter_upts(void)
   else if(run_input.filter_type==1) // Discrete Gaussian filter
     {
       if (rank==0) cout<<"Building discrete Gaussian filter"<<endl;
-
+      FatalError("Gaussian filter not implemented for tris. Exiting.");
     }
   else if(run_input.filter_type==2) // Modal coefficient filter
     {
       if (rank==0) cout<<"Building modal filter"<<endl;
 
       // Compute modal filter
-      compute_modal_filter_tet(filter_upts, vandermonde, inv_vandermonde, N, order);
+      compute_modal_filter_tet();
 
     }
   else // Simple average for low order
@@ -664,6 +664,42 @@ void eles_tets::compute_filter_upts(void)
       sum+=filter_upts(i,j);
 }
 
+// Compute a modal filter matrix for a tetrahedral element, given Vandermonde matrix and inverse
+void eles_tets::compute_modal_filter_tet()
+{
+	int i;
+  //int j,k,ind=0;
+  int N=n_upts_per_ele;
+	//double Cp=0.1;     // Dubiner SVV filter strength coeff.
+	//double p=order;    // filter exponent
+	//double alpha;
+  double eta;
+
+	filter_upts.initialize_to_zero();
+
+  // Exponential filter (SVV method) (similar to Meister et al 2009)
+
+  // Full form: alpha = Cp*(p+1)*dt/delta
+  /*alpha = Cp*p;
+
+  for(i=0;i<p+1;i++) {
+    for(j=0;j<p-i+1;j++) {
+      for(k=0;k<p-i-j+1;k++) {
+        eta = (i+j+k)/(p+1.0);
+        modal(ind,ind) = exp(-alpha*pow(eta,2*p));
+        ind++;
+      }
+    }
+  }*/
+
+  // Gaussian filter in modal space (from SD3D)
+  for(i=0;i<N;i++) {
+    eta = i/double(N);
+    filter_upts(i,i) = exp(-pow(2.0*eta,2.0)/48.0);
+  }
+  filter_upts = mult_arrays(vandermonde,filter_upts);
+  filter_upts = mult_arrays(filter_upts,inv_vandermonde);
+}
 
 //#### helper methods ####
 
@@ -818,7 +854,7 @@ void eles_tets::read_restart_info_hdf5(hid_t &restart_file, int in_rest_order)
   hid_t dataset_id, plist_id;
 
   //open dataset
-  dataset_id = H5Dopen2(restart_file, "TRIS", H5P_DEFAULT);
+  dataset_id = H5Dopen2(restart_file, "TETS", H5P_DEFAULT);
   if (dataset_id < 0)
     FatalError("Cannot find tets property");
 

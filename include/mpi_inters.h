@@ -93,15 +93,13 @@ protected:
   // LES
   hf_array<double> out_buffer_sgsf, in_buffer_sgsf;
 
-#ifdef _MPI
-  MPI_Request *mpi_out_requests;
-  MPI_Request *mpi_in_requests;
-  MPI_Request *mpi_out_requests_grad;
-  MPI_Request *mpi_in_requests_grad;
-  MPI_Request *mpi_out_requests_sgsf;
-  MPI_Request *mpi_in_requests_sgsf;
+  hf_array<MPI_Request> mpi_out_requests;
+  hf_array<MPI_Request> mpi_in_requests;
+  hf_array<MPI_Request> mpi_out_requests_grad;
+  hf_array<MPI_Request> mpi_in_requests_grad;
+  hf_array<MPI_Request> mpi_out_requests_sgsf;
+  hf_array<MPI_Request> mpi_in_requests_sgsf;
 
-  MPI_Status *mpi_instatus;
-  MPI_Status *mpi_outstatus;
-#endif
+  hf_array<MPI_Status> mpi_instatus;
+  hf_array<MPI_Status> mpi_outstatus;
 };

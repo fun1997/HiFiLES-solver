@@ -898,7 +898,7 @@ void eles_tris::compute_filter_upts(void)
       if (rank==0) cout<<"Building modal filter"<<endl;
 
       // Compute modal filter
-      compute_modal_filter_tri(filter_upts, vandermonde, inv_vandermonde, N, order);
+      compute_modal_filter_tri();
     }
   else // Simple average for low order
     {
@@ -934,13 +934,48 @@ void eles_tris::compute_filter_upts(void)
       sum+=filter_upts(i,j);
 }
 
+// Compute a modal filter matrix for a triangular element, given Vandermonde matrix and inverse
+void eles_tris::compute_modal_filter_tri()
+{
+	int i;
+  //int j,ind=0;
+  int N=n_upts_per_ele;
+	//double Cp=0.1;     // Dubiner SVV filter strength coeff.
+	//double p=order;    // filter exponent
+	//double alpha;
+  double eta;
+
+	filter_upts.initialize_to_zero();
+
+  // Exponential filter (SVV method) (similar to Meister et al 2009)
+
+  // Full form: alpha = Cp*(p+1)*dt/delta
+  /*alpha = Cp*p;
+
+  for(i=0;i<p+1;i++) {
+    for(j=0;j<p-i+1;j++) {
+      eta = (i+j)/(p+1.0);
+      modal(ind,ind) = exp(-alpha*pow(eta,2*p));
+      ind++;
+    }
+  }*/
+
+  // Gaussian filter in modal space (from SD3D)
+  for(i=0;i<N;i++) {
+    eta = i/double(N);
+    filter_upts(i,i) = exp(-pow(2.0*eta,2.0)/48.0);
+  }
+
+  filter_upts = mult_arrays(vandermonde, filter_upts);
+  filter_upts = mult_arrays(filter_upts, inv_vandermonde);
+}
 
 /*! Calculate element volume */
 double eles_tris::calc_ele_vol(double& detjac)
 {
   double vol;
   // Element volume = |Jacobian|*1/2*width*height of reference element
-  vol = detjac*4./2.;
+  vol = detjac*2;
   return vol;
 }
 

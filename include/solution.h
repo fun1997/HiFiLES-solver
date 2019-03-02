@@ -80,9 +80,9 @@ struct solution {
 //mpi parameters
 #ifdef _MPI
 
-  int n_mpi_inter_types;
+  int n_mpi_inter_types;//defined in geoprocess
   hf_array<mpi_inters> mesh_mpi_inters;
-  int n_mpi_inters;
+  int n_mpi_inters;//defined in geoprocess
 
 #endif
 

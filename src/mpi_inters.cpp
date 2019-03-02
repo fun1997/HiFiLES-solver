@@ -95,12 +95,8 @@ void mpi_inters::set_nproc(int in_nproc, int in_rank)
   rank = in_rank;
 
   Nout_proc.setup(nproc);
-
   // Initialize Nout_proc to 0
-  for (int p=0;p<in_nproc;p++) {
-      Nout_proc(p)=0;
-    }
-
+  Nout_proc.initialize_to_zero();
 }
 
 void mpi_inters::set_nout_proc(int in_nout,int in_p)
@@ -110,24 +106,17 @@ void mpi_inters::set_nout_proc(int in_nout,int in_p)
 
 void mpi_inters::set_mpi_requests(int in_number_of_requests)
 {
-#ifdef _MPI
-  mpi_in_requests = (MPI_Request*) malloc(in_number_of_requests*sizeof(MPI_Request));
-  mpi_out_requests = (MPI_Request*) malloc(in_number_of_requests*sizeof(MPI_Request));
-#endif
+  mpi_in_requests.setup(in_number_of_requests);
+  mpi_out_requests.setup(in_number_of_requests);
   if (viscous)
     {
-#ifdef _MPI
-      mpi_in_requests_grad = (MPI_Request*) malloc(in_number_of_requests*sizeof(MPI_Request));
-      mpi_out_requests_grad = (MPI_Request*) malloc(in_number_of_requests*sizeof(MPI_Request));
-#endif
+      mpi_in_requests_grad.setup(in_number_of_requests);
+      mpi_out_requests_grad.setup(in_number_of_requests);
     }
-
   if (LES)
     {
-#ifdef _MPI
-      mpi_in_requests_sgsf = (MPI_Request*) malloc(in_number_of_requests*sizeof(MPI_Request));
-      mpi_out_requests_sgsf = (MPI_Request*) malloc(in_number_of_requests*sizeof(MPI_Request));
-#endif
+      mpi_in_requests_sgsf.setup(in_number_of_requests);
+      mpi_out_requests_sgsf.setup(in_number_of_requests);
     }
 }
 
@@ -165,7 +154,7 @@ void mpi_inters::mv_all_cpu_gpu(void)
 void mpi_inters::set_mpi(int in_inter, int in_ele_type_l, int in_ele_l, int in_local_inter_l, int rot_tag, struct solution* FlowSol)
 {
   int i,j,k;
-  int i_rhs,j_rhs;
+  int j_rhs;
 
       get_lut(rot_tag);
 
@@ -216,8 +205,6 @@ void mpi_inters::set_mpi(int in_inter, int in_ele_type_l, int in_ele_l, int in_l
 
       for(i=0;i<n_fpts_per_inter;i++)
         {
-          i_rhs=lut(i);
-
           tdA_fpts_l(i,in_inter)=get_tdA_fpts_ptr(in_ele_type_l,in_ele_l,in_local_inter_l,i,FlowSol);
 
           for(j=0;j<n_dims;j++)
@@ -259,8 +246,8 @@ void mpi_inters::send_solution()
           //cout << "rank=" << rank << "p=" << p << "inters_type=" << inters_type << "Nout = " << Nout << endl;
           if (Nout) {
 #ifdef _MPI
-              MPI_Isend(out_buffer_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+p   ,MPI_COMM_WORLD,&mpi_out_requests[request_count]);
-              MPI_Irecv(in_buffer_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+rank,MPI_COMM_WORLD,&mpi_in_requests[request_count]);
+              MPI_Isend(out_buffer_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*nproc+p   ,MPI_COMM_WORLD,&mpi_out_requests[request_count]);
+              MPI_Irecv(in_buffer_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*nproc+rank,MPI_COMM_WORLD,&mpi_in_requests[request_count]);
 #endif
               sk+=Nout;
               Nmess++;
@@ -277,8 +264,8 @@ void mpi_inters::receive_solution()
   if (n_inters!=0) {
       // Receive in_buffer
 #ifdef _MPI
-      MPI_Waitall(Nmess,mpi_in_requests,MPI_STATUSES_IGNORE);
-      MPI_Waitall(Nmess,mpi_out_requests,MPI_STATUSES_IGNORE);
+      MPI_Waitall(Nmess,mpi_in_requests.get_ptr_cpu(),MPI_STATUSES_IGNORE);
+      MPI_Waitall(Nmess,mpi_out_requests.get_ptr_cpu(),MPI_STATUSES_IGNORE);
 #endif
 #ifdef _GPU
       in_buffer_disu.cp_cpu_gpu();
@@ -321,8 +308,8 @@ void mpi_inters::send_corrected_gradient()
 
           if (Nout) {
 #ifdef _MPI
-              MPI_Isend(out_buffer_grad_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+3*MAX_PROCESSOR_AVAILABLE+p   ,MPI_COMM_WORLD,&mpi_out_requests_grad[request_count]);
-              MPI_Irecv(in_buffer_grad_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+3*MAX_PROCESSOR_AVAILABLE+rank,MPI_COMM_WORLD,&mpi_in_requests_grad[request_count]);
+              MPI_Isend(out_buffer_grad_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*nproc+3*nproc+p   ,MPI_COMM_WORLD,&mpi_out_requests_grad[request_count]);
+              MPI_Irecv(in_buffer_grad_disu.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*nproc+3*nproc+rank,MPI_COMM_WORLD,&mpi_in_requests_grad[request_count]);
 #endif
               sk+=Nout;
               Nmess++;
@@ -338,8 +325,8 @@ void mpi_inters::receive_corrected_gradient()
   if (n_inters!=0)
     {
 #ifdef _MPI
-      MPI_Waitall(Nmess,mpi_in_requests_grad,MPI_STATUSES_IGNORE);
-      MPI_Waitall(Nmess,mpi_out_requests_grad,MPI_STATUSES_IGNORE);
+      MPI_Waitall(Nmess,mpi_in_requests_grad.get_ptr_cpu(),MPI_STATUSES_IGNORE);
+      MPI_Waitall(Nmess,mpi_out_requests_grad.get_ptr_cpu(),MPI_STATUSES_IGNORE);
 #endif
 #ifdef _GPU
       in_buffer_grad_disu.cp_cpu_gpu();
@@ -382,8 +369,8 @@ void mpi_inters::send_sgsf_fpts()
 
           if (Nout) {
 #ifdef _MPI
-              MPI_Isend(out_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+6*MAX_PROCESSOR_AVAILABLE+p   ,MPI_COMM_WORLD,&mpi_out_requests_sgsf[request_count]);
-              MPI_Irecv(in_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*(MAX_PROCESSOR_AVAILABLE)+6*MAX_PROCESSOR_AVAILABLE+rank,MPI_COMM_WORLD,&mpi_in_requests_sgsf[request_count]);
+              MPI_Isend(out_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*nproc+6*nproc+p   ,MPI_COMM_WORLD,&mpi_out_requests_sgsf[request_count]);
+              MPI_Irecv(in_buffer_sgsf.get_ptr_cpu(sk),Nout,MPI_DOUBLE,p,inters_type*nproc+6*nproc+rank,MPI_COMM_WORLD,&mpi_in_requests_sgsf[request_count]);
 #endif
               sk+=Nout;
               Nmess++;
@@ -399,8 +386,8 @@ void mpi_inters::receive_sgsf_fpts()
   if (n_inters!=0)
     {
 #ifdef _MPI
-      MPI_Waitall(Nmess,mpi_in_requests_sgsf,MPI_STATUSES_IGNORE);
-      MPI_Waitall(Nmess,mpi_out_requests_sgsf,MPI_STATUSES_IGNORE);
+      MPI_Waitall(Nmess,mpi_in_requests_sgsf.get_ptr_cpu(),MPI_STATUSES_IGNORE);
+      MPI_Waitall(Nmess,mpi_out_requests_sgsf.get_ptr_cpu(),MPI_STATUSES_IGNORE);
 #endif
 #ifdef _GPU
       in_buffer_sgsf.cp_cpu_gpu();

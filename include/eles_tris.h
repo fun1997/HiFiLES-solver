@@ -126,6 +126,8 @@ protected:
   /*! Compute the filter matrix for subgrid-scale models */
   void compute_filter_upts(void);
 
+  void compute_modal_filter_tri(void);
+
   /*! set exponential filter */
   void set_exp_filter(void);
 

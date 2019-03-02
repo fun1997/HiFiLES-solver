@@ -437,9 +437,6 @@ public:
 
   /*! element local timestep */
   hf_array<double> dt_local;
-
-  /*! restart counter */
-  int restart_counter;
   
 protected:
   // #### methods ####
@@ -772,7 +769,7 @@ protected:
   hf_array<double> src_upts;
 
   hf_array<double> d_nodal_s_basis;
-
+  
 #ifdef _GPU
   cusparseHandle_t handle;
 #endif
@@ -906,7 +903,6 @@ protected:
   int n_dims_mul_n_upts_per_ele;
 
   int rank;
-  int nproc;
 
   /*! mass flux through inlet */
   double mass_flux;

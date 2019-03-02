@@ -122,10 +122,6 @@ void eval_dn_nodal_s_basis(hf_array<double> &dd_nodal_s_basis,
 
 void compute_modal_filter_1d(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order);
 
-void compute_modal_filter_tri(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order);
-
-void compute_modal_filter_tet(hf_array <double>& filter_upts, hf_array<double>& vandermonde, hf_array<double>& inv_vandermonde, int N, int order);
-
 void compute_filt_matrix_tri(hf_array<double>& Filt, hf_array<double>& vandermonde_tri, hf_array<double>& inv_vandermonde_tri, int n_upts_per_ele, int order, double c_tri, int vcjh_scheme_tri, hf_array<double>& loc_upts_tri);
 
 // Functions used in evaluation of shape functions and its 1st and 2nd derivatives

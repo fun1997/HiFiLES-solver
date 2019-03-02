@@ -423,6 +423,7 @@ void mesh_reader::read_header_gmsh(void)
     for (int i = 0; i < mesh_ptr->n_bdy + 1; i++)
     {
         mesh_file >> mesh_ptr->n_dims >> bcid >> bc_txt_temp;
+        mesh_ptr->n_ele_dims = mesh_ptr->n_dims;//element dimension equals to mesh dimension
         bc_txt_temp.erase(bc_txt_temp.find_last_not_of(" \n\r\t") + 1);
         bc_txt_temp.erase(bc_txt_temp.find_last_not_of("\"") + 1);
         if (bc_txt_temp.find_first_not_of("\"") != 0)
