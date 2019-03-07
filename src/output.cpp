@@ -24,6 +24,7 @@
 #include <iostream>
 #include <sstream>
 #include <cmath>
+#include <dirent.h>
 
 // Used for making sub-directories
 #include <sys/types.h>
@@ -186,7 +187,6 @@ void output::write_tec(int in_file_num)
 
   char  file_name_s[256];
   char  dumpnum_s[256];
-  char *file_name;
   string fields("");
 
   ofstream write_tec;
@@ -214,9 +214,18 @@ void output::write_tec(int in_file_num)
           else
           {
             //Delete old .plt files from directory
-            char str[256];
-            strcpy (str,dumpnum_s);
-            remove(strcat(str,"/*.plt"));
+            struct dirent *fn;
+            string str(dumpnum_s);
+            DIR *dir; // return value for opendir()
+            dir = opendir(str.c_str());
+            while ((fn = readdir(dir)) != NULL)
+            {
+              // get rid of "." and ".."
+              if (strcmp(fn->d_name, ".") == 0 ||
+                  strcmp(fn->d_name, "..") == 0)
+                continue;
+              remove((str + '/' + fn->d_name).c_str());
+            }
           }
       }
   }
@@ -229,8 +238,7 @@ void output::write_tec(int in_file_num)
   cout << "Writing Tecplot file number " << in_file_num << " ...." << flush;
 #endif
 
-  file_name = &file_name_s[0];
-  write_tec.open(file_name);
+  write_tec.open(file_name_s);
 
   // write header
   write_tec << "Title = \"HiFiLES Solution\"" << endl;
@@ -500,10 +508,6 @@ void output::write_vtu(int in_file_num)
   char vtu_s[256];
   char dumpnum_s[256];
   char pvtu_s[256];
-  /*! File name pointers needed for opening files */
-  char *vtu;
-  char *pvtu;
-  char *dumpnum;
 
   /*! Output files */
   ofstream write_vtu;
@@ -537,32 +541,36 @@ void output::write_vtu(int in_file_num)
 
 #endif
 
-  /*! Point to names */
-  vtu = &vtu_s[0];
-  pvtu = &pvtu_s[0];
-  dumpnum = &dumpnum_s[0];
-
 #ifdef _MPI
 
   /*! Master node creates a subdirectory to store .vtu files */
   if (my_rank == 0) {
       struct stat st = {0};
-      if (stat(dumpnum, &st) == -1) {
-          mkdir(dumpnum, 0755);
+      if (stat(dumpnum_s, &st) == -1) {
+          mkdir(dumpnum_s, 0755);
         }
         else
         {
-        //Delete old .vtu files from directory
-          char str[256];
-          strcpy (str,dumpnum);
-          remove(strcat(str,"/*.vtu"));
+          //Delete old .vtu files from directory
+          struct dirent *fn;
+          string str(dumpnum_s);
+          DIR *dir; // return value for opendir()
+          dir = opendir(str.c_str());
+          while ((fn = readdir(dir)) != NULL)
+          {
+            // get rid of "." and ".."
+            if (strcmp(fn->d_name, ".") == 0 ||
+                strcmp(fn->d_name, "..") == 0)
+              continue;
+            remove((str + '/' + fn->d_name).c_str());
+          }
         }
 
   /*! Master node writes the .pvtu file */
 
-      cout << "Writing Paraview file " << dumpnum << " ...." << flush;
+      cout << "Writing Paraview file " << dumpnum_s << " ...." << flush;
 
-      write_pvtu.open(pvtu);
+      write_pvtu.open(pvtu_s);
       write_pvtu << "<?xml version=\"1.0\" ?>" << endl;
       write_pvtu << "<VTKFile type=\"PUnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\" compressor=\"vtkZLibDataCompressor\">" << endl;
       write_pvtu << "	<PUnstructuredGrid GhostLevel=\"1\">" << endl;
@@ -599,7 +607,7 @@ void output::write_vtu(int in_file_num)
 
       /*! Write names of source .vtu files to include */
       for (i=0;i<n_proc;++i) {
-          write_pvtu << "		<Piece Source=\"" << dumpnum << "/" << dumpnum <<"_" << i << ".vtu" << "\" />" << endl;
+          write_pvtu << "		<Piece Source=\"" << dumpnum_s << "/" << dumpnum_s <<"_" << i << ".vtu" << "\" />" << endl;
         }
 
       /*! Write footer */
@@ -614,12 +622,12 @@ void output::write_vtu(int in_file_num)
 #else
 
   /*! In serial, don't write a .pvtu file. */
-  cout << "Writing Paraview file " << dumpnum << " ... " << flush;
+  cout << "Writing Paraview file " << dumpnum_s << " ... " << flush;
 
 #endif
 
   /*! Each process writes its own .vtu file */
-  write_vtu.open(vtu);
+  write_vtu.open(vtu_s);
   /*! File header */
   write_vtu << "<?xml version=\"1.0\" ?>" << endl;
   write_vtu << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\" compressor=\"vtkZLibDataCompressor\">" << endl;
@@ -1639,44 +1647,51 @@ void output::write_restart_ascii(int in_file_num)
 {
 
   char file_name_s[256], folder[50];
-  char *file_name;
   ofstream restart_file;
   restart_file.precision(15);
 
 #ifdef _MPI
-if (FlowSol->nproc>1)
-{
-  sprintf(file_name_s,"Rest_%.09d/Rest_%.09d_p%.04d.dat",in_file_num,in_file_num,FlowSol->rank);
-  sprintf(folder,"Rest_%.09d",in_file_num);
-      if(FlowSol->rank==0)
+  if (FlowSol->nproc>1)
+  {
+    sprintf(file_name_s,"Rest_%.09d/Rest_%.09d_p%.04d.dat",in_file_num,in_file_num,FlowSol->rank);
+    sprintf(folder,"Rest_%.09d",in_file_num);
+    if(FlowSol->rank==0)
     {
-        struct stat st = {0};
-        if(stat(folder,&st)==-1)
+      struct stat st = {0};
+      if(stat(folder,&st)==-1)
+      {
+        mkdir(folder,0755);
+      }
+      else
+      {
+        //Delete old .dat files from directory
+        struct dirent *fn;
+        string str(folder);
+        DIR *dir; // return value for opendir()
+        dir = opendir(str.c_str());
+        while ((fn = readdir(dir)) != NULL)
         {
-            mkdir(folder,0755);
+          // get rid of "." and ".."
+          if (strcmp(fn->d_name, ".") == 0 ||
+              strcmp(fn->d_name, "..") == 0)
+            continue;
+          remove((str + '/' + fn->d_name).c_str());
         }
-        else
-        {
-          //Delete old .dat files from directory
-          char str[50];
-          strcpy (str,folder);
-          remove(strcat(str,"/*.dat"));
-        }
-        
+      }
+
     }
     MPI_Barrier(MPI_COMM_WORLD);
-}
+  }
 
   else//==1
-      sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,FlowSol->rank);
+    sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,FlowSol->rank);
 #else
   sprintf(file_name_s,"Rest_%.09d_p%.04d.dat",in_file_num,0);
 #endif
 
   if (FlowSol->rank==0) cout << "Writing Restart file for step " << in_file_num << " ...." << flush;
 
-  file_name = &file_name_s[0];
-  restart_file.open(file_name);
+  restart_file.open(file_name_s);
 
   restart_file << FlowSol->time << endl;
 
@@ -1811,13 +1826,22 @@ void output::CalcForces(int in_file_num, bool write_forces)
     {
       if (stat(forcedir_s, &st) == -1)
         mkdir(forcedir_s, 0755);
-        else
+      else
+      {
+        //Delete old .dat files from directory
+        struct dirent *fn;
+        string str(forcedir_s);
+        DIR *dir; // return value for opendir()
+        dir = opendir(str.c_str());
+        while ((fn = readdir(dir)) != NULL)
         {
-          //Delete old .dat files from directory
-          char str[256];
-          strcpy (str,forcedir_s);
-          remove(strcat(str,"/*.dat"));
-        }      
+          // get rid of "." and ".."
+          if (strcmp(fn->d_name, ".") == 0 ||
+              strcmp(fn->d_name, "..") == 0)
+            continue;
+          remove((str + '/' + fn->d_name).c_str());
+        }
+      }
     }
 
 #ifdef _MPI
