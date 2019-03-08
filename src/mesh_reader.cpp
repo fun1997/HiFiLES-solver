@@ -882,11 +882,6 @@ void mesh_reader::read_boundary_gmsh(void)
             {
                 FatalError("2 cell sharing a boundary face");
             }
-            else
-            {
-                cout << "vlist_bound(2)=" << vlist_bound(2) << " vlist_bound(3)=" << vlist_bound(3) << endl;
-                FatalError("All nodes of boundary face belong to processor but could not find the coresponding faces");
-            }
 
             } // If all vertices belong to processor
 
