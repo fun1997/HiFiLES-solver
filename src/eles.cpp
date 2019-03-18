@@ -79,6 +79,10 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         // Initialize the element specific static members
         (*this).setup_ele_type_specific();
 
+        //initialize probes
+        if(run_input.probe)
+            opp_probe.setup(n_upts_per_ele);
+
         if(run_input.adv_type==0)//Euler
         {
             n_adv_levels=1;
@@ -888,6 +892,7 @@ void eles::read_restart_data_hdf5(hid_t &restart_file)
 }
 #endif
 
+#ifndef _HDF5
 void eles::write_restart_data_ascii(ofstream& restart_file)
 {
     restart_file << "n_eles" << endl;
@@ -913,6 +918,7 @@ void eles::write_restart_data_ascii(ofstream& restart_file)
     }
     restart_file << endl;
 }
+#endif
 
 #ifdef _HDF5
 void eles::write_restart_data_hdf5(hid_t &in_dataset_id)
@@ -2380,7 +2386,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     double Smod=0.0;
     double ke=0.0;
     double Pr_t=run_input.prandtl_t; // turbulent Prandtl number
-    double karman=0.41;//von_karman constant 
+    double Kappa=run_input.Kappa;//von_karman constant 
     double delta, mu, mu_t, vol;
     double rho, inte, rt_ratio;
     hf_array<double> u(n_dims);//resolved velocity
@@ -2429,11 +2435,11 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
 
         // get subgrid momentum flux at previous timestep
         //utau = 0.0;
-        for (i=0; i<n_dims; i++)
-        {
-            tw(i) = twall(upt,ele,i+1);
+        //for (i=0; i<n_dims; i++)
+        //{
+            //tw(i) = twall(upt,ele,i+1);
             //utau += tw(i)*tw(i);
-        }
+        //}
         // shear velocity
         //utau = pow((utau/rho/rho),0.25);
 
@@ -2456,7 +2462,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
         }
 
         // subgrid energy flux from previous timestep
-        qw = twall(upt,ele,n_fields-1);
+        //qw = twall(upt,ele,n_fields-1);
 
         // Calculate local rotation matrix
         Mrot = calc_rotation_matrix(norm);
@@ -2480,10 +2486,10 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
         // correct the sign of wall shear stress and wall heat flux? - see SD3D
 
         // Set arrays for next timestep
-        for(i=0; i<n_dims; ++i) twall(upt,ele,i+1) = tw(i); // momentum flux
+        //for(i=0; i<n_dims; ++i) twall(upt,ele,i+1) = tw(i); // momentum flux
 
-        twall(upt,ele,0)          = 0.0; // density flux
-        twall(upt,ele,n_fields-1) = qw;  // energy flux
+        //twall(upt,ele,0)          = 0.0; // density flux
+        //twall(upt,ele,n_fields-1) = qw;  // energy flux
 
         // populate ndims*ndims rotated stress hf_array
         tau.initialize_to_zero();
@@ -2624,7 +2630,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
                     Smod += 2.0*S(i,j)*S(i,j);
 
             Smod = sqrt(Smod);
-                mu_t = rho*min(y*y*karman*karman,C_s*C_s*delta*delta)*Smod;
+                mu_t = rho*min(y*y*Kappa*Kappa,C_s*C_s*delta*delta)*Smod;
 
             }
 
@@ -2969,7 +2975,7 @@ void eles::calc_wall_stress(double rho, hf_array<double>& urot, double ene, doub
 {
     double eps = 1.e-10;
     double Rey, Rey_c, u, uplus, utau, tw, qw;
-    double Pr_t = 0.9;
+    double Pr_t = run_input.prandtl_t;
     double c0;
     double ymatch = 11.8;
     int i,j;
@@ -3023,7 +3029,7 @@ void eles::calc_wall_stress(double rho, hf_array<double>& urot, double ene, doub
 
          N.B. using a two-layer law to compute the wall heat flux
          */
-
+/*
         else if(run_input.wall_model == 2)
         {
 
@@ -3163,7 +3169,7 @@ void eles::calc_wall_stress(double rho, hf_array<double>& urot, double ene, doub
             if(yplus <= ymatch) q_wall = ene*gamma*tw / (Pr * u);
             else                q_wall = ene*gamma*tw / (Pr * (u + utau * ymatch * (Pr/Pr_t-1.0)));
         }
-    }
+    */}
 
     // if velocity is 0
     else
@@ -3334,7 +3340,7 @@ FatalError("not implemented yet");
         }
     }
 }
-
+/*
 void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma)
 {
     int stride = in_n_upts_per_ele*in_n_eles;
@@ -3458,8 +3464,8 @@ void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele,
             }
             out_sensor[m] = tmp_sensor;//the largest discontinuity
 
-            /* -------------------------------------------------------------------------------------- */
-            /* Exponential modal filter */
+        //-------------------------------------------------------------------------------------- 
+            // Exponential modal filter
 
             if(tmp_sensor > s0 && in_artif_type == 1)  //if(tmp_sensor > s0 + kappa && in_artif_type == 1)
             {
@@ -3499,7 +3505,7 @@ void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele,
         }
     }
 }
-
+*/
 // get the type of element
 
 int eles::get_ele_type(void)
@@ -4168,7 +4174,6 @@ void eles::set_opp_p(void)
 void eles::set_opp_probe(hf_array<double>& in_loc)
 {
     int i;
-    opp_probe.setup(n_upts_per_ele);
     for(i=0; i<n_upts_per_ele; i++)
     {
         opp_probe(i)=eval_nodal_basis(i,in_loc);

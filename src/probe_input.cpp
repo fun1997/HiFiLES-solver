@@ -34,6 +34,9 @@
 #include "../include/mesh.h"
 #include "../include/mesh_reader.h"
 #include "../include/param_reader.h"
+#ifdef _HDF5
+#include "hdf5.h"
+#endif
 
 using namespace std;
 probe_input::probe_input()
@@ -54,49 +57,221 @@ void probe_input::setup(char *fileNameC, struct solution *FlowSol, int rank)
     n_dims = FlowSol->n_dims;//simulation dimension
     read_probe_input(rank);
     set_probe_connectivity(FlowSol, rank);
+#ifdef _HDF5
+    create_probe_hdf5(rank);
+#else
     create_folder(rank);
+#endif
 }
 
-void probe_input::create_folder(int rank)
+#ifdef _HDF5
+void probe_input::create_probe_hdf5(int rank)
 {
-    /*! master node create a directory to store .dat*/
-    if (rank == 0)
-    {
-        struct stat st = {0};
-        if (run_input.probe == 1) //from script
-        {
-            for (auto &temp_folder : vol_name)
-                if (stat(temp_folder.c_str(), &st) == -1)
-                    mkdir(temp_folder.c_str(), 0755);
-            for (auto &temp_folder : surf_name)
-                if (stat(temp_folder.c_str(), &st) == -1)
-                    mkdir(temp_folder.c_str(), 0755);
-            for (auto &temp_folder : line_name)
-                if (stat(temp_folder.c_str(), &st) == -1)
-                    mkdir(temp_folder.c_str(), 0755);
-            if (point_start.size() - 1)
-                if (stat("points", &st) == -1)
-                    mkdir("points", 0755);
-        }
-        else //mesh file
-        {
-            //extract mesh file basename
-            const size_t last_slash_idx = probe_source_file.find_last_of("\\/");
-            if (last_slash_idx != string::npos)
-                probe_source_file.erase(0, last_slash_idx + 1);
+    hid_t fid;
+    int ct = 0;//counter for local probe
+    hid_t dataset_id, attr_id, dataspace_id, datatype;
+    hsize_t dim[2];
+    set2n_probe.setup(probe_name.get_dim(0));
+    set2n_probe.initialize_to_zero();
 
-            // Remove extension if present.
-            const size_t period_idx = probe_source_file.rfind('.');
-            if (period_idx != string::npos)
-                probe_source_file.erase(period_idx);
-            if (stat(probe_source_file.c_str(), &st) == -1)
-                mkdir(probe_source_file.c_str(), 0755);
+
+    //dimensionalize coord, area if needed
+    if (run_input.viscous && run_input.equation == 0)
+    {
+        transform(pos_probe_global.get_ptr_cpu(), pos_probe_global.get_ptr_cpu() + n_dims * n_probe_global,
+                  pos_probe_global.get_ptr_cpu(), [](double x) { return x * run_input.L_ref; });
+        transform(surf_area.begin(), surf_area.end(),
+                  surf_area.begin(), [](double x) { return x * run_input.L_ref * run_input.L_ref; });
+    }
+
+    for (int i = 0; i < probe_name.get_dim(0); i++) //for each set of probe
+    {
+        if (rank == 0)
+        {
+            /*! master node create hdf5 files*/
+            string temp_probe_fname = probe_name(i) + ".h5";
+            struct stat st = {0};
+
+            if (stat(temp_probe_fname.c_str(), &st) == -1)//file not exist                                                                     //if not exist
+            {
+                fid = H5Fcreate(temp_probe_fname.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT); //creat file if not exist
+                //write sample freq
+                dataspace_id = H5Screate(H5S_SCALAR);
+                double sample_dt;
+                if (run_input.viscous && run_input.equation == 0)
+                    sample_dt = run_input.dt * probe_freq * run_input.time_ref;
+                else
+                    sample_dt = run_input.dt * probe_freq;
+                attr_id = H5Acreate(fid, "dt", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT);
+                H5Awrite(attr_id, H5T_NATIVE_DOUBLE, &sample_dt);
+                H5Aclose(attr_id);
+                //create final time
+                attr_id = H5Acreate(fid, "fnl_time", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT);
+                H5Aclose(attr_id);
+                H5Sclose(dataspace_id);
+                //create probe fields
+                dim[0] = probe_fields.get_dim(0);
+                const char **temp_field = new const char *[dim[0]];
+                for (int j = 0; j < probe_fields.get_dim(0); j++)
+                    temp_field[j] = probe_fields(j).c_str();
+                dataspace_id = H5Screate_simple(1, dim, NULL);
+                datatype = H5Tcopy(H5T_C_S1);
+                H5Tset_size(datatype, H5T_VARIABLE);
+                attr_id = H5Acreate(fid, "fields", datatype, dataspace_id, H5P_DEFAULT, H5P_DEFAULT);
+                H5Awrite(attr_id, datatype, temp_field);
+                H5Aclose(attr_id);
+                H5Tclose(datatype);
+                H5Sclose(dataspace_id);
+                delete[] temp_field;
+
+                //write coord
+                dim[0] = probe_start(i + 1) - probe_start(i); //number of points for this set of probe
+                dim[1] = n_dims;
+                dataspace_id = H5Screate_simple(2, dim, NULL);
+                dataset_id = H5Dcreate2(fid, "coord", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT),
+                H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, pos_probe_global.get_ptr_cpu() + n_dims * probe_start(i));
+                H5Sclose(dataspace_id);
+                H5Dclose(dataset_id);
+                //write face normal and area
+                if (probe_surf_flag(i))
+                {
+                    //normal
+                    dataspace_id = H5Screate_simple(2, dim, NULL);
+                    dataset_id = H5Dcreate2(fid, "normal", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT),
+                    H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, surf_normal.data() + n_dims * (probe_start(i) - surf_offset));
+                    H5Sclose(dataspace_id);
+                    H5Dclose(dataset_id);
+                    //area
+                    dataspace_id = H5Screate_simple(1, dim, NULL);
+                    dataset_id = H5Dcreate2(fid, "area", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT),
+                    H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, surf_area.data() + probe_start(i) - surf_offset);
+                    H5Sclose(dataspace_id);
+                    H5Dclose(dataset_id);
+                }
+                //close file
+                H5Fclose(fid);
+            }
+        }
+        //setup set2n_probe array
+        while (ct < n_probe)
+        {
+            if (p2global_p[ct] < probe_start(i + 1))
+            {
+                set2n_probe(i)++;
+                ct++;
+            }
+            else
+            {
+                break;
+            }
         }
     }
 #ifdef _MPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif // _MPI
+    //clear up memory
+    surf_normal.clear();
+    surf_area.clear();
+    pos_probe_global.setup(1);
 }
+#endif
+
+#ifndef _HDF5
+void probe_input::create_folder(int rank)
+{
+    /*! master node create a directory*/
+    if (rank == 0)
+    {
+        struct stat st = {0};
+        for (int i = 0; i < probe_name.get_dim(0); i++)
+            if (stat(probe_name(i).c_str(), &st) == -1)
+                mkdir(probe_name(i).c_str(), 0755);
+    }
+#ifdef _MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif // _MPI
+
+    //write header if needed
+    char probe_data[256];
+    ofstream wt_probe;
+    string folder;
+    int file_idx;
+
+    //dimensionalize if needed
+    if (run_input.viscous && run_input.equation == 0)
+    {
+        transform(pos_probe_global.get_ptr_cpu(), pos_probe_global.get_ptr_cpu() + n_dims * n_probe_global,
+                  pos_probe_global.get_ptr_cpu(), [](double x) { return x * run_input.L_ref; });
+        transform(surf_area.begin(), surf_area.end(),
+                  surf_area.begin(), [](double x) { return x * run_input.L_ref * run_input.L_ref; });
+    }
+
+    for (int i=0; i<n_probe; i++) //loop over every local probe point i
+    {
+        bool surf_flag;
+        //set the folder name
+        for (int id = 0; id < probe_name.get_dim(0); id++) //loop over each set of probe
+        {
+          if (p2global_p[i] < probe_start[id + 1] && p2global_p[i] >= probe_start[id])
+          {
+            folder = probe_name[id];
+            surf_flag = probe_surf_flag[id];
+            file_idx = p2global_p[i] - probe_start[id];
+            break;
+          }
+        }
+
+        //check if file exist
+        struct stat st = {0};
+        sprintf(probe_data, "%s/%s_%.06d.dat", folder.c_str(), folder.c_str(), file_idx); //generate file name
+
+        if (stat(probe_data, &st) == -1) //if doesn't exist write headers
+        {
+            wt_probe.open(probe_data, ios_base::out | ios_base::app); //open file
+            if (!wt_probe.is_open())
+            {
+                FatalError("Cannont open input file for reading.");
+            }
+            //use normal notation
+            wt_probe.unsetf(ios::floatfield);
+            wt_probe << "NOTE: ALL OUTPUTS ARE DIMENSIONAL IN SI UNITS" << endl;
+            wt_probe << "Probe position" << endl;
+            wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(0, run_probe.p2global_p[i])
+                     << setw(20) << setprecision(10) << run_probe.pos_probe_global(1, run_probe.p2global_p[i]);
+            if (n_dims == 3)
+                wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(2, run_probe.p2global_p[i]) << endl;
+            else
+                wt_probe << endl;
+
+            /*! write surface information*/
+            if (surf_flag)
+            {
+                wt_probe << "Surface normal" << endl;
+                wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[(run_probe.p2global_p[i] - run_probe.surf_offset) * n_dims]
+                         << setw(20) << setprecision(10) << run_probe.surf_normal[(run_probe.p2global_p[i] - run_probe.surf_offset) * n_dims + 1];
+                if (n_dims == 3)
+                    wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[(run_probe.p2global_p[i] - run_probe.surf_offset) * n_dims + 2] << endl;
+                else
+                    wt_probe << endl;
+
+                wt_probe << "Surface area" << endl;
+                    wt_probe << setw(20) << setprecision(10) << run_probe.surf_area[run_probe.p2global_p[i] - run_probe.surf_offset] << endl;
+            }
+
+            /*! write field titles*/
+            wt_probe << setw(20) << "time";
+            for (int j = 0; j < run_probe.n_probe_fields; j++)
+                wt_probe << setw(20) << run_probe.probe_fields(j);
+            wt_probe << endl;
+            wt_probe.close();
+        }
+    }
+    //clear up memory
+    surf_normal.clear();
+    surf_area.clear();
+    pos_probe_global.setup(1);
+}
+#endif
 
 void probe_input::read_probe_input(int rank)
 {
@@ -112,38 +287,31 @@ void probe_input::read_probe_input(int rank)
                        probe_fields(i).begin(), ::tolower);
     }
     probf.getScalarValue("probe_freq", probe_freq);
+    probf.getScalarValue("probe_source_file", probe_source_file);
+    probf.closeFile();
 
     /*!----------calculate probes coordinates ------------*/
 
     if (run_input.probe == 1) //read script
     {
-        probf.getScalarValue("probe_source_file", probe_source_file);
         read_probe_script(probe_source_file);
 
         if (rank == 0)
         {
-            for (auto nm : vol_name)
-                cout << "Volume: " << nm << " loaded." << endl;
-            for (auto nm : surf_name)
-                cout << "Surface: " << nm << " loaded." << endl;
-            for (auto nm : line_name)
-                cout << "Line: " << nm << " loaded." << endl;
-            if (point_start.size() - 1)
-                cout << "Points: " << *(point_start.end() - 1) - *(point_start.begin()) << " points loaded." << endl;
+            for (int nm = 0; nm < probe_name.get_dim(0); nm++)
+                cout << probe_name(nm) << " loaded." << endl;
         }
     }
     else if (run_input.probe == 2) //probes on gambit mesh surface/in volume
     {
-        probf.getScalarValue("probe_source_file", probe_source_file);
         set_probe_mesh(probe_source_file);
         if (rank == 0)
-            cout << "Mesh: " << probe_source_file << " loaded." << endl;
+            cout << probe_name(0) << " loaded." << endl;
     }
     else
     {
         FatalError("Probe type not implemented");
     }
-    probf.closeFile();
 }
 
 void probe_input::set_probe_connectivity(struct solution *FlowSol, int rank)
@@ -239,10 +407,19 @@ void probe_input::read_probe_script(string filename)
     string kwd, name0, name1;
     char dlm;
     //declare arrays to store global positions of points for all types of probes
-    vector<hf_array<double> > pos_point;
-    vector<hf_array<double> > pos_line;
-    vector<hf_array<double> > pos_surf;
     vector<hf_array<double> > pos_vol;
+    vector<hf_array<double> > pos_surf;
+    vector<hf_array<double> > pos_line;
+    vector<hf_array<double> > pos_point;
+    //declare arrays to store name and start index of all types of probes
+    vector<int> vol_start;
+    vector<int> surf_start;
+    vector<int> line_start;
+    vector<int> point_start;
+
+    vector<string> vol_name;
+    vector<string> surf_name;
+    vector<string> line_name;
     //declare start index for each type of probe
     int vol_kstart = 0;
     int surf_kstart = 0;
@@ -506,42 +683,59 @@ void probe_input::read_probe_script(string filename)
     //close file
     script_f.close();
 
-    //set total number of probes for each type(next start index)
-    vol_start.push_back(vol_kstart);
-    surf_start.push_back(surf_kstart);
-    line_start.push_back(line_kstart);
-    point_start.push_back(point_kstart);
-
     //combine them into pos_probe_global array(first surf then line finally points)
     n_probe_global = vol_kstart + surf_kstart + line_kstart + point_kstart;
     pos_probe_global.setup(n_dims, n_probe_global);
+    surf_offset = vol_kstart;
 
-    //copy volume position
+    //copy positions to global position array
     for (size_t i = 0; i < pos_vol.size(); i++)
         for (int j = 0; j < n_dims; j++)
             pos_probe_global(j, i) = pos_vol[i][j];
-    //copy surface position
     for (size_t i = 0; i < pos_surf.size(); i++)
         for (int j = 0; j < n_dims; j++)
             pos_probe_global(j, i + vol_kstart) = pos_surf[i][j];
-    //copy line position
     for (size_t i = 0; i < pos_line.size(); i++)
         for (int j = 0; j < n_dims; j++)
             pos_probe_global(j, i + vol_kstart + surf_kstart) = pos_line[i][j];
-    //copy point position
     for (size_t i = 0; i < pos_point.size(); i++)
         for (int j = 0; j < n_dims; j++)
             pos_probe_global(j, i + vol_kstart + surf_kstart + line_kstart) = pos_point[i][j];
 
-    //surf local start index become global start index
-    for (auto &id : surf_start)
-        id += vol_kstart;
-    //line local start index become global start index
-    for (auto &id : line_start)
-        id += vol_kstart + surf_kstart;
-    //point local start index become global start index
-    for (auto &id : point_start)
-        id += vol_kstart + surf_kstart + line_kstart;
+    //copy start arrays to global start array and set probe type flag and names
+    probe_start.setup((int)(vol_start.size() + surf_start.size() + line_start.size() + point_start.size() + 1));
+    probe_surf_flag.setup(probe_start.get_dim(0) - 1);
+    probe_name.setup(probe_start.get_dim(0) - 1);
+
+    int ct = 0;
+    for (size_t i = 0; i < vol_start.size(); i++)
+    {
+        probe_surf_flag(ct) = false;
+        probe_name(ct) = vol_name[i];
+        probe_start(ct++) = vol_start[i];
+    }
+    for (size_t i = 0; i < surf_start.size(); i++)
+    {
+        probe_surf_flag(ct) = true;
+        probe_name(ct) = surf_name[i];
+        probe_start(ct++) = surf_start[i] + vol_kstart;
+    }
+    for (size_t i = 0; i < line_start.size(); i++)
+    {
+        probe_surf_flag(ct) = false;
+        probe_name(ct) = line_name[i];
+        probe_start(ct++) = line_start[i] + vol_kstart + surf_kstart;
+    }
+    if (point_start.size())
+    {
+        probe_surf_flag(ct) = false;
+        probe_name(ct) = string("points");
+        probe_start(ct++) = point_start[0] + vol_kstart + surf_kstart + line_kstart;
+    }
+    probe_start(ct) = n_probe_global; //add total number of probes to the array
+
+#undef SKIP_SPACE
+#undef COMP_SYN
 }
 
 void probe_input::set_probe_line(hf_array<double> &in_p0, hf_array<double> &in_p1, const double in_init_incre,
@@ -601,7 +795,7 @@ void probe_input::set_probe_line(hf_array<double> &in_p0, hf_array<double> &in_p
 }
 
 void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &in_ori, const double in_r, const int n_layer,
-                                   vector<hf_array<double> > &out_normal, vector<double> &out_area,
+                                   vector<double> &out_normal, vector<double> &out_area,
                                    vector<hf_array<double> > &out_pos_circle)
 {
     //calculate number of cell center points for the face
@@ -729,14 +923,16 @@ void probe_input::set_probe_circle(hf_array<double> &in_cent, hf_array<double> &
 
         //normalize the normal vector
         for (int j = 0; j < n_dims; j++)
+        {
             temp_normal(j) /= temp_length;
-        out_normal.push_back(temp_normal);
+            out_normal.push_back(temp_normal(j));
+        }
     }
 }
 
 void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &in_ori, double r0, const double r1,
                                  const int n_layer_r, const double in_l,
-                                 const int n_layer_l, vector<hf_array<double> > &out_normal,
+                                 const int n_layer_l, vector<double> &out_normal,
                                  vector<double> &out_area, vector<hf_array<double> > &out_pos_cone)
 {
     //calculate number of cell center points for the face
@@ -857,8 +1053,10 @@ void probe_input::set_probe_cone(hf_array<double> &in_cent0, hf_array<double> &i
 
         //normalize the normal vector
         for (int j = 0; j < n_dims; j++)
+        {
             temp_normal(j) /= temp_length;
-        out_normal.push_back(temp_normal);
+            out_normal.push_back(temp_normal(j));
+        }
     }
 }
 
@@ -881,7 +1079,7 @@ void probe_input::set_probe_cube(hf_array<double> &in_origin, hf_array<int> &in_
 void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 2D planes and 3D volumes
 {
     mesh probe_msh;
-
+    int mesh_dims,ele_dims;
     mesh_reader probe_mr(filename, &probe_msh);
 
     probe_mr.partial_read_connectivity(0, probe_msh.num_cells_global);
@@ -890,6 +1088,10 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
     n_probe_global = probe_msh.num_cells;
     ele_dims = probe_msh.n_ele_dims; //mesh element dimension(surf or volume)
     mesh_dims = probe_msh.n_dims;    //mesh dimension(2D/3D)
+
+    probe_start.setup(2);
+    probe_start(0) = 0;
+    probe_start(1) = n_probe_global;
 
     if (mesh_dims > n_dims)
         FatalError("Mesh for probe cannot have a higher dimension than simulation");
@@ -912,8 +1114,12 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
     }
 
     /*! calculate face normals and area*/
+    probe_surf_flag.setup(1);
+    probe_surf_flag(0) = false;
+    surf_offset=0;
     if (ele_dims == 2 && n_dims == 3) //if surface mesh and 3D simulation
     {
+        probe_surf_flag(0) = true;
         //calculate face normal
         hf_array<double> temp_vec(n_dims);
         hf_array<double> temp_vec2(n_dims);
@@ -936,8 +1142,10 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
                 temp_length += temp_normal(j) * temp_normal(j);
             temp_length = sqrt(temp_length);
             for (int j = 0; j < n_dims; j++)
+            {
                 temp_normal(j) /= temp_length;
-            surf_normal.push_back(temp_normal);
+                surf_normal.push_back(temp_normal(j));
+            }
         }
 
         //calculate face area
@@ -964,6 +1172,18 @@ void probe_input::set_probe_mesh(string filename) //be able to read 3D sufaces, 
             }
         }
     }
+
+    //extract mesh file basename
+    const size_t last_slash_idx = probe_source_file.find_last_of("\\/");
+    if (last_slash_idx != string::npos)
+        probe_source_file.erase(0, last_slash_idx + 1);
+    // Remove extension if present.
+    const size_t period_idx = probe_source_file.rfind('.');
+    if (period_idx != string::npos)
+        probe_source_file.erase(period_idx);
+
+    probe_name.setup(1);
+    probe_name(0) = probe_source_file;
 }
 
 void probe_input::set_loc_probepts(struct solution *FlowSol)

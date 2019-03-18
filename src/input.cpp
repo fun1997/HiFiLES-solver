@@ -639,6 +639,9 @@ void input::setup_params(int rank)
             rho_c_ic = rho_c_ic / rho_ref;
             T_c_ic = T_c_ic / T_ref;
 
+            //constants
+            Kappa=0.41; //Von-Karman constant
+
             // SA turblence model parameters
             if (RANS == 1)
             {
@@ -650,7 +653,6 @@ void input::setup_params(int rank)
                 c_w2 = 0.3;
                 c_w3 = 2.0;
                 omega = 2.0 / 3.0;
-                Kappa = 0.41;
                 mu_tilde_c_ic = 5.0 * mu_c_ic;
                 mu_tilde_inf = 5.0 * mu_inf;
             }

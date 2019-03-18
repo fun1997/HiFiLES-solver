@@ -892,6 +892,7 @@ void eles_tets::read_restart_info_hdf5(hid_t &restart_file, int in_rest_order)
 #endif
 
 // write restart info
+#ifndef _HDF5
 void eles_tets::write_restart_info_ascii(ofstream& restart_file)
 {
   restart_file << "TETS" << endl;
@@ -911,6 +912,7 @@ void eles_tets::write_restart_info_ascii(ofstream& restart_file)
     }
 
 }
+#endif
 
 #ifdef _HDF5
 void eles_tets::write_restart_info_hdf5(hid_t &restart_file)

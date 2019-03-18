@@ -205,8 +205,9 @@ hf_array<T>::hf_array(int in_dim_0, int in_dim_1, int in_dim_2, int in_dim_3)
   dim_2=in_dim_2;
   dim_3=in_dim_3;
 
-  cpu_data = new T[dim_0*dim_1*dim_2*dim_3];
+  int temp_size = dim_0 * dim_1 * dim_2 * dim_3;
 
+  cpu_data = new T[temp_size];
 
   cpu_flag=1;
 #ifdef _GPU
@@ -229,6 +230,11 @@ hf_array<T>::hf_array(const hf_array<T>& in_array)
   cpu_data = new T[temp_size];
 
   copy(in_array.cpu_data, in_array.cpu_data + temp_size, this->cpu_data);
+
+  cpu_flag = 1;
+#ifdef _GPU
+  gpu_flag = 0;
+#endif
 }
 
 // assignment
@@ -285,7 +291,9 @@ void hf_array<T>::setup(int in_dim_0, int in_dim_1, int in_dim_2, int in_dim_3)
   dim_2=in_dim_2;
   dim_3=in_dim_3;
 
-  cpu_data=new T[dim_0*dim_1*dim_2*dim_3];
+  int temp_size = dim_0 * dim_1 * dim_2 * dim_3;
+
+  cpu_data = new T[temp_size];
   cpu_flag=1;
 #ifdef _GPU
   gpu_flag = 0;

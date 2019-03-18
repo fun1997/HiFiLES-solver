@@ -1398,8 +1398,8 @@ Used in run mode.
 input: FlowSol						solution structure
 output: probe_<probe_index>.dat		probe data file
 */
-
-void output::write_probe(void)
+#ifndef _HDF5
+void output::write_probe_ascii(void)
 {
     /*! Current rank*/
     int myrank=FlowSol->rank;
@@ -1407,18 +1407,12 @@ void output::write_probe(void)
     int viscous=run_input.viscous;
     /*! No. of solution fields */
     int n_fields;
-    /*! No. of optional diagnostic fields */
-    int n_probe_fields=run_probe.n_probe_fields;
-    /*! No. of probes */
-    int n_probe=run_probe.n_probe;
     /*! No. of dimensions */
     int n_dims=FlowSol->n_dims;
     /*! reference location of probe point */
     hf_array<double> loc_probe_point_temp(n_dims);
     /*! solution data at probe points */
     hf_array<double> disu_probe_point_temp;
-    /*! solution gradient data at probe points */
-    hf_array<double> grad_disu_probe_point_temp;
     /*! file name */
     char probe_data[256];
     /*! output file object*/
@@ -1427,160 +1421,66 @@ void output::write_probe(void)
     string folder;
     int file_idx;
 
-    /*! every node write .dat*/
-    if(myrank ==0) cout<<"writing probe point data...";
-    for (int i=0; i<n_probe; i++) //loop over every local probe point i
+    if (run_input.equation == 0) //ns
     {
-        //copy probe point property
-        n_fields = FlowSol->mesh_eles(run_probe.p2t[i])->get_n_fields(); //number of computing fields
-        disu_probe_point_temp.setup(n_fields);
-        disu_probe_point_temp.initialize_to_zero();
-        for (int j = 0; j < n_dims; j++)
-          loc_probe_point_temp(j) = run_probe.loc_probe(j, i);
+      if (n_dims == 2)
+        n_fields = 4;
+      else
+        n_fields = 5;
+      if (run_input.RANS)
+        n_fields++;
+    }
+    else //ad-diff
+      n_fields = 1;
 
+    //initialize temp solution array
+    disu_probe_point_temp.setup(n_fields);
+    disu_probe_point_temp.initialize_to_zero();
+
+    /*! every node write .dat*/
+    if(myrank ==0) cout<<"writing probe point data..."<<flush;
+    for (int i=0; i<run_probe.n_probe; i++) //loop over every local probe point i
+    {
         bool surf_flag;
         //set the folder name
-        if (run_input.probe == 1) //from script
+        for (int id = 0; id < run_probe.probe_name.get_dim(0); id++) //loop over each set of probe
         {
-          if (run_probe.p2global_p[i] < run_probe.surf_start[0]) //is a volume
+          if (run_probe.p2global_p[i] < run_probe.probe_start[id + 1] && run_probe.p2global_p[i] >= run_probe.probe_start[id])
           {
-            surf_flag = false;
-            for (size_t id = 1; id < run_probe.vol_start.size(); id++)
-            {
-              if (run_probe.p2global_p[i] < run_probe.vol_start[id] && run_probe.p2global_p[i] >= run_probe.vol_start[id - 1])
-              {
-                folder = run_probe.vol_name[id - 1];
-                file_idx = run_probe.p2global_p[i] - run_probe.vol_start[id - 1];
-                break;
-              }
-            }
-          }
-          else if (run_probe.p2global_p[i] < run_probe.line_start[0]) //is a surf
-          {
-            surf_flag = true;
-            for (size_t id = 1; id < run_probe.surf_start.size(); id++)
-            {
-              if (run_probe.p2global_p[i] < run_probe.surf_start[id] && run_probe.p2global_p[i] >= run_probe.surf_start[id - 1])
-              {
-                folder = run_probe.surf_name[id - 1];
-                file_idx = run_probe.p2global_p[i] - run_probe.surf_start[id - 1];
-                break;
-              }
-            }
-          }
-          else if(run_probe.p2global_p[i] <run_probe.point_start[0]) //is a line
-          {
-            surf_flag = false;
-            for (size_t id = 1; id < run_probe.line_start.size(); id++)
-            {
-              if (run_probe.p2global_p[i] < run_probe.line_start[id] && run_probe.p2global_p[i] >= run_probe.line_start[id - 1])
-              {
-                folder = run_probe.line_name[id - 1];
-                file_idx = run_probe.p2global_p[i] - run_probe.line_start[id - 1];
-                break;
-              }
-            }
-          }
-          else//is a point
-          {
-            surf_flag = false;
-            folder = "points";
-            file_idx = run_probe.p2global_p[i] - run_probe.point_start[0];
+            folder = run_probe.probe_name[id];
+            surf_flag = run_probe.probe_surf_flag[id];
+            file_idx = run_probe.p2global_p[i] - run_probe.probe_start[id];
+            break;
           }
         }
-        else if (run_input.probe == 2) //gambit
-        {
-          if (run_probe.ele_dims == 2 && n_dims == 3) //3D simulation and surf mesh
-            surf_flag = true;
-          else
-            surf_flag = false;
-          folder = run_probe.probe_source_file;
-          file_idx = run_probe.p2global_p[i];
-        }
-        else
-        {
-          FatalError("Probe type not supported");
-        }
-
-        //check if file exist
-        bool exist = true;
-        struct stat st = {0};
-        sprintf(probe_data, "%s/%s_%.06d.dat", folder.c_str(), folder.c_str(), file_idx); //generate file name
-        if (stat(probe_data, &st) == -1)
-          exist = false;
 
         wt_probe.open(probe_data, ios_base::out | ios_base::app); //open file
         if (!wt_probe.is_open())
         {
-          wt_probe.open(probe_data, ios_base::out | ios_base::app);
-          if (!wt_probe.is_open())
-            FatalError("Cannont open input file for reading.");
+          FatalError("Cannont open input file for reading.");
         }
-        //use normal notation
-        wt_probe.unsetf(ios::floatfield);
-        if (exist == false) //if doesn't exist write headers
-        {
-          wt_probe << "NOTE: ALL OUTPUTS ARE DIMENSIONAL IN SI UNITS" << endl;
-          wt_probe << "Probe position" << endl;
-          if (viscous)
-            wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(0, run_probe.p2global_p[i]) * run_input.L_ref
-                     << setw(20) << setprecision(10) << run_probe.pos_probe_global(1, run_probe.p2global_p[i]) * run_input.L_ref;
-          else
-            wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(0, run_probe.p2global_p[i])
-                     << setw(20) << setprecision(10) << run_probe.pos_probe_global(1, run_probe.p2global_p[i]);
-          if (n_dims == 3)
-          {
-            if (viscous)
-              wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(2, run_probe.p2global_p[i]) * run_input.L_ref << endl;
-            else
-              wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(2, run_probe.p2global_p[i]) << endl;
-          }
-          else
-            wt_probe << endl;
-          /*! write surface information*/
-          if (surf_flag == true)
-          {
-            wt_probe << "Surface normal" << endl;
-            wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i] - run_probe.surf_start[0]][0]
-                     << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i] - run_probe.surf_start[0]][1];
-            if (n_dims == 3)
-              wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[run_probe.p2global_p[i] - run_probe.surf_start[0]][2] << endl;
-            else
-              wt_probe << endl;
-
-            wt_probe << "Surface area" << endl;
-            if (viscous)
-              wt_probe << setw(20) << setprecision(10) << run_probe.surf_area[run_probe.p2global_p[i] - run_probe.surf_start[0]] * run_input.L_ref * run_input.L_ref << endl;
-            else
-              wt_probe << setw(20) << setprecision(10) << run_probe.surf_area[run_probe.p2global_p[i] - run_probe.surf_start[0]] << endl;
-          }
-          /*! write field titles*/
-          wt_probe << setw(20) << "time";
-          for (int j = 0; j < n_probe_fields; j++)
-            wt_probe << setw(20) << run_probe.probe_fields(j);
-
-          wt_probe << endl;
-        }
-
         //use scientific notation
         wt_probe.setf(ios::scientific);
 
+        //copy probe point loc
+        for (int j = 0; j < n_dims; j++)
+          loc_probe_point_temp(j) = run_probe.loc_probe(j, i);
         //calculate fields data on probe points
         FlowSol->mesh_eles(run_probe.p2t[i])->set_opp_probe(loc_probe_point_temp);                            //calculate solution on upts to probe points matrix
         FlowSol->mesh_eles(run_probe.p2t[i])->calc_disu_probepoints(run_probe.p2c[i], disu_probe_point_temp); //calculate solution on the reference probe point
 
         /*! Start writing data*/
         //write time
-        if (viscous)
+        if (viscous && run_input.equation == 0)
           wt_probe << setw(20) << setprecision(10) << FlowSol->time * run_input.time_ref;
         else
           wt_probe << setw(20) << setprecision(10) << FlowSol->time;
-        for (int j = 0; j < n_probe_fields; j++) //write transient fields
+        for (int j = 0; j < run_probe.n_probe_fields; j++) //write transient fields
         {
 
           if (run_probe.probe_fields(j) == "rho")
           {
-            if (viscous)
+            if (viscous && run_input.equation == 0)
               wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(0) * run_input.rho_ref;
             else
               wt_probe << setw(20) << setprecision(10) << disu_probe_point_temp(0);
@@ -1642,7 +1542,213 @@ void output::write_probe(void)
     }
     if (myrank==0) cout<<"done."<<endl;
 }
+#endif
 
+#ifdef _HDF5
+void output::write_probe_hdf5()
+{
+  //probe declaration
+  /*! Current rank*/
+  int myrank = FlowSol->rank;
+  /*! Is viscous*/
+  int viscous = run_input.viscous;
+  /*! No. of solution fields */
+  int n_fields;
+  /*! No. of dimensions */
+  int n_dims = FlowSol->n_dims;
+  /*! reference location of probe point */
+  hf_array<double> loc_probe_point_temp(n_dims);
+  /*! solution data at probe points */
+  hf_array<double> disu_probe_point_temp;
+  //export data
+  hf_array<double> data;
+  //final time
+  double fnl_time;
+  //counter of probe index on this processor
+  int ct = 0;
+  //hdf5 declare
+  hid_t fid, attr_id, dataset_id, dataspace_id, memspace_id, plist_id, chunk_prop;
+  hsize_t dims[3], maxdims[3], offset[3], count[3];
+  string temp_probe_fname;
+
+  //set fields
+  if (run_input.equation == 0) //ns
+  {
+    if (n_dims == 2)
+      n_fields = 4;
+    else
+      n_fields = 5;
+    if (run_input.RANS)
+      n_fields++;
+  }
+  else //ad-diff
+    n_fields = 1;
+
+  //set final time
+  if (viscous && run_input.equation == 0)
+    fnl_time = FlowSol->time * run_input.time_ref;
+  else
+    fnl_time = FlowSol->time;
+
+  //initialize temp solution array
+  disu_probe_point_temp.setup(n_fields);
+  disu_probe_point_temp.initialize_to_zero();
+
+  if (myrank == 0)
+    cout << "writing probe point data..."<<flush;
+
+  for (int i = 0; i < run_probe.probe_name.get_dim(0); i++) //loop over each set of probe
+  {
+    //open file
+    plist_id = H5Pcreate(H5P_FILE_ACCESS);
+#ifdef _MPI
+    H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+#endif
+    temp_probe_fname = run_probe.probe_name(i) + ".h5";
+    fid = H5Fopen(temp_probe_fname.c_str(), H5F_ACC_RDWR, plist_id);
+    if (fid < 0) //open failed
+      FatalError("Unable to open the probe file");
+    H5Pclose(plist_id);
+
+    //write final time
+    attr_id=H5Aopen(fid,"fnl_time",H5P_DEFAULT);
+    H5Awrite(attr_id,H5T_NATIVE_DOUBLE,&fnl_time);
+    H5Aclose(attr_id);
+
+    //open dataset
+    if (H5Lexists(fid, "/data", H5P_DEFAULT) <= 0) //if dataset doesnt exist, create dataset
+    {
+      dims[0] = run_probe.n_probe_fields;
+      dims[1] = run_probe.probe_start(i + 1) - run_probe.probe_start(i); //number of probes belong this set
+      dims[2] = 1;//one snapshot
+      maxdims[0] = dims[0];
+      maxdims[1] = dims[1];
+      maxdims[2] = H5S_UNLIMITED;
+      dataspace_id = H5Screate_simple(3, dims, maxdims);
+      chunk_prop = H5Pcreate(H5P_DATASET_CREATE);
+      H5Pset_chunk(chunk_prop, 3, dims);
+      dataset_id = H5Dcreate2(fid, "data", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, chunk_prop, H5P_DEFAULT);
+      H5Pclose(chunk_prop);
+    }
+    else
+    {
+      dataset_id = H5Dopen2(fid, "data", H5P_DEFAULT);
+      dataspace_id = H5Dget_space(dataset_id);             //get old dataspace
+      H5Sget_simple_extent_dims(dataspace_id, dims, NULL); //get old dimension
+      H5Sclose(dataspace_id);//close old dataspace
+      //extend by one line
+      dims[2] += 1;
+      H5Dset_extent(dataset_id, dims);
+      dataspace_id = H5Dget_space(dataset_id); //get new dataspace
+    }
+    H5Sselect_none(dataspace_id); //clear selection
+
+    //initialize output data array
+    data.setup(run_probe.set2n_probe(i), run_probe.n_probe_fields);
+    //create memoryspace
+    count[0] = run_probe.n_probe_fields;
+    count[1] = run_probe.set2n_probe(i);
+    count[2] = 1;
+    memspace_id = H5Screate_simple(3, count, NULL);
+
+    offset[0] = 0;
+    count[1] = 1;
+    offset[2] = dims[2] - 1;
+    for (int j = 0; j < run_probe.set2n_probe(i); j++) //for each probe of this set belong to this processor
+    {
+      //select hyperslab
+      offset[1] = run_probe.p2global_p[ct] - run_probe.probe_start(i);
+      if (H5Sselect_hyperslab(dataspace_id, H5S_SELECT_OR, offset, NULL, count, NULL) < 0)
+        FatalError("Failed to get hyperslab");
+
+      //load location of probe
+      for (int k = 0; k < n_dims; k++)
+        loc_probe_point_temp(k) = run_probe.loc_probe(k,ct);
+      //calculate fields data on probe points
+      FlowSol->mesh_eles(run_probe.p2t[ct])->set_opp_probe(loc_probe_point_temp);                             //calculate solution on upts to probe points matrix
+      FlowSol->mesh_eles(run_probe.p2t[ct])->calc_disu_probepoints(run_probe.p2c[ct], disu_probe_point_temp); //calculate solution on the reference probe point
+     
+      for (int k = 0; k < run_probe.n_probe_fields; k++)//for each sampled variable
+      {
+        if (run_probe.probe_fields(k) == "rho")
+        {
+          if (viscous && run_input.equation == 0)
+            data(j, k) = disu_probe_point_temp(0) * run_input.rho_ref;
+          else
+            data(j, k) = disu_probe_point_temp(0);
+        }
+        else if (run_probe.probe_fields(k) == "u")
+        {
+          if (viscous)
+            data(j, k) = disu_probe_point_temp(1) / disu_probe_point_temp(0) * run_input.uvw_ref;
+          else
+            data(j, k) = disu_probe_point_temp(1) / disu_probe_point_temp(0);
+        }
+        else if (run_probe.probe_fields(k) == "v")
+        {
+          if (viscous)
+            data(j, k) = disu_probe_point_temp(2) / disu_probe_point_temp(0) * run_input.uvw_ref;
+          else
+            data(j, k) = disu_probe_point_temp(2) / disu_probe_point_temp(0);
+        }
+        else if (run_probe.probe_fields(k) == "w")
+        {
+          if (n_dims == 3)
+          {
+            if (viscous)
+              data(j, k) = disu_probe_point_temp(3) / disu_probe_point_temp(0) * run_input.uvw_ref;
+            else
+              data(j, k) = disu_probe_point_temp(3) / disu_probe_point_temp(0);
+          }
+          else
+            FatalError("2 dimensional elements don't have z velocity");
+        }
+        else if (run_probe.probe_fields(k) == "specific_total_energy") //e
+        {
+          if (viscous)
+            data(j, k) = disu_probe_point_temp(n_dims + 1) / disu_probe_point_temp(0) * run_input.uvw_ref * run_input.uvw_ref;
+          else
+            data(j, k) = disu_probe_point_temp(n_dims + 1) / disu_probe_point_temp(0);
+        }
+        else if (run_probe.probe_fields(k) == "pressure")
+        {
+          double v_sq = 0.;
+          double pressure;
+          for (int m = 0; m < n_dims; m++)
+            v_sq += (disu_probe_point_temp(m + 1) * disu_probe_point_temp(m + 1));
+          v_sq /= disu_probe_point_temp(0) * disu_probe_point_temp(0);
+          // Compute pressure
+          pressure = (run_input.gamma - 1.0) * (disu_probe_point_temp(n_dims + 1) - 0.5 * disu_probe_point_temp(0) * v_sq);
+          if (viscous)
+            data(j, k) = pressure * run_input.p_ref;
+          else
+            data(j, k) = pressure;
+        }
+        else
+          FatalError("Probe field not implemented yet!");
+      }
+      ct++;
+    }
+
+    //write data
+    plist_id = H5Pcreate(H5P_DATASET_XFER);
+#ifdef _MPI
+    //set collective read
+    H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+#endif
+    H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, memspace_id, dataspace_id, plist_id, data.get_ptr_cpu());
+    //close file
+    H5Dclose(dataset_id);
+    H5Sclose(dataspace_id);
+    H5Sclose(memspace_id);
+    H5Pclose(plist_id);
+    H5Fclose(fid);
+  }
+  if (myrank==0) cout<<"done."<<endl;
+}
+#endif
+
+#ifndef _HDF5
 void output::write_restart_ascii(int in_file_num)
 {
 
@@ -1709,6 +1815,7 @@ void output::write_restart_ascii(int in_file_num)
   if (FlowSol->rank == 0)
     cout << "done" << endl;
 }
+#endif
 
 #ifdef _HDF5
 void output::write_restart_hdf5(int in_file_num)
@@ -2148,11 +2255,21 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
   int n_diags = run_input.n_integral_quantities;
   double in_time = FlowSol->time;
 
-  if (FlowSol->n_dims==2) n_fields = 4;
-  else n_fields = 5;
+  if (run_input.equation == 0)//ns
+  {
+    if (FlowSol->n_dims == 2)
+      n_fields = 4;
+    else
+      n_fields = 5;
 
-  if (run_input.RANS==1) {
-    n_fields++;
+    if (run_input.RANS == 1)
+    {
+      n_fields++;
+    }
+  }
+  else //ad-diff
+  {
+    n_fields = 1;
   }
 
   // set write flag
@@ -2185,6 +2302,7 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
         write_hist[0] << "VARIABLES = \"Iteration\"";
 
         // Add residual and variables
+        if(run_input.equation==0){
         if (FlowSol->n_dims == 2)
         {
           write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>x</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>v<sub>y</sub>])\",\"log<sub>10</sub>(Res[<greek>r</greek>E])\"";
@@ -2206,6 +2324,11 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
           if (run_input.calc_force)
             write_hist[0] << ",\"F<sub>x</sub>(Total)\",\"F<sub>y</sub>(Total)\",\"F<sub>z</sub>(Total)\",\"CL</sub>(Total)\",\"CD</sub>(Total)\"";
         }
+        }
+        else
+        {
+          write_hist[0] << ",\"log<sub>10</sub>(Res[<greek>r</greek>])\"";
+        }
 
         // Add integral diagnostics
         for (i = 0; i < n_diags; i++)
@@ -2219,6 +2342,8 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
     }
     // Write the header
     if (write_heads) {
+      if(run_input.equation==0)
+      {
       if (FlowSol->n_dims==2) {
         if (n_fields == 4) cout << "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]      Res[RhoE]";
         else cout << "\n  Iter       Res[Rho]   Res[RhoVelx]   Res[RhoVely]      Res[RhoE]   Res[MuTilde]";
@@ -2234,6 +2359,11 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
         cout<<"       Fx_Total       Fy_Total       Fz_Total"<<endl;
         else
         cout<<endl;
+       }
+      }
+      else
+      {
+        cout << "\n  Iter       Res[Rho]" << endl;
       }
     }
 
@@ -2265,7 +2395,7 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
                 write_hist[0] << ", " << FlowSol->integral_quantities(i);
 
     // Output physical time in seconds
-            if (run_input.viscous)
+            if (run_input.viscous&&run_input.equation==0)
               write_hist[0] << ", " << in_time * run_input.time_ref;
             else
               write_hist[0] << ", " << in_time;

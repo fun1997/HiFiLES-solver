@@ -74,13 +74,19 @@ class output
 #endif
 
     /*! write an probe data file */
-    void write_probe(void);
 
-    /*! writing a restart file */
-    void write_restart_ascii(int in_file_num);
-    #ifdef _HDF5
+#ifdef _HDF5
+    void write_probe_hdf5(void);
+#else
+    void write_probe_ascii(void);
+#endif
+
+/*! writing a restart file */
+#ifdef _HDF5
     void write_restart_hdf5(int in_file_num);
-    #endif
+#else
+    void write_restart_ascii(int in_file_num);
+#endif
 
     /*! monitor convergence of residual */
     void HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist);

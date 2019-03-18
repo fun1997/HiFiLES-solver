@@ -706,6 +706,7 @@ void eles_quads::read_restart_info_hdf5(hid_t &restart_file, int in_rest_order)
 }
 #endif
 
+#ifndef _HDF5
 void eles_quads::write_restart_info_ascii(ofstream& restart_file)
 {
   restart_file << "QUADS" << endl;
@@ -723,6 +724,7 @@ void eles_quads::write_restart_info_ascii(ofstream& restart_file)
   restart_file << endl;
 
 }
+#endif
 
 #ifdef _HDF5
 void eles_quads::write_restart_info_hdf5(hid_t &restart_file)

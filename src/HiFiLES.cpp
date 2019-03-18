@@ -275,7 +275,11 @@ int main(int argc, char *argv[]) {
         if(run_input.probe!=0)
         {
             if((i_steps%run_probe.probe_freq==0))
-                run_output.write_probe();
+#ifdef _HDF5
+              run_output.write_probe_hdf5();
+#else
+              run_output.write_probe_ascii();
+#endif
         }
 
     /*! Dump restart file. */

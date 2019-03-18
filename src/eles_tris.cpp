@@ -618,6 +618,7 @@ void eles_tris::read_restart_info_hdf5(hid_t &restart_file, int in_rest_order)
 #endif
 
 // write restart info
+#ifndef _HDF5
 void eles_tris::write_restart_info_ascii(ofstream& restart_file)
 {
   restart_file << "TRIS" << endl;
@@ -637,6 +638,7 @@ void eles_tris::write_restart_info_ascii(ofstream& restart_file)
     }
 
 }
+#endif
 
 #ifdef _HDF5
 void eles_tris::write_restart_info_hdf5(hid_t &restart_file)

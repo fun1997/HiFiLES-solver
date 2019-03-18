@@ -78,10 +78,11 @@ public:
 #endif
 
   /*! write data to restart file */
-  void write_restart_data_ascii(ofstream& restart_file);
-  #ifdef _HDF5
-  void write_restart_data_hdf5(hid_t& in_dataset_id);
-  #endif
+#ifdef _HDF5
+  void write_restart_data_hdf5(hid_t &in_dataset_id);
+#else
+  void write_restart_data_ascii(ofstream &restart_file);
+#endif
 
   /*! calculate the discontinuous solution at the flux points */
   void extrapolate_solution(void);
@@ -345,9 +346,10 @@ public:
   virtual void read_restart_info_hdf5(hid_t &restart_file, int in_rest_order) = 0;
 #endif
 
-  virtual void write_restart_info_ascii(ofstream &restart_file) = 0;
 #ifdef _HDF5
   virtual void write_restart_info_hdf5(hid_t &restart_file) = 0;
+#else
+  virtual void write_restart_info_ascii(ofstream &restart_file) = 0;
 #endif
 
   /*! Compute interface jacobian determinant on face */
@@ -432,7 +434,7 @@ public:
 
   void shock_capture(void);
 
-  void shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma);
+  //void shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma);
   void dealias_over_integration(void);
 
   /*! element local timestep */

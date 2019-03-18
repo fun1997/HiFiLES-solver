@@ -77,9 +77,10 @@ public:
 #endif
 
   /*! write restart info */
-  void write_restart_info_ascii(ofstream& restart_file);
 #ifdef _HDF5
   void write_restart_info_hdf5(hid_t &restart_file);
+#else
+  void write_restart_info_ascii(ofstream& restart_file);
 #endif
 
   /*! Compute interface jacobian determinant on face */
