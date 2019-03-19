@@ -236,10 +236,10 @@ void probe_input::create_folder(int rank)
             wt_probe.unsetf(ios::floatfield);
             wt_probe << "NOTE: ALL OUTPUTS ARE DIMENSIONAL IN SI UNITS" << endl;
             wt_probe << "Probe position" << endl;
-            wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(0, run_probe.p2global_p[i])
-                     << setw(20) << setprecision(10) << run_probe.pos_probe_global(1, run_probe.p2global_p[i]);
+            wt_probe << setw(20) << setprecision(10) <<pos_probe_global(0, p2global_p[i])
+                     << setw(20) << setprecision(10) << pos_probe_global(1, p2global_p[i]);
             if (n_dims == 3)
-                wt_probe << setw(20) << setprecision(10) << run_probe.pos_probe_global(2, run_probe.p2global_p[i]) << endl;
+                wt_probe << setw(20) << setprecision(10) << pos_probe_global(2, p2global_p[i]) << endl;
             else
                 wt_probe << endl;
 
@@ -247,21 +247,21 @@ void probe_input::create_folder(int rank)
             if (surf_flag)
             {
                 wt_probe << "Surface normal" << endl;
-                wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[(run_probe.p2global_p[i] - run_probe.surf_offset) * n_dims]
-                         << setw(20) << setprecision(10) << run_probe.surf_normal[(run_probe.p2global_p[i] - run_probe.surf_offset) * n_dims + 1];
+                wt_probe << setw(20) << setprecision(10) << surf_normal[(p2global_p[i] - surf_offset) * n_dims]
+                         << setw(20) << setprecision(10) << surf_normal[(p2global_p[i] - surf_offset) * n_dims + 1];
                 if (n_dims == 3)
-                    wt_probe << setw(20) << setprecision(10) << run_probe.surf_normal[(run_probe.p2global_p[i] - run_probe.surf_offset) * n_dims + 2] << endl;
+                    wt_probe << setw(20) << setprecision(10) << surf_normal[(p2global_p[i] - surf_offset) * n_dims + 2] << endl;
                 else
                     wt_probe << endl;
 
                 wt_probe << "Surface area" << endl;
-                    wt_probe << setw(20) << setprecision(10) << run_probe.surf_area[run_probe.p2global_p[i] - run_probe.surf_offset] << endl;
+                    wt_probe << setw(20) << setprecision(10) << surf_area[p2global_p[i] - surf_offset] << endl;
             }
 
             /*! write field titles*/
             wt_probe << setw(20) << "time";
-            for (int j = 0; j < run_probe.n_probe_fields; j++)
-                wt_probe << setw(20) << run_probe.probe_fields(j);
+            for (int j = 0; j < n_probe_fields; j++)
+                wt_probe << setw(20) << probe_fields(j);
             wt_probe << endl;
             wt_probe.close();
         }
