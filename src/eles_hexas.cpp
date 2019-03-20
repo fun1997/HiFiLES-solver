@@ -1654,42 +1654,36 @@ double eles_hexas::calc_h_ref_specific(int in_ele)
             vertex_index_loc(0) = 1;
             vertex_index_loc(1) = 0;
             vertex_index_loc(2) = 3;
-            vertex_index_loc(3) = 2;
           }
           else if (j == 1)
           {
             vertex_index_loc(0) = 0;
             vertex_index_loc(1) = 1;
             vertex_index_loc(2) = 5;
-            vertex_index_loc(3) = 4;
           }
           else if (j == 2)
           {
             vertex_index_loc(0) = 1;
             vertex_index_loc(1) = 2;
             vertex_index_loc(2) = 6;
-            vertex_index_loc(3) = 5;
           }
           else if (j == 3)
           {
             vertex_index_loc(0) = 2;
             vertex_index_loc(1) = 3;
             vertex_index_loc(2) = 7;
-            vertex_index_loc(3) = 6;
           }
           else if (j == 4)
           {
             vertex_index_loc(0) = 3;
             vertex_index_loc(1) = 0;
             vertex_index_loc(2) = 4;
-            vertex_index_loc(3) = 7;
           }
           else if (j == 5)
           {
             vertex_index_loc(0) = 4;
             vertex_index_loc(1) = 5;
             vertex_index_loc(2) = 6;
-            vertex_index_loc(3) = 7;
           }
         }
         else
