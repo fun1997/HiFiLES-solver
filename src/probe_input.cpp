@@ -67,21 +67,26 @@ void probe_input::setup(char *fileNameC, struct solution *FlowSol, int rank)
 #ifdef _HDF5
 void probe_input::create_probe_hdf5(int rank)
 {
-    hid_t fid;
-    int ct = 0;//counter for local probe
-    hid_t dataset_id, attr_id, dataspace_id, datatype;
+    int ct = 0; //counter for local probe
+    double sample_dt;//sample interval in sec
+    hid_t fid, dataset_id, attr_id, dataspace_id, datatype;//hdf5 types
     hsize_t dim[2];
-    set2n_probe.setup(probe_name.get_dim(0));
+    set2n_probe.setup(probe_name.get_dim(0));//set of probeto local number of probes
     set2n_probe.initialize_to_zero();
 
-
-    //dimensionalize coord, area if needed
-    if (run_input.viscous && run_input.equation == 0)
+    //rank 0 dimensionalize coord, area,sample interval if needed
+    if (rank == 0)
     {
-        transform(pos_probe_global.get_ptr_cpu(), pos_probe_global.get_ptr_cpu() + n_dims * n_probe_global,
-                  pos_probe_global.get_ptr_cpu(), [](double x) { return x * run_input.L_ref; });
-        transform(surf_area.begin(), surf_area.end(),
-                  surf_area.begin(), [](double x) { return x * run_input.L_ref * run_input.L_ref; });
+        if (run_input.viscous && run_input.equation == 0)
+        {
+            transform(pos_probe_global.get_ptr_cpu(), pos_probe_global.get_ptr_cpu() + n_dims * n_probe_global,
+                      pos_probe_global.get_ptr_cpu(), [](double x) { return x * run_input.L_ref; });
+            transform(surf_area.begin(), surf_area.end(),
+                      surf_area.begin(), [](double x) { return x * run_input.L_ref * run_input.L_ref; });
+            sample_dt = run_input.dt * probe_freq * run_input.time_ref;
+        }
+        else
+            sample_dt = run_input.dt * probe_freq;
     }
 
     for (int i = 0; i < probe_name.get_dim(0); i++) //for each set of probe
@@ -95,13 +100,10 @@ void probe_input::create_probe_hdf5(int rank)
             if (stat(temp_probe_fname.c_str(), &st) == -1)//file not exist                                                                     //if not exist
             {
                 fid = H5Fcreate(temp_probe_fname.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT); //creat file if not exist
+                if (fid < 0)
+                    FatalError("Failed to create probe data file");
                 //write sample freq
                 dataspace_id = H5Screate(H5S_SCALAR);
-                double sample_dt;
-                if (run_input.viscous && run_input.equation == 0)
-                    sample_dt = run_input.dt * probe_freq * run_input.time_ref;
-                else
-                    sample_dt = run_input.dt * probe_freq;
                 attr_id = H5Acreate(fid, "dt", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT);
                 H5Awrite(attr_id, H5T_NATIVE_DOUBLE, &sample_dt);
                 H5Aclose(attr_id);
