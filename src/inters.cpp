@@ -583,67 +583,53 @@ void inters::lax_friedrich(hf_array<double> &u_l, hf_array<double> &u_r, hf_arra
 void inters::ldg_flux(int flux_spec, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &f_l, hf_array<double> &f_r, hf_array<double> &norm, hf_array<double> &fn, int n_dims, int n_fields, double ldg_tau, double ldg_beta)
 {
   hf_array<double> f_c(n_fields,n_dims);//common flux
-  hf_array<double> fn_l(n_fields), fn_r(n_fields); //left right normal flux
 
   if(flux_spec == 0) //Interior and mpi
+  {
+    //consistent switch
+    if (ldg_beta != 0.)
     {
-      //consistent switch
-      if (ldg_beta != 0.)
+      if (norm(0) < 0.) //reverse beta
+        ldg_beta = -ldg_beta;
+      else if (norm(0) == 0.) //normal vector perpendicular to the test vector,use another test vector
       {
-        if (norm(0) < 0.) //reverse beta
+        if ((norm(0) + norm(1)) < 0.) //reverse beta
           ldg_beta = -ldg_beta;
-        else if (norm(0) == 0.) //normal vector perpendicular to the test vector,use another test vector
+        else if ((norm(0) + norm(1)) == 0) //normal vector perpendicular to the test vector,use another test vector
         {
-          if ((norm(0) + norm(1)) < 0.) //reverse beta
+          if ((norm(0) + norm(2)) < 0.) //reverse beta
             ldg_beta = -ldg_beta;
-          else if ((norm(0) + norm(1)) == 0) //normal vector perpendicular to the test vector,use another test vector
-          {
-            if ((norm(0) + norm(2)) < 0.) //reverse beta
-              ldg_beta = -ldg_beta;
-          }
         }
       }
-      
-      // calculate  normal flux
-      fn_l.initialize_to_zero();
-      fn_r.initialize_to_zero();
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-      cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_l.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_l.get_ptr_cpu(), 1);
-      cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_r.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn_r.get_ptr_cpu(), 1);
-#else
-      for (int k = 0; k < n_fields; k++)
-      {
-        for (int l = 0; l < n_dims; l++)
-        {
-          fn_l(k) += f_l(k, l) * norm(l);
-          fn_r(k) += f_r(k, l) * norm(l);
-        }
-      }
-#endif
-      //f_c_i={f}_i+beta*(fn_l-fn_r)*norm_i-tau*(u_r-u_l)*norm_i
-      for (int k = 0; k < n_fields; k++)
-        for (int i = 0; i < n_dims; i++)
-          f_c(k, i) = 0.5 * (f_l(k, i) + f_r(k, i)) + ldg_beta * norm(i) * (fn_l(k) - fn_r(k)) + ldg_tau * norm(i) * (u_l(k) - u_r(k));
     }
-    else if (flux_spec == 1) //boundary flux
-    {
-      //f_c_i=f_r-tau*(u_r-u_l)*norm_i
-      for (int k = 0; k < n_fields; k++)
-        for (int i = 0; i < n_dims; i++)
-          f_c(k, i) = f_r(k, i) + ldg_tau * norm(i) * (u_l(k) - u_r(k));
-    }
-    else
-      FatalError("This variant of the LDG flux has not been implemented");
 
-    // calculate normal common flux
-    fn.initialize_to_zero();
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-    cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_c.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn.get_ptr_cpu(), 1);
-#else
+
+    //f_c_i={f}_i+beta*(f_l-f_r)
     for (int k = 0; k < n_fields; k++)
-      for (int l = 0; l < n_dims; l++)
-        fn(k) += f_c(k, l) * norm(l);
+      for (int i = 0; i < n_dims; i++)
+        f_c(k, i) = (0.5 + ldg_beta) * f_l(k, i) + (0.5 - ldg_beta) * f_r(k, i);
+  }
+  else if (flux_spec == 1) //boundary flux
+  {
+    //f_c_i=f_r
+    for (int k = 0; k < n_fields; k++)
+      for (int i = 0; i < n_dims; i++)
+        f_c(k, i) = f_r(k, i);
+  }
+  else
+    FatalError("This variant of the LDG flux has not been implemented");
+
+  // calculate normal common flux
+  fn.initialize_to_zero();
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+  cblas_dgemv(CblasColMajor, CblasNoTrans, n_fields, n_dims, 1.0, f_c.get_ptr_cpu(), n_fields, norm.get_ptr_cpu(), 1, 0.0, fn.get_ptr_cpu(), 1);
+#else
+  for (int k = 0; k < n_fields; k++)
+    for (int l = 0; l < n_dims; l++)
+      fn(k) += f_c(k, l) * norm(l);
 #endif
+  for (int k = 0; k < n_fields; k++)
+    fn(k) -= ldg_tau * (u_r(k) - u_l(k));
 }
 
 
