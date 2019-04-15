@@ -2383,8 +2383,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     int eddy, sim, wall;
     double C_s=run_input.C_s;
     double diag;
-    double Smod=0.0;
-    double ke=0.0;
+    double ke;
     double Pr_t=run_input.prandtl_t; // turbulent Prandtl number
     double Kappa=run_input.Kappa;//von_karman constant 
     double delta, mu, mu_t, vol;
@@ -2394,16 +2393,17 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     hf_array<double> dmom(n_dims,n_dims), du(n_dims,n_dims), S(n_dims,n_dims);
 
     // quantities for wall model
-    hf_array<double> norm(n_dims);
-    hf_array<double> tau(n_dims,n_dims);
-    hf_array<double> Mrot(n_dims,n_dims);
-    hf_array<double> temp(n_dims,n_dims);
-    hf_array<double> urot(n_dims);
-    hf_array<double> tw(n_dims);
+    hf_array<double> norm;
+    hf_array<double> tau;
+    hf_array<double> Mrot;
+    hf_array<double> temp;
+    hf_array<double> urot;
+    hf_array<double> tw;
     double y, qw, utau, yplus;
 
     // primitive variables
     rho = temp_u(0);
+    ke=0.;
     for (i=0; i<n_dims; i++)
     {
         u(i) = temp_u(i+1)/rho;
@@ -2432,6 +2432,12 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
 
     if(wall_model != 0)
     {
+        norm.setup(n_dims);
+        tau.setup(n_dims, n_dims);
+        Mrot.setup(n_dims, n_dims);
+        temp.setup(n_dims, n_dims);
+        urot.setup(n_dims);
+        tw.setup(n_dims);
 
         // get subgrid momentum flux at previous timestep
         //utau = 0.0;
@@ -2624,14 +2630,14 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             // Smagorinsky model
             if(sgs_model==0)
             {
-            // Strain modulus
-            for (i=0; i<n_dims; i++)
-                for (j=0; j<n_dims; j++)
-                    Smod += 2.0*S(i,j)*S(i,j);
+                double Smod = 0.0;
+                // Strain modulus
+                for (i = 0; i < n_dims; i++)
+                    for (j = 0; j < n_dims; j++)
+                        Smod += 2.0 * S(i, j) * S(i, j);
 
-            Smod = sqrt(Smod);
-                mu_t = rho*min(y*y*Kappa*Kappa,C_s*C_s*delta*delta)*Smod;
-
+                Smod = sqrt(Smod);
+                mu_t = rho * min(y * y * Kappa * Kappa, C_s * C_s * delta * delta) * Smod;
             }
 
             //  Wall-Adapting Local Eddy-viscosity (WALE) SGS Model
@@ -2653,7 +2659,8 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
                 double denom=0.0;
                 double eps=1.e-12;
                 hf_array<double> Sq(n_dims,n_dims);
-                hf_array<double> g_bar,g_bar_transpose(n_dims,n_dims);
+                hf_array<double> g_bar;
+                hf_array<double> g_bar_transpose(n_dims,n_dims);
                 diag = 0.0;
 
                 // Square of gradient tensor

@@ -187,7 +187,7 @@ hf_array<T>::hf_array()
   dim_2=1;
   dim_3=1;
 
-  cpu_data = new T[dim_0*dim_1*dim_2*dim_3];
+  cpu_data = new T[1];
 
   cpu_flag=1;
 #ifdef _GPU
