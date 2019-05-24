@@ -130,7 +130,7 @@ void probe_input::create_probe_hdf5(int rank)
                 dim[0] = probe_start(i + 1) - probe_start(i); //number of points for this set of probe
                 dim[1] = n_dims;
                 dataspace_id = H5Screate_simple(2, dim, NULL);
-                dataset_id = H5Dcreate2(fid, "coord", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT),
+                dataset_id = H5Dcreate2(fid, "coord", H5T_NATIVE_DOUBLE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
                 H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, pos_probe_global.get_ptr_cpu() + n_dims * probe_start(i));
                 H5Sclose(dataspace_id);
                 H5Dclose(dataset_id);
