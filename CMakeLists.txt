@@ -25,19 +25,19 @@ endif()
 ## Dependencies ##
 
 #BLAS
-if (NOT(${BLAS} EQUAL "NO"))# if use blas
+if (NOT(${BLAS} STREQUAL "NO"))# if use blas
       set(BLAS_INCLUDE "/opt" CACHE PATH "path to BLAS include")
       set(BLAS_LD "/opt" CACHE PATH "path to BLAS library")
-      if(${BLAS} EQUAL "MKL")
+      if (${BLAS} STREQUAL "MKL")
             set(BLAS_LIB mkl_intel_lp64 mkl_sequential mkl_core pthread m dl)
             add_definitions(-D_MKL_BLAS)
-      elseif(${BLAS} EQUAL "CBLAS")
+      elseif(${BLAS} STREQUAL "CBLAS")
             set(BLAS_LIB cblas blas gfortran)
             add_definitions(-D_STANDARD_BLAS)
-      elseif(${BLAS} EQUAL "ATLAS")
+      elseif(${BLAS} STREQUAL "ATLAS")
             set(BLAS_LIB f77blas cblas atlas)
             add_definitions(-D_STANDARD_BLAS)
-      elseif(${BLAS} EQUAL "ACCELERATE")
+      elseif(${BLAS} STREQUAL "ACCELERATE")
             set(BLAS_LIB -framework Accelerate)
             add_definitions(-flax-vector-conversions -D_ACCELERATE_BLAS)
       endif()
@@ -129,8 +129,9 @@ endif()
 add_definitions(-std=c++14 -D_CPU)
 
 # Output building strings
-message("Build Configuration Summary:")
+message("Build summary:")
 message("Build type: ${CMAKE_BUILD_TYPE}")
+message("BLAS support: ${BLAS}")
 if(${PARALLEL})
       message("Compiler: ${MPI_CXX_COMPILER}")
 else()
