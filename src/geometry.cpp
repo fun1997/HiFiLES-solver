@@ -302,45 +302,10 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
   if (FlowSol->rank == 0)
     cout << "setting element transforms ... " << endl;
   for (int i = 0; i < FlowSol->n_ele_types; i++)
-  {
     if (FlowSol->mesh_eles(i)->get_n_eles() != 0)
-    {
       FlowSol->mesh_eles(i)->set_transforms(); //static mesh transform
-    }
-  }
   if (FlowSol->rank == 0)
     cout << "done." << endl;
-
-  // Set metrics at interface cubpts
-  if (run_input.calc_force != 0 || run_input.forcing != 0)//only calculated when need to calculate surface/body force
-  {
-    if (FlowSol->rank == 0)
-      cout << "setting element transforms at interface cubpts ... " << flush;
-    for (int i = 0; i < FlowSol->n_ele_types; i++)
-    {
-      if (FlowSol->mesh_eles(i)->get_n_eles() != 0)
-      {
-        FlowSol->mesh_eles(i)->set_transforms_inters_cubpts(); //calculate static mesh element interface cubature transform
-      }
-    }
-    if (FlowSol->rank == 0)
-      cout << "done." << endl;
-  }
-
-  // Set metrics at volume cubpts. Only needed for computing error and integral diagnostic quantities.
-  if (run_input.test_case != 0 || run_input.n_integral_quantities != 0)
-  {
-    if (FlowSol->rank == 0)
-      cout << "setting element transforms at volume cubpts ... " << flush;
-    for (int i = 0; i < FlowSol->n_ele_types; i++)
-    {
-      if (FlowSol->mesh_eles(i)->get_n_eles() != 0)
-        FlowSol->mesh_eles(i)->set_transforms_vol_cubpts(); //calculate static mesh element volume cubature transform
-    }
-    if (FlowSol->rank == 0)
-      cout << "done." << endl;
-  }
-
   // set on gpu (important - need to do this before we set connectivity, so that pointers point to GPU memory)
 #ifdef _GPU
   for (int i = 0; i < FlowSol->n_ele_types; i++)

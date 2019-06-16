@@ -79,8 +79,17 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     }
 
   /*! Compute the transformed inviscid flux at the solution points and store in total transformed flux storage. */
+  if(run_input.over_int)
+  {
+  for(i=0; i<FlowSol->n_ele_types; i++)
+    FlowSol->mesh_eles(i)->evaluate_invFlux_over_int();
+  }
+  else
+  {
   for(i=0; i<FlowSol->n_ele_types; i++)
     FlowSol->mesh_eles(i)->evaluate_invFlux();
+  }
+
 
 
   // If running periodic channel or periodic hill cases,
@@ -199,11 +208,6 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
     for (i=0; i<FlowSol->n_ele_types; i++)
       FlowSol->mesh_eles(i)->calc_src_upts_SA();
   }
-
-  /*! De-aliasing using over-integration*/
-  if (run_input.over_int)
-    for (i = 0; i < FlowSol->n_ele_types; i++)
-      FlowSol->mesh_eles(i)->dealias_over_integration();
 }
 
 // get pointer to transformed discontinuous solution at a flux point

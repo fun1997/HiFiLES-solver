@@ -172,9 +172,9 @@ void input::read_input_file(string fileName, int rank)
         if (SGS_model == 3 || SGS_model == 2 || SGS_model == 4)
             opts.getScalarValue("filter_type", filter_type);
         opts.getScalarValue("filter_ratio", filter_ratio);
-        opts.getScalarValue("wall_model", wall_model);
-        if (wall_model)
-            opts.getScalarValue("wall_layer_thickness", wall_layer_t); //distance between the first layer of solution points and wall
+        opts.getScalarValue("wall_model", wall_model); //0: no wall model;1: werner-wengle; 2: Breuer-Rodi
+        //if (wall_model)
+        //    opts.getScalarValue("wall_layer_thickness", wall_layer_t); //distance between the first layer of solution points and wall
     }
 
     /* ---- Gas Parameters ---- */
@@ -249,7 +249,7 @@ void input::read_input_file(string fileName, int rank)
     /* ---- Shock Capturing / dealiasing ---- */
     opts.getScalarValue("over_int", over_int, 0);
     if (over_int)
-        opts.getScalarValue("N_under", N_under, order - 1);
+        opts.getScalarValue("over_int_order", over_int_order);
 
     opts.getScalarValue("shock_cap", shock_cap, 0); //0: off 1: exponential filter 2: LFS filter
     if (shock_cap)
@@ -390,6 +390,7 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "u", bc_list(i).velocity(0), 0.);
             bdy_r.getScalarValue(bc_paramS + "v", bc_list(i).velocity(1), 0.);
             bdy_r.getScalarValue(bc_paramS + "w", bc_list(i).velocity(2), 0.);
+            bdy_r.getScalarValue(bc_paramS + "use_wm", bc_list(i).use_wm, 0);
         }
         else if (bc_list(i).get_bc_flag() == CHAR)
         {
@@ -408,6 +409,7 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "u", bc_list(i).velocity(0), 0.);
             bdy_r.getScalarValue(bc_paramS + "v", bc_list(i).velocity(1), 0.);
             bdy_r.getScalarValue(bc_paramS + "w", bc_list(i).velocity(2), 0.);
+            bdy_r.getScalarValue(bc_paramS + "use_wm", bc_list(i).use_wm, 0);
         }
     }
 
@@ -546,7 +548,7 @@ void input::setup_params(int rank)
         FatalError("LES not supported with inviscid flow");
     if (over_int)
     {
-        if (N_under >= order || N_under < 0)
+        if (over_int_order < 0)
             FatalError("Invalid under sampling order");
     }
 
@@ -599,8 +601,8 @@ void input::setup_params(int rank)
             dy_cyclic /= L_ref;
             dz_cyclic /= L_ref;
 
-            if (LES && wall_model)
-                wall_layer_t /= L_ref;
+            //if (LES && wall_model)
+            //    wall_layer_t /= L_ref;
 
             if (patch)
             {

@@ -51,7 +51,7 @@ public:
   void set_inters_cubpts(void);
 
   /*! set location and weights of volume cubature points */
-  void set_volume_cubpts(void);
+  void set_volume_cubpts(int in_order, hf_array<double> &out_loc_volume_cubpts, hf_array<double> &out_weight_volume_cubpts);
 
   /*! set location of plot points */
   void set_loc_ppts(void);
@@ -120,8 +120,6 @@ protected:
   /*! set restart triangle Vandermonde matrix */
   void set_vandermonde_restart();
 
-  void set_vandermonde_vol_cub(void);
-
   void shock_det_persson(void);
   
   /*! Compute the filter matrix for subgrid-scale models */
@@ -133,7 +131,7 @@ protected:
   void set_exp_filter(void);
 
   /*! set over-integration filter array */
-  void set_over_int_filter(void);
+  void set_over_int(void);
 
   // members
   hf_array<double> vandermonde_rest;

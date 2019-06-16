@@ -92,7 +92,8 @@ public:
 
   /*! calculate transformed discontinuous inviscid flux at solution points */
   void evaluate_invFlux(void);
-
+  void evaluate_invFlux_over_int(void);
+  
   /*! calculate divergence of transformed discontinuous flux at solution points */
   void calculate_divergence(void);
 
@@ -237,7 +238,7 @@ public:
   void set_opp_inters_cubpts(void);
 
   /*! set opp_volume_cubpts */
-  void set_opp_volume_cubpts(void);
+  void set_opp_volume_cubpts(hf_array<double> &in_loc_volume_cubpts,hf_array<double> &out_opp_volume_cubpts);
 
   /*! set opp_r */
   void set_opp_r(void);
@@ -284,7 +285,8 @@ public:
 
   /*! set transforms at the volume cubature points */
   void set_transforms_vol_cubpts(void);
-
+  void set_transforms_over_int_cubtps(void);
+  
 	/*! Calculate distance of solution points to no-slip wall */
 	void calc_wall_distance(const int n_seg_noslip_inters, const int n_tri_noslip_inters, const int n_quad_noslip_inters, hf_array< hf_array<double> > &loc_noslip_bdy);
 
@@ -434,9 +436,6 @@ public:
 
   void shock_capture(void);
 
-  //void shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma);
-  void dealias_over_integration(void);
-
   /*! element local timestep */
   hf_array<double> dt_local;
   
@@ -572,9 +571,6 @@ protected:
 
 	/*! number of cubature points per interface */
 	hf_array<int> n_cubpts_per_inter;
-
-	/*! number of cubature points per interface */
-	int n_cubpts_per_ele;
 
 	/*! element type (0=>quad,1=>tri,2=>tet,3=>pri,4=>hex) */
 	int ele_type;
@@ -764,9 +760,6 @@ protected:
 	/*! gradient of discontinuous solution at flux points */
 	hf_array<double> grad_disu_fpts;
 
-	/*! transformed gradient of determinant of jacobian at solution points */
-	hf_array<double> tgrad_detjac_upts;
-
   /*! source term for SA turbulence model at solution points */
   hf_array<double> src_upts;
 
@@ -917,11 +910,11 @@ protected:
   hf_array<double> vandermonde;
   hf_array<double> inv_vandermonde;
 
-  hf_array<double> vandermonde_vol_cub;
-  hf_array<double> inv_vandermonde_vol_cub;
-
   hf_array<double> exp_filter;
   hf_array<double> concentration_array;
   hf_array<double> sensor;
-  hf_array<double> over_int_filter;
+  hf_array<double> over_int_filter, opp_over_int_cubpts;
+  hf_array<double> JGinv_over_int_cubpts;
+  hf_array<double> temp_u_over_int_cubpts, temp_tdisf_over_int_cubpts;
+  hf_array<double> loc_over_int_cubpts, weight_over_int_cubpts;
 };

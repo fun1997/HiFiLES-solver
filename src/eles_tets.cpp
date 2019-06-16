@@ -86,12 +86,11 @@ void eles_tets::setup_ele_type_specific()
   set_opp_p();
 
   set_inters_cubpts();
-  set_volume_cubpts();
-  set_opp_volume_cubpts();
-  set_vandermonde_vol_cub();
+  set_volume_cubpts(order, loc_volume_cubpts, weight_volume_cubpts);
+  set_opp_volume_cubpts(loc_volume_cubpts, opp_volume_cubpts);
 
-if(run_input.over_int)
-      set_over_int_filter();
+  if(run_input.over_int)
+    set_over_int();
 
   n_fpts_per_inter.setup(4);
 
@@ -382,22 +381,20 @@ void eles_tets::set_inters_cubpts(void)
 }
 
 
-void eles_tets::set_volume_cubpts(void)
+void eles_tets::set_volume_cubpts(int in_order, hf_array<double> &out_loc_volume_cubpts, hf_array<double> &out_weight_volume_cubpts)
 {
-  cubature_tet cub_tet(0,order);
+  cubature_tet cub_tet(0,in_order);
   int n_cubpts_tet = cub_tet.get_n_pts();
-  n_cubpts_per_ele = n_cubpts_tet;
 
-  loc_volume_cubpts.setup(n_dims,n_cubpts_tet);
-  weight_volume_cubpts.setup(n_cubpts_tet);
+  out_loc_volume_cubpts.setup(n_dims,n_cubpts_tet);
+  out_weight_volume_cubpts.setup(n_cubpts_tet);
 
   for (int i=0;i<n_cubpts_tet;i++)
     {
-      loc_volume_cubpts(0,i) = cub_tet.get_r(i);
-      loc_volume_cubpts(1,i) = cub_tet.get_s(i);
-      loc_volume_cubpts(2,i) = cub_tet.get_t(i);
-
-      weight_volume_cubpts(i) = cub_tet.get_weight(i);
+      out_loc_volume_cubpts(0,i) = cub_tet.get_r(i);
+      out_loc_volume_cubpts(1,i) = cub_tet.get_s(i);
+      out_loc_volume_cubpts(2,i) = cub_tet.get_t(i);
+      out_weight_volume_cubpts(i) = cub_tet.get_weight(i);
     }
 }
 
@@ -717,19 +714,6 @@ void eles_tets::set_vandermonde(void)
   inv_vandermonde = inv_array(vandermonde);
 }
 
-void eles_tets::set_vandermonde_vol_cub(void)
-{
-  vandermonde_vol_cub.setup(n_cubpts_per_ele, n_cubpts_per_ele);
-
-  // create the vandermonde matrix
-  for (int i = 0; i < n_cubpts_per_ele; i++)
-    for (int j = 0; j < n_cubpts_per_ele; j++)
-      vandermonde_vol_cub(i, j) = eval_dubiner_basis_3d(loc_volume_cubpts(0, i), loc_volume_cubpts(1, i), loc_volume_cubpts(2, i), j, order);
-
-  // Store its inverse
-  inv_vandermonde_vol_cub = inv_array(vandermonde_vol_cub);
-}
-
 void eles_tets::set_exp_filter(void)
 {
   exp_filter.setup(n_upts_per_ele, n_upts_per_ele);
@@ -759,11 +743,7 @@ void eles_tets::set_exp_filter(void)
 void eles_tets::shock_det_persson(void)
 {
   //calculate number of order-1 element
-  int n_mode_under;
-  if (run_input.over_int)
-    n_mode_under = (run_input.N_under) * (run_input.N_under + 1) * (run_input.N_under + 2) / 6;
-  else
-    n_mode_under = order * (order + 1) * (order + 2) / 6;
+  int n_mode_under = order * (order + 1) * (order + 2) / 6;
 
   hf_array<double> temp_modal(n_upts_per_ele, n_eles);     //store modal value
 
@@ -946,36 +926,33 @@ void eles_tets::write_restart_info_hdf5(hid_t &restart_file)
 }
 #endif
 
-void eles_tets::set_over_int_filter()
+void eles_tets::set_over_int(void)
 {
-  int N_under = run_input.N_under;
-  int n_mode_under = (N_under + 1) * (N_under + 2) * (N_under + 3) / 6; //projected n_upts_per_ele
-  hf_array<double> temp_proj(n_mode_under, n_cubpts_per_ele);
-  hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
-  hf_array<double> loc(n_dims);
+  //initialize over integration cubature points
+  set_volume_cubpts(run_input.over_int_order, loc_over_int_cubpts, weight_over_int_cubpts);
+  //set interpolation matrix from solution points to over integration cubature points
+  set_opp_volume_cubpts(loc_over_int_cubpts, opp_over_int_cubpts);
 
-  //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*l_j}=>\phi_i(j)*w(j)
-  for (int i = 0; i < n_mode_under; i++)
+  //set projection matrix from over integration cubature points to modal coefficients
+  temp_u_over_int_cubpts.setup(loc_over_int_cubpts.get_dim(1), n_fields);
+  temp_u_over_int_cubpts.initialize_to_zero();
+  temp_tdisf_over_int_cubpts.setup(loc_over_int_cubpts.get_dim(1), n_fields, n_dims);
+  hf_array<double> loc(n_dims);
+  hf_array<double> temp_proj(n_upts_per_ele, loc_over_int_cubpts.get_dim(1));
+
+  //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*\l_j}=>\phi_i(j)*w(j)
+  for (int i = 0; i < n_upts_per_ele; i++)
   {
-    for (int j = 0; j < n_cubpts_per_ele; j++)
+    for (int j = 0; j < loc_over_int_cubpts.get_dim(1); j++)
     {
-      loc(0) = loc_volume_cubpts(0,j);
-      loc(1) = loc_volume_cubpts(1,j);
-      loc(2) = loc_volume_cubpts(2,j);
-      temp_proj(i, j) = eval_dubiner_basis_3d(loc(0), loc(1), loc(2), i, N_under) * weight_volume_cubpts(j);
+      loc(0) = loc_over_int_cubpts(0, j);
+      loc(1) = loc_over_int_cubpts(1, j);
+      loc(2) = loc_over_int_cubpts(2, j);
+      temp_proj(i, j) = eval_dubiner_basis_3d(loc(0), loc(1), loc(2), i, order) * weight_over_int_cubpts(j);
     }
   }
-  //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
-  for (int j = 0; j < n_upts_per_ele; j++)
-  {
-    loc(0) = loc_upts(0, j);
-    loc(1) = loc_upts(1, j);
-    loc(2) = loc_upts(2, j);
-    for (int i = 0; i < n_mode_under; i++)
-      temp_vand(j, i) = eval_dubiner_basis_3d(loc(0), loc(1), loc(2), i, N_under);
-  }
-  over_int_filter = mult_arrays(temp_proj, opp_volume_cubpts);
-  over_int_filter = mult_arrays(temp_vand, over_int_filter);
+  //multiply modal coefficient by vandermonde matrix to get over_int_filter
+  over_int_filter = mult_arrays(vandermonde, temp_proj);
 }
 
 // evaluate nodal basis

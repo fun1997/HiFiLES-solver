@@ -85,9 +85,8 @@ void eles_pris::setup_ele_type_specific()
   }
 
   set_inters_cubpts();
-  set_volume_cubpts();
-  set_opp_volume_cubpts();
-  set_vandermonde_vol_cub();
+  set_volume_cubpts(order, loc_volume_cubpts, weight_volume_cubpts);
+  set_opp_volume_cubpts(loc_volume_cubpts, opp_volume_cubpts);
 
   n_ppts_per_ele=(p_res+1)*(p_res)*(p_res)/2;
   n_peles_per_ele=( (p_res-1)*(p_res-1)*(p_res-1) );
@@ -98,7 +97,7 @@ void eles_pris::setup_ele_type_specific()
 
   //de-aliasing by over-integration
   if (run_input.over_int)
-    set_over_int_filter();
+    set_over_int();
 
   n_fpts_per_inter.setup(5);
 
@@ -400,19 +399,19 @@ void eles_pris::set_inters_cubpts(void)
 
 }
 
-void eles_pris::set_volume_cubpts(void)
+void eles_pris::set_volume_cubpts(int in_order, hf_array<double> &out_loc_volume_cubpts, hf_array<double> &out_weight_volume_cubpts)
 {
-  cubature_pris cub_pri(0, 0, order);
-  n_cubpts_per_ele = cub_pri.get_n_pts();
-  loc_volume_cubpts.setup(n_dims, n_cubpts_per_ele);
-  weight_volume_cubpts.setup(n_cubpts_per_ele);
+  cubature_pris cub_pri(0, 0, in_order);
+  int n_cubpts_per_ele_pri = cub_pri.get_n_pts();
+  out_loc_volume_cubpts.setup(n_dims, n_cubpts_per_ele_pri);
+  out_weight_volume_cubpts.setup(n_cubpts_per_ele_pri);
 
-  for (int i = 0; i < n_cubpts_per_ele; i++)
+  for (int i = 0; i < n_cubpts_per_ele_pri; i++)
   {
-    loc_volume_cubpts(0, i) = cub_pri.get_r(i);
-    loc_volume_cubpts(1, i) = cub_pri.get_s(i);
-    loc_volume_cubpts(2, i) = cub_pri.get_t(i);
-    weight_volume_cubpts(i) = cub_pri.get_weight(i);
+    out_loc_volume_cubpts(0, i) = cub_pri.get_r(i);
+    out_loc_volume_cubpts(1, i) = cub_pri.get_s(i);
+    out_loc_volume_cubpts(2, i) = cub_pri.get_t(i);
+    out_weight_volume_cubpts(i) = cub_pri.get_weight(i);
   }
 }
 
@@ -625,26 +624,6 @@ void eles_pris::set_vandermonde3D(void)
   inv_vandermonde = inv_array(vandermonde);
 }
 
-void eles_pris::set_vandermonde_vol_cub(void)
-{
-  vandermonde_vol_cub.setup(n_cubpts_per_ele, n_cubpts_per_ele);
-  hf_array<double> loc(n_dims);
-  // create the vandermonde matrix
-  for (int i = 0; i < n_cubpts_per_ele; i++)
-  {
-    loc(0) = loc_volume_cubpts(0, i);
-    loc(1) = loc_volume_cubpts(1, i);
-    loc(2) = loc_volume_cubpts(2, i);
-    for (int j = 0; j < n_cubpts_per_ele; j++)
-    {
-      vandermonde_vol_cub(i, j) = eval_pris_basis_hierarchical(j, loc, order);
-    }
-  }
-
-  // Store its inverse
-  inv_vandermonde_vol_cub = inv_array(vandermonde_vol_cub);
-}
-
 void eles_pris::set_exp_filter(void)
 {
   exp_filter.setup(n_upts_per_ele, n_upts_per_ele);
@@ -715,16 +694,8 @@ void eles_pris::shock_det_persson(void)
     for (int j = 0; j < n_upts_per_ele; j++)
     {
       get_pris_basis_index(j, order, x, y, z);
-      if (run_input.over_int)
-      {
-        if (x + y >= run_input.N_under || z >= run_input.N_under)
-          sensor(ic) += temp_modal(j, ic) * norm_basis_persson(j);
-      }
-      else
-      {
-        if (x + y == order || z == order)
-          sensor(ic) += temp_modal(j, ic) * norm_basis_persson(j);
-      }
+      if (x + y == order || z == order)
+        sensor(ic) += temp_modal(j, ic) * norm_basis_persson(j);
     }
   }
 
@@ -943,45 +914,39 @@ void eles_pris::write_restart_info_hdf5(hid_t &restart_file)
 }
 #endif
 
-void eles_pris::set_over_int_filter()
-{
-  int N_under = run_input.N_under;
-  int n_mode_under = (N_under + 1) * (N_under + 1) * (N_under + 2) / 2; //projected n_upts_per_ele
-  //int n_mode_under_tri = (N_under + 1) * (N_under + 2) / 2;
-  //int n_mode_under_1d = N_under + 1;
-  hf_array<double> temp_proj(n_mode_under, n_cubpts_per_ele);
-  hf_array<double> temp_vand(n_upts_per_ele, n_mode_under);
-  hf_array<double> loc(n_dims);
 
-  //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*l_j}=>\phi_i(j)*w(j)
-  int dummy, dummy1, order_t;
-  double norm_t;
-  for (int i = 0; i < n_mode_under; i++)
+  void eles_pris::set_over_int(void)
   {
-    get_pris_basis_index(i, N_under, dummy, dummy1, order_t);
-    norm_t = 2.0 / (2.0 * order_t + 1.0);
-    for (int j = 0; j < n_cubpts_per_ele; j++)
+    //initialize over integration cubature points
+    set_volume_cubpts(run_input.over_int_order, loc_over_int_cubpts, weight_over_int_cubpts);
+    //set interpolation matrix from solution points to over integration cubature points
+    set_opp_volume_cubpts(loc_over_int_cubpts, opp_over_int_cubpts);
+
+    //set projection matrix from over integration cubature points to modal coefficients
+    temp_u_over_int_cubpts.setup(loc_over_int_cubpts.get_dim(1), n_fields);
+    temp_u_over_int_cubpts.initialize_to_zero();
+    temp_tdisf_over_int_cubpts.setup(loc_over_int_cubpts.get_dim(1), n_fields, n_dims);
+    hf_array<double> loc(n_dims);
+    hf_array<double> temp_proj(n_upts_per_ele, loc_over_int_cubpts.get_dim(1));
+
+    //step 1. nodal to L2 projected modal \hat{u_i}=\int{\phi_i*\l_j}=>\phi_i(j)*w(j)
+    int n1, n2, n3;
+    double norm3;
+    for (int i = 0; i < n_upts_per_ele; i++)
     {
-      loc(0) = loc_volume_cubpts(0, j);
-      loc(1) = loc_volume_cubpts(1, j);
-      loc(2) = loc_volume_cubpts(2, j);
-      temp_proj(i, j) = eval_pris_basis_hierarchical(i, loc, N_under) / norm_t * weight_volume_cubpts(j);
+      get_pris_basis_index(i, order, n1, n2, n3);
+      norm3 = 2.0 / (2.0 * n3 + 1.0);
+      for (int j = 0; j < loc_over_int_cubpts.get_dim(1); j++)
+      {
+        loc(0) = loc_over_int_cubpts(0, j);
+        loc(1) = loc_over_int_cubpts(1, j);
+        loc(2) = loc_over_int_cubpts(2, j);
+        temp_proj(i, j) = eval_pris_basis_hierarchical(i, loc, order) / norm3 * weight_over_int_cubpts(j);
+      }
     }
+    //multiply modal coefficient by vandermonde matrix to get over_int_filter
+    over_int_filter = mult_arrays(vandermonde, temp_proj);
   }
-  //step 2. projected modal back to nodal to get filtered solution \tilde{u_j}=V_{ji}*\hat{u_i}
-  for (int j = 0; j < n_upts_per_ele; j++)
-  {
-    loc(0) = loc_upts(0, j);
-    loc(1) = loc_upts(1, j);
-    loc(2) = loc_upts(2, j);
-    for (int i = 0; i < n_mode_under; i++)
-    {
-      temp_vand(j, i) = eval_pris_basis_hierarchical(i, loc, N_under);
-    }
-  }
-  over_int_filter = mult_arrays(temp_proj, opp_volume_cubpts);
-  over_int_filter = mult_arrays(temp_vand, over_int_filter);
-}
 
 // evaluate nodal basis
 

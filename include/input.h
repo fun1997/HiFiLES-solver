@@ -119,8 +119,8 @@ public:
     string mesh_file;
 
     /* --- Shock Capturing/dealiasing options --- */
-    int over_int,N_under;
-    int shock_cap,shock_det;
+    int over_int, over_int_order;
+    int shock_cap, shock_det;
     double s0;
     double expf_fac,expf_order;
 

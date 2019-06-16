@@ -72,9 +72,8 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
 
         // Set filter flag before calling setup_ele_type_specific
         LES_filter = 0;
-        if(LES)
-            if(sgs_model==3 || sgs_model==2 || sgs_model==4)
-                LES_filter = 1;
+        if (LES && (sgs_model == 3 || sgs_model == 2 || sgs_model == 4))
+            LES_filter = 1;
 
         // Initialize the element specific static members
         (*this).setup_ele_type_specific();
@@ -141,11 +140,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
                 disuf_upts.setup(n_upts_per_ele,n_eles,n_fields);
                 disuf_upts.initialize_to_zero();
             }
-             // allocate dummy hf_array for passing to GPU routine
-            else
-            {
-                disuf_upts.setup(1);
-            }
 
             // Similarity model requires product terms and Leonard tensors
             if(sgs_model==2 || sgs_model==4)
@@ -168,54 +162,18 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
                 ue.setup(n_upts_per_ele,n_eles,n_dims);
                 Le.initialize_to_zero();
             }
-            // allocate dummy arrays
-            else
-            {
-                Lu.setup(1);
-                uu.setup(1);
-                Le.setup(1);
-                ue.setup(1);
-            }
             // Allocate SGS flux hf_array if using LES
             temp_sgsf.setup(n_fields,n_dims);
         }
-        // Dummy arrays to pass to GPU kernel wrapper
-        else
-        {
-            disuf_upts.setup(1);
-            Lu.setup(1);
-            uu.setup(1);
-            Le.setup(1);
-            ue.setup(1);
-        }
 
-        // Allocate hf_array for wall distance if using a RANS-based turbulence model or LES
-        if (run_input.RANS > 0)//S-A
+        // Allocate hf_array for wall distance or each solution point if using a RANS-based turbulence model or LES wall model
+        if (run_input.RANS)//S-A
         {
             wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
             wall_distance_mag.setup(n_upts_per_ele,n_eles);
-            twall.setup(1);
         }
-        else if (LES)//for all LES calculation of wall distance is necessary
-        {
-            if ((sgs_model != 1 && sgs_model != 2) || wall_model) //not WALE or wall model
-                wall_distance.setup(n_upts_per_ele,n_eles,n_dims);
-            else
-                wall_distance.setup(1);
-            if (wall_model)
-            {
-                twall.setup(n_upts_per_ele, n_eles, n_fields);
-                twall.initialize_to_zero();
-            }
-            wall_distance_mag.setup(1);
-        }
-        else//DNS
-        {
-            wall_distance.setup(1);
-            wall_distance_mag.setup(1);
-            twall.setup(1);
-        }
-
+        else if (LES && sgs_model == 0) //Smagorinsky model use wall distance for near-wall damping
+            wall_distance.setup(n_upts_per_ele, n_eles, n_dims);
 
         // Initialize source term
         src_upts.setup(n_upts_per_ele, n_eles, n_fields);
@@ -234,17 +192,8 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         n_dims_mul_n_upts_per_ele=n_dims*n_upts_per_ele;
 
         //over-integration need second register to store divergence of transformed continuous flux
-        if (run_input.over_int)
-            div_tconf_upts.setup(2);
-        else
-            div_tconf_upts.setup(1);
-
-        for(int i=0; i<div_tconf_upts.get_dim(0); i++)
-        {
-            div_tconf_upts(i).setup(n_upts_per_ele,n_eles,n_fields);
-        }
-
-        // Initialize to zero
+        div_tconf_upts.setup(1);
+        div_tconf_upts(0).setup(n_upts_per_ele,n_eles,n_fields);
         div_tconf_upts(0).initialize_to_zero();
 
         disu_fpts.setup(n_fpts_per_ele,n_eles,n_fields);
@@ -1528,6 +1477,72 @@ void eles::evaluate_invFlux(void)
     }
 }
 
+void eles::evaluate_invFlux_over_int(void)
+{
+    if (n_eles != 0)
+    {
+        int i, j, k, l, m;
+        for (i = 0; i < n_eles; i++)
+        {
+            //interpolate the solution to over_int_cubpts
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+            for (k = 0; k < n_fields; k++)
+                cblas_dgemv(CblasColMajor, CblasNoTrans, loc_over_int_cubpts.get_dim(1), n_upts_per_ele, 1.0, opp_over_int_cubpts.get_ptr_cpu(), loc_over_int_cubpts.get_dim(1), disu_upts(0).get_ptr_cpu(0, i, k), 1, 0.0, temp_u_over_int_cubpts.get_ptr_cpu(0, k), 1);
+#else
+            for (k = 0; k < n_fields; k++)
+                dgemm(loc_over_int_cubpts.get_dim(1), 1, n_upts_per_ele, 1.0, 0.0, opp_over_int_cubpts.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(0, i, k), temp_u_over_int_cubpts.get_ptr_cpu(0, k));
+#endif
+            for (j = 0; j < loc_over_int_cubpts.get_dim(1); j++) //loop over over_int_cubpts
+            {
+                for (k = 0; k < n_fields; k++)
+                {
+                    temp_u(k) = temp_u_over_int_cubpts(j, k);
+                }
+
+                if (n_dims == 2)
+                {
+                    calc_invf_2d(temp_u, temp_f);
+                }
+                else if (n_dims == 3)
+                {
+                    calc_invf_3d(temp_u, temp_f);
+                }
+                else
+                {
+                    FatalError("Invalid number of dimensions!");
+                }
+
+                // Transform from static physical space to computational space
+                for (k = 0; k < n_fields; k++)
+                {
+                    for (l = 0; l < n_dims; l++)
+                    {
+                        temp_tdisf_over_int_cubpts(j, k, l) = 0.;
+                        for (m = 0; m < n_dims; m++)
+                        {
+                            temp_tdisf_over_int_cubpts(j, k, l) += JGinv_over_int_cubpts(l, m, j, i) * temp_f(k, m); //JGinv_over_int_cubpts(j,i,l,m)*temp_f(k,m);
+                        }
+                    }
+                }
+            }
+            //apply over integration filter, project transformd inviscid flux from over_int_cubpts back to upts
+            for (j = 0; j < n_upts_per_ele; j++)
+            {
+                for (k = 0; k < n_fields; k++)
+                {
+                    for (l = 0; l < n_dims; l++)
+                    {
+                        tdisf_upts(j, i, k, l) = 0.;
+                        for (m = 0; m < loc_over_int_cubpts.get_dim(1); m++)
+                        {
+                            tdisf_upts(j, i, k, l) += over_int_filter(j,m)*temp_tdisf_over_int_cubpts(m, k, l);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 // calculate the normal transformed discontinuous flux at the flux points
 
@@ -4220,12 +4235,13 @@ void eles::set_opp_inters_cubpts(void)
 
 }
 
-void eles::set_opp_volume_cubpts(void)
+void eles::set_opp_volume_cubpts(hf_array<double> &in_loc_volume_cubpts, hf_array<double> &out_opp_volume_cubpts)
 {
 
     int i,j,k,l;
     hf_array<double> loc(n_dims);
-    opp_volume_cubpts.setup(n_cubpts_per_ele,n_upts_per_ele);
+    int n_cubpts_per_ele = in_loc_volume_cubpts.get_dim(1);
+    out_opp_volume_cubpts.setup(n_cubpts_per_ele, n_upts_per_ele);
 
     for(i=0; i<n_upts_per_ele; i++)
     {
@@ -4233,10 +4249,10 @@ void eles::set_opp_volume_cubpts(void)
         {
             for(k=0; k<n_dims; k++)
             {
-                loc(k)=loc_volume_cubpts(k,j);
+                loc(k)=in_loc_volume_cubpts(k,j);
             }
 
-            opp_volume_cubpts(j,i)=eval_nodal_basis(i,loc);
+            out_opp_volume_cubpts(j,i)=eval_nodal_basis(i,loc);
         }
     }
 }
@@ -4569,13 +4585,21 @@ double eles::get_loc_upt(int in_upt, int in_dim)
 
 void eles::set_transforms(void)
 {
-    if (n_eles!=0)
+    if (n_eles != 0)
     {
         set_transforms_upts();
         set_transforms_fpts();
 
-        if (rank == 0)
-            cout << endl;
+        // Set metrics at interface cubpts
+        if (run_input.calc_force != 0 || run_input.forcing != 0) //only calculated when need to calculate surface/body force
+            set_transforms_inters_cubpts(); //calculate static mesh element interface cubature transform
+
+        // Set metrics at volume cubpts. Only needed for computing error and integral diagnostic quantities.
+        if (run_input.test_case != 0 || run_input.n_integral_quantities != 0)
+            set_transforms_vol_cubpts(); //calculate static mesh element volume cubature transform
+        
+        if(run_input.over_int)
+            set_transforms_over_int_cubtps();
     } // if n_eles!=0
 }
 
@@ -4687,16 +4711,76 @@ void eles::set_transforms_upts(void)
                 }
             }
         }
-
+        if (rank == 0)
+            cout << endl;
 #ifdef _GPU
         detjac_upts.cp_cpu_gpu(); // Copy since need in write_tec
         JGinv_upts.cp_cpu_gpu(); // Copy since needed for calc_d_pos_dyn
-        /*
-         if (viscous) {
-         tgrad_detjac_upts.mv_cpu_gpu();
-         }
-         */
 #endif
+}
+
+void eles::set_transforms_over_int_cubtps(void)
+{
+        int i,j,k;
+        hf_array<double> loc(n_dims);
+        hf_array<double> d_pos(n_dims,n_dims);
+        double xr, xs, xt;
+        double yr, ys, yt;
+        double zr, zs, zt;
+        JGinv_over_int_cubpts.setup(n_dims, n_dims, loc_over_int_cubpts.get_dim(1), n_eles);
+
+        for(i=0; i<n_eles; i++)
+        {
+            for(j=0; j<loc_over_int_cubpts.get_dim(1); j++)
+            {
+                for(k=0;k<n_dims;k++)
+                {
+                    loc(k)=loc_over_int_cubpts(k,j);
+                }
+                calc_d_pos(loc,i,d_pos);
+                if(n_dims==2)
+                {
+                    xr = d_pos(0,0);
+                    xs = d_pos(0,1);
+                    yr = d_pos(1,0);
+                    ys = d_pos(1,1);
+
+                    // store determinant of jacobian multiplied by inverse of jacobian at the solution point
+                    JGinv_over_int_cubpts(0,0,j,i)= ys;
+                    JGinv_over_int_cubpts(0,1,j,i)= -xs;
+                    JGinv_over_int_cubpts(1,0,j,i)= -yr;
+                    JGinv_over_int_cubpts(1,1,j,i)= xr;
+                }
+                else if(n_dims==3)
+                {
+                    xr = d_pos(0,0);
+                    xs = d_pos(0,1);
+                    xt = d_pos(0,2);
+
+                    yr = d_pos(1,0);
+                    ys = d_pos(1,1);
+                    yt = d_pos(1,2);
+
+                    zr = d_pos(2,0);
+                    zs = d_pos(2,1);
+                    zt = d_pos(2,2);
+
+                    JGinv_over_int_cubpts(0,0,j,i) = ys*zt - yt*zs;
+                    JGinv_over_int_cubpts(0,1,j,i) = xt*zs - xs*zt;
+                    JGinv_over_int_cubpts(0,2,j,i) = xs*yt - xt*ys;
+                    JGinv_over_int_cubpts(1,0,j,i) = yt*zr - yr*zt;
+                    JGinv_over_int_cubpts(1,1,j,i) = xr*zt - xt*zr;
+                    JGinv_over_int_cubpts(1,2,j,i) = xt*yr - xr*yt;
+                    JGinv_over_int_cubpts(2,0,j,i) = yr*zs - ys*zr;
+                    JGinv_over_int_cubpts(2,1,j,i) = xs*zr - xr*zs;
+                    JGinv_over_int_cubpts(2,2,j,i) = xr*ys - xs*yr;
+                }
+                else
+                {
+                    cout << "ERROR: Invalid number of dimensions ... " << endl;
+                }
+            }
+        }
 }
 
 void eles::set_transforms_fpts(void)
@@ -4724,7 +4808,7 @@ void eles::set_transforms_fpts(void)
         pos_fpts.setup(n_fpts_per_ele,n_eles,n_dims);
 
         if (rank==0)
-            cout << endl << " at flux points"  << endl;
+            cout << " at flux points"  << endl;
 
         for(i=0; i<n_eles; i++)
         {
@@ -4862,6 +4946,9 @@ void eles::set_transforms_fpts(void)
             }
         }
 
+
+        if (rank == 0)
+            cout << endl;
 #ifdef _GPU
         tdA_fpts.mv_cpu_gpu();
         pos_fpts.cp_cpu_gpu();
@@ -4921,8 +5008,7 @@ void eles::set_bdy_ele2ele(void)
 
 void eles::set_transforms_inters_cubpts(void)
 {
-    if (n_eles!=0)
-    {
+
         int i,j,k;
 
         double xr, xs, xt;
@@ -5036,19 +5122,15 @@ void eles::set_transforms_inters_cubpts(void)
                 }
             }
         }
-
-    } // if n_eles!=0
 }
 
 // Set transforms at volume cubature points
 void eles::set_transforms_vol_cubpts(void)
 {
-    if(n_eles!=0)
-    {
         int i,j,m;
         hf_array<double> d_pos(n_dims,n_dims);
         hf_array<double> loc(n_dims);
-        hf_array<double> pos(n_dims);
+        int n_cubpts_per_ele = loc_volume_cubpts.get_dim(1);
 
         vol_detjac_vol_cubpts.setup(n_cubpts_per_ele);
 
@@ -5063,7 +5145,6 @@ void eles::set_transforms_vol_cubpts(void)
                 for (m=0; m<n_dims; m++)
                     loc(m) = loc_volume_cubpts(m,j);
 
-                calc_pos(loc,i,pos);
                 calc_d_pos(loc,i,d_pos);
 
                 if (n_dims==2)
@@ -5078,7 +5159,6 @@ void eles::set_transforms_vol_cubpts(void)
                 }
             }
         }
-    }
 }
 
 // get a pointer to the transformed discontinuous solution at a flux point
@@ -5504,6 +5584,7 @@ hf_array<double> eles::compute_error(int in_norm_type, double &time)
     hf_array<double> error(2, n_fields);     //storage
     hf_array<double> error_sum(2, n_fields); //output
     error_sum.initialize_to_zero();
+    int n_cubpts_per_ele = loc_volume_cubpts.get_dim(1);
 
     for (int i = 0; i < n_eles; i++)
     {
@@ -5912,6 +5993,7 @@ void eles::CalcIntegralQuantities(int n_integral_quantities, hf_array <double>& 
     double dvdx, dvdy, dvdz;
     double dwdx, dwdy, dwdz;
     double diagnostic, tke, pressure, diag, irho, detjac;
+    int n_cubpts_per_ele = loc_volume_cubpts.get_dim(1);
 
     // Sum over elements
     for (int i=0; i<n_eles; i++)
@@ -6416,20 +6498,4 @@ void eles::pos_to_loc(hf_array<double>& in_pos,int in_ele,hf_array<double>& out_
         }
     }
 
-}
-
-//de-aliasing
-
-void eles::dealias_over_integration(void)
-{
-    if (n_eles != 0)
-    {
-        div_tconf_upts(1) = div_tconf_upts(0);
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-        cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_fields_mul_n_eles, n_upts_per_ele, 1.0, over_int_filter.get_ptr_cpu(), n_upts_per_ele, div_tconf_upts(1).get_ptr_cpu(), n_upts_per_ele, 0.0, div_tconf_upts(0).get_ptr_cpu(), n_upts_per_ele);
-#else
-        dgemm(n_upts_per_ele, n_fields_mul_n_eles, n_upts_per_ele, 1.0, 0.0, over_int_filter.get_ptr_cpu(), div_tconf_upts(1).get_ptr_cpu(), div_tconf_upts(0).get_ptr_cpu());
-
-#endif
-    }
 }

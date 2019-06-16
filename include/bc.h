@@ -56,6 +56,7 @@ double p_total,T_total,p_ramp_coeff,T_ramp_coeff,p_total_old,T_total_old;
 double p_static,T_static;
 hf_array<double> velocity;
 int pressure_ramp;
+int use_wm;
 private:
 
 map<string,int> bc_type2flag;
