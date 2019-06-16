@@ -737,31 +737,31 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             
             c_l=sqrt(gamma*p_l/rho_l);
             c_r=sqrt(gamma*run_input.bc_list(bc_id).p_static/run_input.bc_list(bc_id).rho);
-
-            r_plus  = vn_l + 2./(gamma-1.)*c_l;
-            r_minus = vn_r - 2./(gamma-1.)*c_r;
-
-            c_star = 0.25*(gamma-1.)*(r_plus-r_minus);
-            vn_star = 0.5*(r_plus+r_minus);
-            //calculate local mach number
             mach = fabs(vn_l) / c_l;
 
             // Inflow
             if (vn_l<0)
             {
-                //if supersonic set the outgoing Riemann invariant to be far field value
-                if (mach>1)
+                //if supersonic inflow set the outgoing Riemann invariant to be far field value
+                if (mach >= 1)
                 {
-                    r_plus  = vn_r + 2./(gamma-1.)*c_r;
-                    c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
-                    vn_star = 0.5 * (r_plus + r_minus);
+                    r_minus = vn_r - 2. / (gamma - 1.) * c_r;
+                    r_plus = vn_r + 2. / (gamma - 1.) * c_r;
                 }
-                //free stream entropy
-                one_over_s = pow(run_input.bc_list(bc_id).rho,gamma)/run_input.bc_list(bc_id).p_static;
+                else //subsonically inflow
+                {
+                    r_plus = vn_l + 2. / (gamma - 1.) * c_l;
+                    r_minus = vn_r - 2. / (gamma - 1.) * c_r;
+                }
 
+                c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
+                vn_star = 0.5 * (r_plus + r_minus);
+
+                //use free stream entropy to calculate density
+                one_over_s = pow(run_input.bc_list(bc_id).rho,gamma)/run_input.bc_list(bc_id).p_static;
                 rho_r = pow(1./gamma*(one_over_s*c_star*c_star),1./(gamma-1.));
 
-                // Compute velocity on the right side
+                // Compute velocity on the right side, extrapolate tangetal right velocity
                 for (int i=0; i<n_dims; i++)
                     v_r[i] = vn_star*norm[i] + (run_input.bc_list(bc_id).velocity[i] - vn_r*norm[i]);
 
@@ -782,26 +782,34 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             // Outflow
             else
             {
-                //if supersonic set the incoming Riemann invariant to be local value
-                if (mach>1)
+                //if supersonic outflow
+                if (mach>=1)
                 {
                     r_minus = vn_l - 2./(gamma-1.)*c_l;
-                    c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
-                    vn_star = 0.5 * (r_plus + r_minus);
+                    r_plus = vn_l + 2. / (gamma - 1.) * c_l;
                 }
+                else //subsonically outflow
+                {
+                    r_plus = vn_l + 2. / (gamma - 1.) * c_l;
+                    r_minus = vn_r - 2. / (gamma - 1.) * c_r;
+                }
+
+                c_star = 0.25 * (gamma - 1.) * (r_plus - r_minus);
+                vn_star = 0.5 * (r_plus + r_minus);
+
                 //extrapolate entropy
                 one_over_s = pow(rho_l,gamma)/p_l;
-
                 rho_r = pow(1./gamma*(one_over_s*c_star*c_star), 1./(gamma-1.));
 
-                // Compute velocity on the right side
+                // Compute velocity on the right side, extrapolate tangental left velocity
                 for (int i=0; i<n_dims; i++)
                     v_r[i] = vn_star*norm[i] + (v_l[i] - vn_l*norm[i]);
-
-                p_r = rho_r/gamma*c_star*c_star;
+                
                 v_sq = 0.;
                 for (int i=0; i<n_dims; i++)
                     v_sq += (v_r[i]*v_r[i]);
+
+                p_r = rho_r/gamma*c_star*c_star;
                 e_r = (p_r/(gamma-1.0)) + 0.5*rho_r*v_sq;
 
                 // SA model
