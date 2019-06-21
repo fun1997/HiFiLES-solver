@@ -133,17 +133,11 @@ void inters::setup_inters(int in_n_inters, int in_inters_type)
       temp_grad_u_l.setup(n_fields,n_dims);
       temp_grad_u_r.setup(n_fields,n_dims);
 
-      temp_normal_u_l.setup(n_fields);
-
-      temp_pos_u_l.setup(n_dims);
-
       temp_f_l.setup(n_fields,n_dims);
       temp_f_r.setup(n_fields,n_dims);
 
       temp_f.setup(n_fields,n_dims);
 
-      temp_fn_l.setup(n_fields);
-      temp_fn_r.setup(n_fields);
 
       temp_loc.setup(n_dims);
 

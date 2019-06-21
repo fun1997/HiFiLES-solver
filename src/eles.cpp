@@ -68,7 +68,6 @@ void eles::setup(int in_n_eles, int in_max_n_spts_per_ele)
         viscous =run_input.viscous;
         LES = run_input.LES;
         sgs_model = run_input.SGS_model;
-        wall_model = run_input.wall_model;
 
         // Set filter flag before calling setup_ele_type_specific
         LES_filter = 0;
@@ -2407,14 +2406,8 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     hf_array<double> drho(n_dims), dene(n_dims), dke(n_dims), de(n_dims);//gradients
     hf_array<double> dmom(n_dims,n_dims), du(n_dims,n_dims), S(n_dims,n_dims);
 
-    // quantities for wall model
-    hf_array<double> norm;
-    hf_array<double> tau;
-    hf_array<double> Mrot;
-    hf_array<double> temp;
-    hf_array<double> urot;
-    hf_array<double> tw;
-    double y, qw, utau, yplus;
+    // quantities for wall distance
+    double y;
 
     // primitive variables
     rho = temp_u(0);
@@ -2431,7 +2424,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     mu = (run_input.mu_inf)*pow(rt_ratio,1.5)*(1+(run_input.c_sth))/(rt_ratio+(run_input.c_sth));
     mu = mu + run_input.fix_vis*(run_input.mu_inf - mu);
 
-    if ((sgs_model != 1 && sgs_model != 2) || wall_model)
+    if (sgs_model==0)//Smagorinsky
     {
         // Magnitude of wall distance vector
         y = 0.0;
@@ -2441,119 +2434,6 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
     }
     // Initialize SGS flux hf_array to zero
     temp_sgsf.initialize_to_zero();
-
-    // Compute SGS flux using wall model if sufficiently close to solid boundary
-    wall = 0;
-
-    if(wall_model != 0)
-    {
-        norm.setup(n_dims);
-        tau.setup(n_dims, n_dims);
-        Mrot.setup(n_dims, n_dims);
-        temp.setup(n_dims, n_dims);
-        urot.setup(n_dims);
-        tw.setup(n_dims);
-
-        // get subgrid momentum flux at previous timestep
-        //utau = 0.0;
-        //for (i=0; i<n_dims; i++)
-        //{
-            //tw(i) = twall(upt,ele,i+1);
-            //utau += tw(i)*tw(i);
-        //}
-        // shear velocity
-        //utau = pow((utau/rho/rho),0.25);
-
-        // Wall distance in wall units
-        //yplus = y*rho*utau/mu;
-
-        if(y < run_input.wall_layer_t) wall = 1;
-        //if(yplus < 100.0) wall = 1;
-        //cout << "tw, y, y+ " << tw(0) << ", " << y << ", " << yplus << endl;
-    }
-
-    // calculate SGS flux from a wall model
-    if(wall)
-    {
-
-        for (i=0; i<n_dims; i++)
-        {
-            // Get approximate normal from wall distance vector
-            norm(i) = wall_distance(upt,ele,i)/y;
-        }
-
-        // subgrid energy flux from previous timestep
-        //qw = twall(upt,ele,n_fields-1);
-
-        // Calculate local rotation matrix
-        Mrot = calc_rotation_matrix(norm);
-
-        // Rotate velocity to surface
-        if(n_dims==2)
-        {
-            urot(0) = u(0)*Mrot(0,1)+u(1)*Mrot(1,1);
-            urot(1) = 0.0;
-        }
-        else
-        {
-            urot(0) = u(0)*Mrot(0,1)+u(1)*Mrot(1,1)+u(2)*Mrot(2,1);
-            urot(1) = u(0)*Mrot(0,2)+u(1)*Mrot(1,2)+u(2)*Mrot(2,2);
-            urot(2) = 0.0;
-        }
-
-        // Calculate wall shear stress
-        calc_wall_stress(rho,urot,inte,mu,run_input.prandtl,run_input.gamma,y,tw,qw);
-
-        // correct the sign of wall shear stress and wall heat flux? - see SD3D
-
-        // Set arrays for next timestep
-        //for(i=0; i<n_dims; ++i) twall(upt,ele,i+1) = tw(i); // momentum flux
-
-        //twall(upt,ele,0)          = 0.0; // density flux
-        //twall(upt,ele,n_fields-1) = qw;  // energy flux
-
-        // populate ndims*ndims rotated stress hf_array
-        tau.initialize_to_zero();
-
-        for(i=0; i<n_dims-1; i++) tau(i+1,0) = tau(0,i+1) = tw(i);
-
-        // rotate stress hf_array back to Cartesian coordinates
-        temp.initialize_to_zero();
-        for(i=0; i<n_dims; ++i)
-            for(j=0; j<n_dims; ++j)
-                for(k=0; k<n_dims; ++k)
-                    temp(i,j) += tau(i,k)*Mrot(k,j);
-
-        tau.initialize_to_zero();
-        for(i=0; i<n_dims; ++i)
-            for(j=0; j<n_dims; ++j)
-                for(k=0; k<n_dims; ++k)
-                    tau(i,j) += Mrot(k,i)*temp(k,j);
-
-        // set SGS fluxes
-        for(i=0; i<n_dims; i++)
-        {
-
-            // density
-            temp_sgsf(0,i) = 0.0;
-
-            // velocity
-            for(j=0; j<n_dims; j++)
-            {
-                temp_sgsf(j+1,i) = 0.5*(tau(i,j)+tau(j,i));
-            }
-
-            // energy
-            temp_sgsf(n_fields-1,i) = qw*norm(i);
-        }
-    }
-
-    // Free-stream SGS flux
-    else
-    {
-
-        // Set wall shear stress to 0 to prevent NaNs
-        if(wall_model != 0) for(i=0; i<n_dims; ++i) twall(upt,ele,i) = 0.0;
 
         // 0: Smagorinsky, 1: WALE, 2: WALE-similarity, 3: SVV, 4: Similarity
         if(sgs_model==0)
@@ -2764,7 +2644,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
                 temp_sgsf(3,2) += rho*Lu(upt,ele,2);
             }
         }
-    }
+    
 }
 
 
@@ -2933,64 +2813,6 @@ void eles::calc_wall_distance(const int n_seg_noslip_inters, const int n_tri_nos
             }
         }
     }
-}
-
-hf_array<double> eles::calc_rotation_matrix(hf_array<double>& norm)
-{
-    hf_array <double> mrot(n_dims,n_dims);
-    double nn;
-
-    // Create rotation matrix
-    if(n_dims==2)
-    {
-        if(abs(norm(1)) > 0.7)
-        {
-            mrot(0,0) = norm(0);
-            mrot(1,0) = norm(1);
-            mrot(0,1) = norm(1);
-            mrot(1,1) = -norm(0);
-        }
-        else
-        {
-            mrot(0,0) = -norm(0);
-            mrot(1,0) = -norm(1);
-            mrot(0,1) = norm(1);
-            mrot(1,1) = -norm(0);
-        }
-    }
-    else if(n_dims==3)
-    {
-        if(abs(norm(2)) > 0.7)
-        {
-            nn = sqrt(norm(1)*norm(1)+norm(2)*norm(2));
-
-            mrot(0,0) = norm(0)/nn;
-            mrot(1,0) = norm(1)/nn;
-            mrot(2,0) = norm(2)/nn;
-            mrot(0,1) = 0.0;
-            mrot(1,1) = -norm(2)/nn;
-            mrot(2,1) = norm(1)/nn;
-            mrot(0,2) = nn;
-            mrot(1,2) = -norm(0)*norm(1)/nn;
-            mrot(2,2) = -norm(0)*norm(2)/nn;
-        }
-        else
-        {
-            nn = sqrt(norm(0)*norm(0)+norm(1)*norm(1));
-
-            mrot(0,0) = norm(0)/nn;
-            mrot(1,0) = norm(1)/nn;
-            mrot(2,0) = norm(2)/nn;
-            mrot(0,1) = norm(1)/nn;
-            mrot(1,1) = -norm(0)/nn;
-            mrot(2,1) = 0.0;
-            mrot(0,2) = norm(0)*norm(2)/nn;
-            mrot(1,2) = norm(1)*norm(2)/nn;
-            mrot(2,2) = -nn;
-        }
-    }
-
-    return mrot;
 }
 
 void eles::calc_wall_stress(double rho, hf_array<double>& urot, double ene, double mu, double Pr, double gamma, double y, hf_array<double>& tau_wall, double q_wall)
@@ -5291,6 +5113,11 @@ double* eles::get_loc_fpts_ptr_cpu(int in_inter_local_fpt, int in_ele_local_inte
     return pos_fpts.get_ptr_cpu(fpt,in_ele,in_dim);
 }
 
+double *eles::get_wm_disu_ptr(int in_ele, int in_upt, int in_field)
+{
+    return disu_upts(0).get_ptr_cpu(in_upt, in_ele, in_field);
+}
+
 // get a GPU pointer to the coordinates at a flux point
 #ifdef _GPU
 double* eles::get_loc_fpts_ptr_gpu(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele)
@@ -5359,48 +5186,36 @@ double* eles::get_grad_disu_fpts_ptr(int in_inter_local_fpt, int in_ele_local_in
 #endif
 }
 
-double* eles::get_normal_disu_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_field, int in_ele, hf_array<double> temp_loc, double temp_pos[3])
+double eles::calc_wm_upts_dist(int in_ele, int in_local_inter, int &out_upt)
 {
-
-    hf_array<double> pos(n_dims);
-    double dist = 0.0, min_dist = 1E6;
-    int min_index = 0;
-
-    // find closest solution point
-
-    for (int i=0; i<n_upts_per_ele; i++)
+    double dist_min, temp_dist, dist_max = 0.;
+    //step 1. find out the distance for each solution point to the interface
+    //step 2. find out the largest distance among the solution points
+    for (int i = 0; i < n_upts_per_ele; i++)
     {
-
-        for (int k = 0; k < n_dims; k++)
+        for (int j = 0; j < n_fpts_per_inter(in_local_inter); j++)
         {
-            pos(k) = pos_upts(i, in_ele, k);
-        }
-
-        dist = 0.0;
-        for(int j=0; j<n_dims; j++)
-        {
-            dist += (pos(j)-temp_loc(j))*(pos(j)-temp_loc(j));
-        }
-        dist = sqrt(dist);
-
-        if (dist < min_dist)
-        {
-            min_dist = dist;
-            min_index = i;
-            for(int j=0; j<n_dims; j++)
+            temp_dist = 0.;
+            for (int k = 0; k < n_dims; k++)
             {
-                temp_pos[j] = pos(j);
+                temp_dist += ((*get_loc_fpts_ptr_cpu(j, in_local_inter, k, in_ele)) - pos_upts(i, in_ele, k)) * (*get_norm_fpts_ptr(j, in_local_inter, k, in_ele));
+            }
+            if (j == 0)
+                dist_min = temp_dist;
+            else
+            {
+                if (temp_dist < dist_min)
+                    dist_min = temp_dist;
             }
         }
-
+        if (dist_min > dist_max)
+        {
+            dist_max = dist_min;
+            out_upt = i;
+        }
     }
 
-#ifdef _GPU
-    return disu_upts(0).get_ptr_gpu(min_index,in_ele,in_field);
-#else
-    return disu_upts(0).get_ptr_cpu(min_index,in_ele,in_field);
-#endif
-
+    return dist_max;
 }
 
 // get a pointer to the normal transformed continuous viscous flux at a flux point

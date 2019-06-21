@@ -80,7 +80,6 @@ public:
 	int order;
 	int viscous;
 	int LES;
-  int wall_model;
 	int n_inters;
 	int n_fpts_per_inter;
 	int n_fields;
@@ -104,18 +103,10 @@ public:
   hf_array<double> temp_grad_u_l;
   hf_array<double> temp_grad_u_r;
 
-  hf_array<double> temp_normal_u_l;
-
-  hf_array<double> temp_pos_u_l;
-
   hf_array<double> temp_f_l;
   hf_array<double> temp_f_r;
 
-  hf_array<double> temp_fn_l;
-  hf_array<double> temp_fn_r;
-
   hf_array<double> temp_f;
-
   hf_array<double> temp_loc;
 
 	// LES and wall model quantities

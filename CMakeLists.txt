@@ -91,6 +91,7 @@ set(SRCLIST
 ./src/cubature_1d.cpp 
 ./src/cubature_pris.cpp
 ./src/funcs.cpp 
+./src/wall_model_funcs.cpp
 ./src/inters.cpp 
 ./src/bdy_inters.cpp 
 ./src/int_inters.cpp 

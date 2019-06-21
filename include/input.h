@@ -107,7 +107,6 @@ public:
     double filter_ratio;
     int SGS_model;
     int wall_model;
-    double wall_layer_t;
 
     /* ------- restart options -------- */
     int restart_flag;

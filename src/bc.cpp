@@ -24,7 +24,7 @@
 
 using namespace std;
 
-bc::bc()
+bc::bc():use_wm(0)
 {
 }
 bc::~bc()

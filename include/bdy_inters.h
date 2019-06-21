@@ -25,6 +25,7 @@
 
 #include "inters.h"
 #include "solution.h"
+#include <vector>
 
 class bdy_inters: public inters
 {
@@ -71,6 +72,6 @@ protected:
   // #### members ####
 
   hf_array<int> boundary_id;
-
-
+  vector<hf_array<double *>> wm_disu_ptr; //pointer to the solution at input point of wall model
+  vector<double> wm_dist;             //distance from input point to wall
 };

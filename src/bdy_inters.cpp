@@ -28,6 +28,8 @@
 #include "../include/bdy_inters.h"
 #include "../include/solver.h"
 #include "../include/flux.h"
+#include "wall_model_funcs.h" 
+
 #ifdef _GPU
 #include "../include/cuda_kernels.h"
 #endif
@@ -39,7 +41,6 @@ using namespace std;
 
 bdy_inters::bdy_inters()
 {
-    wall_model = run_input.wall_model;
 }
 
 bdy_inters::~bdy_inters() { }
@@ -113,29 +114,43 @@ void bdy_inters::set_boundary(int in_inter, int bc_id, int in_ele_type_l, int in
         }
     }
 
+    //setup use wall model
+    if (run_input.bc_list(bc_id).use_wm)
+    {
+        int upt_idx;
+        hf_array<double *> temp_disu_ptr(n_fields);
+        //find the farthest solution point to the boundary interface, calculate the distance
+        wm_dist.push_back(calc_wm_upts_dist(in_ele_type_l, in_ele_l, in_local_inter_l, FlowSol, upt_idx));
+        //get pointer of input point solution
+        for (int i = 0; i < n_fields; i++)
+        {
+            temp_disu_ptr(i) = get_wm_disu_ptr(in_ele_type_l, in_ele_l, upt_idx, i, FlowSol);
+        }
+        wm_disu_ptr.push_back(temp_disu_ptr);
+    }
     // Get coordinates and solution at closest solution points to boundary
 
-//      for(int j=0;j<n_fpts_per_inter;j++)
-//      {
+    //      for(int j=0;j<n_fpts_per_inter;j++)
+    //      {
 
-//        // flux point location
+    //        // flux point location
 
-//        // get CPU ptr regardless of ifdef _CPU or _GPU
-//        // - we need a CPU ptr to pass to get_normal_disu_fpts_ptr below
-//        for (int k=0;k<n_dims;k++)
-//          temp_loc(k) = *get_loc_fpts_ptr_cpu(in_ele_type_l,in_ele_l,in_local_inter_l,j,k,FlowSol);
+    //        // get CPU ptr regardless of ifdef _CPU or _GPU
+    //        // - we need a CPU ptr to pass to get_normal_disu_fpts_ptr below
+    //        for (int k=0;k<n_dims;k++)
+    //          temp_loc(k) = *get_loc_fpts_ptr_cpu(in_ele_type_l,in_ele_l,in_local_inter_l,j,k,FlowSol);
 
-//        // location of the closest solution point
-//        double temp_pos[3];
+    //        // location of the closest solution point
+    //        double temp_pos[3];
 
-//        if(viscous) {
-//          for(int i=0;i<n_fields;i++)
-//            normal_disu_fpts_l(j,in_inter,i) = get_normal_disu_fpts_ptr(in_ele_type_l,in_ele_l,in_local_inter_l,i,j,FlowSol, temp_loc, temp_pos);
+    //        if(viscous) {
+    //          for(int i=0;i<n_fields;i++)
+    //            normal_disu_fpts_l(j,in_inter,i) = get_normal_disu_fpts_ptr(in_ele_type_l,in_ele_l,in_local_inter_l,i,j,FlowSol, temp_loc, temp_pos);
 
-//          for(int i=0;i<n_dims;i++)
-//              pos_disu_fpts_l(j,in_inter,i) = temp_pos[i];
-//        }
-//      }
+    //          for(int i=0;i<n_dims;i++)
+    //              pos_disu_fpts_l(j,in_inter,i) = temp_pos[i];
+    //        }
+    //      }
 }
 
 // move all from cpu to gpu
@@ -872,53 +887,51 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
 
 void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
 {
-
-#ifdef _CPU
     hf_array<double> norm(n_dims), fn(n_fields);
-
-    for(int i=0; i<n_inters; i++)
+    hf_array<double> temp_u_wm(n_fields);
+    int ctr = 0;
+    for (int i = 0; i < n_inters; i++)
     {
         /*! boundary specification */
-        int temp_bc_flag=run_input.bc_list(boundary_id(i)).get_bc_flag();
+        int temp_bc_flag = run_input.bc_list(boundary_id(i)).get_bc_flag();
 
-        for(int j=0; j<n_fpts_per_inter; j++)
+        if (temp_bc_flag != SLIP_WALL) //if not slip wall(slip wall dont need to calculate viscous flux)
         {
-                /*! obtain discontinuous solution at flux points */
-                for(int k=0; k<n_fields; k++)
-                    temp_u_l(k)=(*disu_fpts_l(j,i,k));
+            if (!run_input.bc_list(boundary_id(i)).use_wm)//if not use wall model
+            {
+                for (int j = 0; j < n_fpts_per_inter; j++)
+                {
+                    /*! obtain discontinuous solution at flux points */
+                    for (int k = 0; k < n_fields; k++)
+                        temp_u_l(k) = (*disu_fpts_l(j, i, k));
 
-                /*! Get normal components and flux points location */
-                for (int m=0; m<n_dims; m++)
-                {
-                    norm(m) = *norm_fpts(j,i,m);
-                    temp_loc(m) = *pos_fpts(j,i,m);
-                }
-                if (temp_bc_flag != SLIP_WALL)//if not slip wall(slip wall dont need to calculate viscous flux)
-                {
+                    /*! Get normal components and flux points location */
+                    for (int m = 0; m < n_dims; m++)
+                    {
+                        norm(m) = *norm_fpts(j, i, m);
+                        temp_loc(m) = *pos_fpts(j, i, m);
+                    }
+
+                    /*! obtain physical gradient of discontinuous solution at flux points */
+                    for (int k = 0; k < n_dims; k++)
+                        for (int l = 0; l < n_fields; l++)
+                            temp_grad_u_l(l, k) = *grad_disu_fpts_l(j, i, l, k);
+
                     //calculate viscous boundary solution
                     set_boundary_conditions(1, boundary_id(i), temp_u_l.get_ptr_cpu(), temp_u_r.get_ptr_cpu(),
                                             norm.get_ptr_cpu(), temp_loc.get_ptr_cpu(), run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
-
-                    /*! obtain physical gradient of discontinuous solution at flux points */
-                    for(int k=0; k<n_dims; k++)
-                    {
-                        for(int l=0; l<n_fields; l++)
-                        {
-                            temp_grad_u_l(l,k) = *grad_disu_fpts_l(j,i,l,k);
-                        }
-                    }
 
                     set_boundary_gradients(boundary_id(i), temp_u_l, temp_u_r, temp_grad_u_l, temp_grad_u_r,
                                            norm, temp_loc, run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
 
                     /*! calculate flux from discontinuous solution at flux points */
-                    if(n_dims==2)
+                    if (n_dims == 2)
                     {
-                        calc_visf_2d(temp_u_r,temp_grad_u_r,temp_f_r);
+                        calc_visf_2d(temp_u_r, temp_grad_u_r, temp_f_r);
                     }
-                    else if(n_dims==3)
+                    else if (n_dims == 3)
                     {
-                        calc_visf_3d(temp_u_r,temp_grad_u_r,temp_f_r);
+                        calc_visf_3d(temp_u_r, temp_grad_u_r, temp_f_r);
                     }
                     else
                         FatalError("ERROR: Invalid number of dimensions ... ");
@@ -930,18 +943,42 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
                         FatalError("Viscous Riemann solver not implemented");
 
                     /*! Transform back to reference space. */
-                    for(int k=0; k<n_fields; k++)
-                        (*norm_tconf_fpts_l(j,i,k))+=fn(k)*(*tdA_fpts_l(j,i));
+                    for (int k = 0; k < n_fields; k++)
+                        (*norm_tconf_fpts_l(j, i, k)) += fn(k) * (*tdA_fpts_l(j, i));
                 }
+            }
+            else //this interface uses wall model
+            {
+                for (int j = 0; j < n_fpts_per_inter; j++)
+                {
+                    /*! obtain discontinuous solution at flux points */
+                    for (int k = 0; k < n_fields; k++)
+                        temp_u_l(k) = (*disu_fpts_l(j, i, k));
+
+                    /*! Get normal components and flux points location */
+                    for (int m = 0; m < n_dims; m++)
+                    {
+                        norm(m) = *norm_fpts(j, i, m);
+                        temp_loc(m) = *pos_fpts(j, i, m);
+                    }
+                    //calculate viscous boundary solution
+                    set_boundary_conditions(1, boundary_id(i), temp_u_l.get_ptr_cpu(), temp_u_r.get_ptr_cpu(),
+                                            norm.get_ptr_cpu(), temp_loc.get_ptr_cpu(), run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
+
+                    /*! obtain wall model input solutions */
+                    for (int k = 0; k < n_fields; k++)
+                        temp_u_wm(k) = (*wm_disu_ptr[ctr](k));
+
+                    /*! calculate wall stress */
+                    calc_wall_stress(temp_u_wm, temp_u_r, wm_dist[ctr], norm, fn);
+                    /*! Transform back to reference space. */
+                    for (int k = 0; k < n_fields; k++)
+                        (*norm_tconf_fpts_l(j, i, k)) += fn(k) * (*tdA_fpts_l(j, i));
+                }
+                ctr++;
+            }
         }
     }
-    
-#endif
-
-#ifdef _GPU
-    if (n_inters!=0)
-        evaluate_boundaryConditions_viscFlux_gpu_kernel_wrapper(n_fpts_per_inter,n_dims,n_fields,n_inters,disu_fpts_l.get_ptr_gpu(),grad_disu_fpts_l.get_ptr_gpu(),norm_tconf_fpts_l.get_ptr_gpu(),tdA_fpts_l.get_ptr_gpu(),ndA_dyn_fpts_l.get_ptr_gpu(),J_dyn_fpts_l.get_ptr_gpu(),norm_fpts.get_ptr_gpu(),norm_dyn_fpts.get_ptr_gpu(),grid_vel_fpts.get_ptr_gpu(),pos_fpts.get_ptr_gpu(),pos_dyn_fpts.get_ptr_gpu(),sgsf_fpts_l.get_ptr_gpu(),boundary_type.get_ptr_gpu(),bdy_params.get_ptr_gpu(),delta_disu_fpts_l.get_ptr_gpu(),run_input.riemann_solve_type,run_input.vis_riemann_solve_type,run_input.R_ref,run_input.ldg_beta,run_input.ldg_tau,run_input.gamma,run_input.prandtl,run_input.rt_inf,run_input.mu_inf,run_input.c_sth,run_input.fix_vis, time_bound, run_input.equation, run_input.diff_coeff, LES, motion, run_input.RANS, run_input.c_v1, run_input.omega, run_input.prandtl_t);
-#endif
 }
 
 void bdy_inters::set_boundary_gradients(int bc_id, hf_array<double> &u_l, hf_array<double> &u_r, hf_array<double> &grad_ul, hf_array<double> &grad_ur, hf_array<double> &norm, hf_array<double> &loc, double gamma, double R_ref, double time_bound, int equation)

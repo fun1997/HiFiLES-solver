@@ -201,8 +201,11 @@ public:
   /*! get a pointer to gradient of discontinuous solution at a flux point */
   double* get_grad_disu_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_field, int in_ele);
 
-  /*! get a pointer to gradient of discontinuous solution at a flux point */
-  double* get_normal_disu_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_field, int in_ele, hf_array<double> temp_loc, double temp_pos[3]);
+  /*! get pointer to solution of wall model input solution point */
+  double *get_wm_disu_ptr(int in_ele, int in_upt, int in_field);
+
+  /*! calculate the farthest solution point to the interface and return the distance */
+  double calc_wm_upts_dist(int in_ele,int in_local_inter,int &out_upt);
 
   /*! get a pointer to the subgrid-scale flux at a flux point */
   double* get_sgsf_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_field, int in_dim, int in_ele);
@@ -458,9 +461,6 @@ protected:
 
   /*! LES filter flag */
   int LES_filter;
-
-  /*! near-wall model */
-  int wall_model;
 
   /*! number of elements */
   int n_eles;
