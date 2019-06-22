@@ -172,8 +172,8 @@ void input::read_input_file(string fileName, int rank)
         if (SGS_model == 3 || SGS_model == 2 || SGS_model == 4)
             opts.getScalarValue("filter_type", filter_type);
         opts.getScalarValue("filter_ratio", filter_ratio);
-        opts.getScalarValue("wall_model", wall_model, 0); //0: no wall model;1: werner-wengle; 2: Breuer-Rodi
     }
+    opts.getScalarValue("wall_model", wall_model, 0); //0: no wall model;1: werner-wengle; 2: Breuer-Rodi
 
     /* ---- Gas Parameters ---- */
 
@@ -388,7 +388,7 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "u", bc_list(i).velocity(0), 0.);
             bdy_r.getScalarValue(bc_paramS + "v", bc_list(i).velocity(1), 0.);
             bdy_r.getScalarValue(bc_paramS + "w", bc_list(i).velocity(2), 0.);
-            if (LES && wall_model)
+            if (wall_model)
                 bdy_r.getScalarValue(bc_paramS + "use_wm", bc_list(i).use_wm, 0);
         }
         else if (bc_list(i).get_bc_flag() == CHAR)
@@ -408,7 +408,7 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "u", bc_list(i).velocity(0), 0.);
             bdy_r.getScalarValue(bc_paramS + "v", bc_list(i).velocity(1), 0.);
             bdy_r.getScalarValue(bc_paramS + "w", bc_list(i).velocity(2), 0.);
-            if (LES && wall_model)
+            if (wall_model)
                 bdy_r.getScalarValue(bc_paramS + "use_wm", bc_list(i).use_wm, 0);
         }
     }
@@ -542,6 +542,8 @@ void input::setup_params(int rank)
             FatalError("turbulent model not supported with inviscid flow");
         if (LES)
             FatalError("Cannot turn on RANS and LES at same time");
+        if (wall_model)
+            FatalError("Cannot use wall model with RANS");
     }
 
     if (LES && !viscous)

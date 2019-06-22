@@ -2394,7 +2394,7 @@ void eles::evaluate_viscFlux(void)
 void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_u, double& detjac, int ele, int upt, hf_array<double>& temp_sgsf)
 {
     int i,j,k;
-    int eddy, sim, wall;
+    int eddy, sim;
     double C_s=run_input.C_s;
     double diag;
     double ke;

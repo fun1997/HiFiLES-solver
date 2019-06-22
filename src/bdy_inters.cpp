@@ -666,24 +666,80 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             // extrapolate density
             rho_r = rho_l;
 
-            // no-slip
-            if(sol_spec==0)//inviscid solution
+            if (run_input.bc_list(bc_id).use_wm)//wall model on
             {
-            for (int i=0; i<n_dims; i++)
-                v_r[i] = 2 * run_input.bc_list(bc_id).velocity(i) - v_l[i];
+                if (sol_spec == 0) //inverse slip inviscid solution
+                {
+                    // Compute normal velocity on left side
+                    vn_l = 0.;
+                    for (int i = 0; i < n_dims; i++)
+                        vn_l += v_l[i] * norm[i];
+                   
+                    //inverse normal velocity
+                    for (int i = 0; i < n_dims; i++)
+                        v_r[i] = v_l[i] - 2 * vn_l * norm[i];
+                    
+                    // energy extraploate temperature
+                    v_sq = 0.;
+                    for (int i = 0; i < n_dims; i++)
+                        v_sq += (v_r[i] * v_r[i]);
+
+                    e_r = p_l / (gamma - 1.0) + 0.5 * rho_r * v_sq;
+                }
+                else if (sol_spec == 1) //slip viscous solution
+                {
+                    // Compute normal velocity on left side
+                    vn_l = 0.;
+                    for (int i = 0; i < n_dims; i++)
+                        vn_l += v_l[i] * norm[i];
+
+                    //substract normal velocity
+                    for (int i = 0; i < n_dims; i++)
+                        v_r[i] = v_l[i] - vn_l * norm[i];
+                    
+                    // energy extrapolate temperature
+                    v_sq = 0.;
+                    for (int i = 0; i < n_dims; i++)
+                        v_sq += (v_r[i] * v_r[i]);
+
+                    e_r = p_l / (gamma - 1.0) + 0.5 * rho_r * v_sq;
+                }
+                else if (sol_spec == 2) //no-slip viscous solution
+                {
+                    for (int i = 0; i < n_dims; i++)
+                        v_r[i] = run_input.bc_list(bc_id).velocity(i);
+                    
+                    // energy use wall temperature
+                    v_sq = 0.;
+                    for (int i = 0; i < n_dims; i++)
+                        v_sq += (v_r[i] * v_r[i]);
+
+                    e_r = rho_r * (R_ref / (gamma - 1.0) * T_r) + 0.5 * rho_r * v_sq;
+                }
             }
-            else//viscous solution
+            else //wall model off
             {
+                if (sol_spec == 0) //inverse no-slip inviscid solution
+                {
+                    for (int i = 0; i < n_dims; i++)
+                        v_r[i] = 2 * run_input.bc_list(bc_id).velocity(i) - v_l[i];
+                }
+                else if (sol_spec == 1) // no-slip viscous solution
+                {
+                    for (int i = 0; i < n_dims; i++)
+                        v_r[i] = run_input.bc_list(bc_id).velocity(i);
+                }
+                else
+                {
+                    FatalError("Unrecognized flux type");
+                }
+                // energy use wall temperature
+                v_sq = 0.;
                 for (int i = 0; i < n_dims; i++)
-                    v_r[i] = run_input.bc_list(bc_id).velocity(i);
+                    v_sq += (v_r[i] * v_r[i]);
+
+                e_r = rho_r * (R_ref / (gamma - 1.0) * T_r) + 0.5 * rho_r * v_sq;
             }
-
-            // energy
-            v_sq = 0.;
-            for (int i=0; i<n_dims; i++)
-                v_sq += (v_r[i]*v_r[i]);
-
-            e_r = rho_r * (R_ref / (gamma - 1.0) * T_r) + 0.5 * rho_r * v_sq;
 
             // SA model
             if (run_input.RANS == 1)
@@ -693,25 +749,61 @@ void bdy_inters::set_boundary_conditions(int sol_spec, int bc_id, double *u_l, d
             }
         }
 
-        // Adiabatic, no-slip wall (fixed)
+        // Adiabatic, no-slip wall
         else if(bc_flag == ADIABAT_WALL)
         {
             // extrapolate density
             rho_r = rho_l; // only useful part
 
-            // no-slip
-            if (sol_spec == 0) //inviscid solution
+            if (run_input.bc_list(bc_id).use_wm)//wall model on
             {
-                for (int i = 0; i < n_dims; i++)
-                    v_r[i] = 2 * run_input.bc_list(bc_id).velocity(i) - v_l[i];
+                if (sol_spec == 0) //inverse slip inviscid solution
+                {
+                    // Compute normal velocity on left side
+                    vn_l = 0.;
+                    for (int i = 0; i < n_dims; i++)
+                        vn_l += v_l[i] * norm[i];
+                    
+                    //inverse normal velocity
+                    for (int i = 0; i < n_dims; i++)
+                        v_r[i] = v_l[i] - 2 * vn_l * norm[i];
+                }
+                else if (sol_spec == 1) //slip viscous solution
+                {
+                    // Compute normal velocity on left side
+                    vn_l = 0.;
+                    for (int i = 0; i < n_dims; i++)
+                        vn_l += v_l[i] * norm[i];
+                        
+                    //subtract normal velocity
+                    for (int i = 0; i < n_dims; i++)
+                        v_r[i] = v_l[i] - vn_l * norm[i];
+                }
+                else if (sol_spec == 2) //no-slip viscous solution
+                {
+                    for (int i = 0; i < n_dims; i++)
+                        v_r[i] = run_input.bc_list(bc_id).velocity(i);
+                }
             }
-            else //viscous solution
+            else //wall model off
             {
-                for (int i = 0; i < n_dims; i++)
-                    v_r[i] = run_input.bc_list(bc_id).velocity(i);
+                if (sol_spec == 0) //inverse no-slip inviscid solution
+                {
+                    for (int i = 0; i < n_dims; i++)
+                        v_r[i] = 2 * run_input.bc_list(bc_id).velocity(i) - v_l[i];
+                }
+                else if (sol_spec == 1) // no-slip viscous solution
+                {
+                    for (int i = 0; i < n_dims; i++)
+                        v_r[i] = run_input.bc_list(bc_id).velocity(i);
+                }
+                else
+                {
+                    FatalError("Unrecognized flux type");
+                }
             }
 
-            // energy
+            // energy extrapolate temperature
             v_sq = 0.;
             for (int i=0; i<n_dims; i++)
                 v_sq += (v_r[i]*v_r[i]);
@@ -962,7 +1054,7 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
                         temp_loc(m) = *pos_fpts(j, i, m);
                     }
                     //calculate viscous boundary solution
-                    set_boundary_conditions(1, boundary_id(i), temp_u_l.get_ptr_cpu(), temp_u_r.get_ptr_cpu(),
+                    set_boundary_conditions(2, boundary_id(i), temp_u_l.get_ptr_cpu(), temp_u_r.get_ptr_cpu(),
                                             norm.get_ptr_cpu(), temp_loc.get_ptr_cpu(), run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
 
                     /*! obtain wall model input solutions */
