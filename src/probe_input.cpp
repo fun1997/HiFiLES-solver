@@ -754,22 +754,21 @@ void probe_input::set_probe_line(hf_array<double> &in_p0, hf_array<double> &in_p
     double growth_rate;
     if ((l_length / in_init_incre) != (in_n_pts - 1)) //need iteratively solve for growth rate
     {
-        double growth_rate_old = 10.;
+        double d_growth_rate;
         double jacob;
         double fx_n;
-        double tol = 1e-10;
         if (l_length / in_init_incre < (in_n_pts - 1))
             growth_rate = 0.1;
         else
             growth_rate = 5; //initialze to be greater than 2
         //find growth rate use newton's method
-        while (fabs(growth_rate - growth_rate_old) > tol)
+        do
         {
-            growth_rate_old = growth_rate;
             jacob = in_init_incre * ((in_n_pts - 2.) * pow(growth_rate, in_n_pts) - (in_n_pts - 1.) * pow(growth_rate, in_n_pts - 1.) + growth_rate) / (pow(growth_rate - 1., 2.) * growth_rate);
             fx_n = l_length - in_init_incre * (pow(growth_rate, in_n_pts - 1) - 1.) / (growth_rate - 1.);
-            growth_rate += fx_n / jacob;
-        }
+            d_growth_rate = fx_n / jacob;
+            growth_rate += d_growth_rate;
+        } while ((fabs(d_growth_rate) > 1.e-10));
 
         if (std::isnan(growth_rate))
             FatalError("Growth rate NaN!");

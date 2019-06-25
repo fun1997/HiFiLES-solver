@@ -24,6 +24,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <numeric>
 
 #include "../include/global.h"
 #include "../include/eles.h"
@@ -2395,11 +2396,8 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
 {
     int i,j,k;
     int eddy, sim;
-    double C_s=run_input.C_s;
     double diag;
     double ke;
-    double Pr_t=run_input.prandtl_t; // turbulent Prandtl number
-    double Kappa=run_input.Kappa;//von_karman constant 
     double delta, mu, mu_t, vol;
     double rho, inte, rt_ratio;
     hf_array<double> u(n_dims);//resolved velocity
@@ -2532,7 +2530,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
                         Smod += 2.0 * S(i, j) * S(i, j);
 
                 Smod = sqrt(Smod);
-                mu_t = rho * min(y * y * Kappa * Kappa, C_s * C_s * delta * delta) * Smod;
+                mu_t = rho * min(y * y * run_input.Kappa * run_input.Kappa, run_input.C_s * run_input.C_s * delta * delta) * Smod;
             }
 
             //  Wall-Adapting Local Eddy-viscosity (WALE) SGS Model
@@ -2590,7 +2588,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
 
                 denom = pow(denom,2.5) + pow(num,1.25);
                 num = pow(num,1.5);
-                mu_t = rho*C_s*C_s*delta*delta*num/(denom+eps);
+                mu_t = rho*run_input.C_s*run_input.C_s*delta*delta*num/(denom+eps);
             }
 
             // Add eddy-viscosity term to SGS fluxes
@@ -2604,7 +2602,7 @@ void eles::calc_sgsf_upts(hf_array<double>& temp_u, hf_array<double>& temp_grad_
             for (j=0; j<n_dims; j++)
             {
                 temp_sgsf(0,j) = 0.0; // Density flux
-                temp_sgsf(n_fields-1,j) = -1.0*run_input.gamma*mu_t/Pr_t*de(j); // Energy flux
+                temp_sgsf(n_fields-1,j) = -1.0*run_input.gamma*mu_t/run_input.prandtl_t*de(j); // Energy flux
                 for (k = 0; k < n_dims; k++)
                     temp_sgsf(n_fields - 1, j) -= u(k) * 2.0 * mu_t * S(k, j);
                 for (i=1; i<n_fields-1; i++)
@@ -2815,225 +2813,6 @@ void eles::calc_wall_distance(const int n_seg_noslip_inters, const int n_tri_nos
     }
 }
 
-void eles::calc_wall_stress(double rho, hf_array<double>& urot, double ene, double mu, double Pr, double gamma, double y, hf_array<double>& tau_wall, double q_wall)
-{
-    double eps = 1.e-10;
-    double Rey, Rey_c, u, uplus, utau, tw, qw;
-    double Pr_t = run_input.prandtl_t;
-    double c0;
-    double ymatch = 11.8;
-    int i,j;
-
-    // Magnitude of surface velocity
-    u = 0.0;
-    for(i=0; i<n_dims; ++i) u += urot(i)*urot(i);
-
-    u = sqrt(u);
-
-    if(u > eps)
-    {
-
-        /*! Simple power-law wall model Werner and Wengle (1991)
-
-         u+ = y+               for y+ < 11.8
-         u+ = 8.3*(y+)^(1/7)   for y+ > 11.8
-         */
-
-        if(run_input.wall_model == 1)
-        {
-
-            Rey_c = ymatch*ymatch;
-            Rey = rho*u*y/mu;
-
-            if(Rey < Rey_c) uplus = sqrt(Rey);
-            else            uplus = pow(8.3,0.875)*pow(Rey,0.125);
-
-            utau = u/uplus;
-            tw = rho*utau*utau;
-
-            for (i=0; i<n_dims; i++) tau_wall(i) = tw*urot(i)/u;
-
-            // Wall heat flux
-            if(Rey < Rey_c) q_wall = ene*gamma*tw / (Pr * u);
-            else            q_wall = ene*gamma*tw / (Pr * (u + utau * sqrt(Rey_c) * (Pr/Pr_t-1.0)));
-        }
-
-        /*! Breuer-Rodi 3-layer wall model (Breuer and Rodi, 1996)
-
-         u+ = y+               for y+ <= 5.0
-         u+ = A*ln(y+)+B       for 5.0 < y+ <= 30.0
-         u+ = ln(E*y+)/k       for y+ > 30.0
-
-         k=0.42, E=9.8
-         A=(log(30.0*E)/k-5.0)/log(6.0)
-         B=5.0-A*log(5.0)
-
-         Note: the law of wall is made algebraic by first guessing the friction
-         velocity with the wall shear at the previous timestep
-
-         N.B. using a two-layer law to compute the wall heat flux
-         */
-/*
-        else if(run_input.wall_model == 2)
-        {
-
-            double A, B, phi;
-            double E = 9.8;
-            double Rey0, ReyL, ReyH, ReyM;
-            double yplus, yplusL, yplusH, yplusM, yplusN;
-            double kappa = 0.42;
-            double sign, s;
-            int maxit = 0;
-            int it;
-
-            A = (log(30.0*E)/kappa - 5.0)/log(6.0);
-            B = 5.0 - A*log(5.0);
-
-            // compute wall distance in wall units
-            phi = rho*y/mu;
-            Rey0 = u*phi;
-            utau = 0.0;
-            for (i=0; i<n_dims; i++)
-                utau += tau_wall(i)*tau_wall(i);
-
-            utau = pow((utau/rho/rho),0.25);
-            yplus = utau*phi;
-
-            if(maxit > 0)
-            {
-                Rey = wallfn_br(yplus,A,B,E,kappa);
-
-                // if in the
-                if(Rey > Rey0)
-                {
-                    yplusH = yplus;
-                    ReyH = Rey-Rey0;
-                    yplusL = yplus*Rey0/Rey;
-
-                    ReyL = wallfn_br(yplusL,A,B,E,kappa);
-                    ReyL -= Rey0;
-
-                    it = 0;
-                    while(ReyL*ReyH >= 0.0 && it < maxit)
-                    {
-
-                        yplusL -= 1.6*(yplusH-yplusL);
-                        ReyL = wallfn_br(yplusL,A,B,E,kappa);
-                        ReyL -= Rey0;
-                        ++it;
-
-                    }
-                }
-                else
-                {
-                    yplusL = yplus;
-                    ReyL = Rey-Rey0;
-
-                    if(Rey > eps) yplusH = yplus*Rey0/Rey;
-                    else yplusH = 2.0*yplusL;
-
-                    ReyH = wallfn_br(yplusH,A,B,E,kappa);
-                    ReyH -= Rey0;
-
-                    it = 0;
-                    while(ReyL*ReyH >= 0.0 && it < maxit)
-                    {
-
-                        yplusH += 1.6*(yplusH - yplusL);
-                        ReyH = wallfn_br(yplusH,A,B,E,kappa);
-                        ReyH -= Rey0;
-                        ++it;
-
-                    }
-                }
-
-                // iterative solution by Ridders' Method
-
-                yplus = 0.5*(yplusL+yplusH);
-
-                for(it=0; it<maxit; ++it)
-                {
-
-                    yplusM = 0.5*(yplusL+yplusH);
-                    ReyM = wallfn_br(yplusM,A,B,E,kappa);
-                    ReyM -= Rey0;
-                    s = sqrt(ReyM*ReyM - ReyL*ReyH);
-                    if(s==0.0) break;
-
-                    sign = (ReyL-ReyH)/abs(ReyL-ReyH);
-                    yplusN = yplusM + (yplusM-yplusL)*(sign*ReyM/s);
-                    if(abs(yplusN-yplus) < eps) break;
-
-                    yplus = yplusN;
-                    Rey = wallfn_br(yplus,A,B,E,kappa);
-                    Rey -= Rey0;
-                    if(abs(Rey) < eps) break;
-
-                    if(Rey/abs(Rey)*ReyM != ReyM)
-                    {
-                        yplusL = yplusM;
-                        ReyL = ReyM;
-                        yplusH = yplus;
-                        ReyH = Rey;
-                    }
-                    else if(Rey/abs(Rey)*ReyL != ReyL)
-                    {
-                        yplusH = yplus;
-                        ReyH = Rey;
-                    }
-                    else if(Rey/abs(Rey)*ReyH != ReyH)
-                    {
-                        yplusL = yplus;
-                        ReyL = Rey;
-                    }
-
-                    if(abs(yplusH-yplusL) < eps) break;
-                } // end for loop
-
-                utau = u*yplus/Rey0;
-            }
-
-            // approximate solution using tw at previous timestep
-            // Wang, Moin (2002), Phys.Fluids 14(7)
-            else
-            {
-                Rey = wallfn_br(yplus,A,B,E,kappa);
-
-                if(Rey > eps) utau = u*yplus/Rey;
-                else          utau = 0.0;
-                yplus = utau*phi;
-            }
-
-            tw = rho*utau*utau;
-
-            // why different to WW model?
-            for (i=0; i<n_dims; i++) tau_wall(i) = abs(tw*urot(i)/u);
-
-            // Wall heat flux
-            if(yplus <= ymatch) q_wall = ene*gamma*tw / (Pr * u);
-            else                q_wall = ene*gamma*tw / (Pr * (u + utau * ymatch * (Pr/Pr_t-1.0)));
-        }
-    */}
-
-    // if velocity is 0
-    else
-    {
-        for (i=0; i<n_dims; i++) tau_wall(i) = 0.0;
-        q_wall = 0.0;
-    }
-}
-
-double eles::wallfn_br(double yplus, double A, double B, double E, double kappa)
-{
-    double Rey;
-
-    if     (yplus < 0.5)  Rey = yplus*yplus;
-    else if(yplus > 30.0) Rey = yplus*log(E*yplus)/kappa;
-    else                  Rey = yplus*(A*log(yplus)+B);
-
-    return Rey;
-}
-
 /*! Extrapolate transformed SGS flux to flux points and transform back to physical domain */
 void eles::extrapolate_sgsFlux(void)
 {
@@ -3184,172 +2963,6 @@ FatalError("not implemented yet");
         }
     }
 }
-/*
-void eles::shock_capture_concentration_cpu(int in_n_eles, int in_n_upts_per_ele, int in_n_fields, int in_order, int in_ele_type, int in_artif_type, double s0, double* in_disu_upts_ptr, double* in_inv_vandermonde_ptr, double* in_inv_vandermonde2D_ptr, double* in_vandermonde2D_ptr, double* concentration_array_ptr, double* out_sensor, double* sigma)
-{
-    int stride = in_n_upts_per_ele*in_n_eles;
-    double tmp_sensor = 0;
-
-    double nodal_rho[8];  // Array allocated so that it can handle upto p=7
-    double modal_rho[8];
-    double uE[8];
-    double temp;
-    double p = 3;	// exponent in nonlinear enhancement
-    //double J = 0.15;
-    int z_range;
-
-    //int shock_found = 0;
-    if (n_dims==2) z_range=1;
-    else z_range=in_order+1;
-    if(in_n_eles!=0)
-    {
-        for(int m=0; m<in_n_eles; m++)//loop over every cell
-        {
-            tmp_sensor = 0;
-            // X-slices
-            for(int i=0; i<in_order+1; i++)// for each y
-            {
-                for (int z=0; z<z_range; z++) //for each z
-                {
-                    for(int j=0; j<in_order+1; j++) //assign nodal value
-                    {
-                        nodal_rho[j] = in_disu_upts_ptr[m*in_n_upts_per_ele +z*(in_order+1)*(in_order+1)+ i*(in_order+1) + j];
-                    }
-
-                    for(int j=0; j<in_order+1; j++) //assign modal value
-                    {
-                        modal_rho[j] = 0;
-                        for(int k=0; k<in_order+1; k++)
-                        {
-                            modal_rho[j] += in_inv_vandermonde_ptr[j + k*(in_order+1)]*nodal_rho[k];
-                        }
-                    }
-
-                    for(int j=0; j<in_order+1; j++) // for each loc
-                    {
-                        uE[j] = 0;
-                        for(int k=0; k<in_order+1; k++)
-                            uE[j] += modal_rho[k]*concentration_array_ptr[j*(in_order+1) + k];
-
-                        uE[j] = abs((3.1415/(in_order+1))*uE[j]);//pi/N*sum_N(1*f_k*T_k(x))
-                        temp = pow(uE[j],p)*pow(in_order+1,p/2);//(K*f)^p*(1/N)^(p/2)
-
-                        if(temp > tmp_sensor)//find the largest discontinuity
-                            tmp_sensor = temp;
-                    }
-                }
-            }
-
-            // Y-slices
-            for(int i=0; i<in_order+1; i++)//for every x
-            {
-                for(int z=0; z<z_range; z++) //for every z
-                {
-                    for(int j=0; j<in_order+1; j++) //assign nodal value
-                    {
-                        nodal_rho[j] = in_disu_upts_ptr[m*in_n_upts_per_ele + z*(in_order+1)*(in_order+1) + j*(in_order+1) + i];
-                    }
-
-                    for(int j=0; j<in_order+1; j++) //assign modal value
-                    {
-                        modal_rho[j] = 0;
-                        for(int k=0; k<in_order+1; k++)
-                            modal_rho[j] += in_inv_vandermonde_ptr[j + k*(in_order+1)]*nodal_rho[k];
-                    }
-
-                    for(int j=0; j<in_order+1; j++) //for each loc
-                    {
-                        uE[j] = 0;
-                        for(int k=0; k<in_order+1; k++)
-                            uE[j] += modal_rho[k]*concentration_array_ptr[j*(in_order+1) + k];
-
-                        uE[j] = (3.1415/(in_order+1))*uE[j];//pi/N*sum_N(1*f_k*T_K(X))
-                        temp = pow(abs(uE[j]),p)*pow(in_order+1,p/2);//(K*f)^p*(1/N)^(p/2)
-
-                        if(temp > tmp_sensor)//find the largest discontinuity
-                            tmp_sensor = temp;
-                    }
-                }
-            }
-
-            if (n_dims==3)
-            {
-                // Z-slices
-                for(int i=0; i<in_order+1; i++)//for each x
-                {
-                    for (int j=0; j<in_order+1; j++) //for each y
-                    {
-                        for(int z=0; z<in_order+1; z++) //assign nodal value
-                        {
-                            nodal_rho[z] = in_disu_upts_ptr[m*in_n_upts_per_ele + z*(in_order+1)*(in_order+1) + j*(in_order+1) + i];
-                        }
-
-                        for(int j=0; j<in_order+1; j++) //assign modal value
-                        {
-                            modal_rho[j] = 0;
-                            for(int k=0; k<in_order+1; k++)
-                                modal_rho[j] += in_inv_vandermonde_ptr[j + k*(in_order+1)]*nodal_rho[k];
-                        }
-
-                        for(int j=0; j<in_order+1; j++) //for each loc
-                        {
-                            uE[j] = 0;
-                            for(int k=0; k<in_order+1; k++)
-                                uE[j] += modal_rho[k]*concentration_array_ptr[j*(in_order+1) + k];
-
-                            uE[j] = (3.1415/(in_order+1))*uE[j];//pi/N*sum_N(1*f_k*T_K(X))
-                            temp = pow(abs(uE[j]),p)*pow(in_order+1,p/2);
-
-                            if(temp > tmp_sensor)//find the largest discontinuity
-                                tmp_sensor = temp;
-                        }
-                    }
-                }
-            }
-            out_sensor[m] = tmp_sensor;//the largest discontinuity
-
-        //-------------------------------------------------------------------------------------- 
-            // Exponential modal filter
-
-            if(tmp_sensor > s0 && in_artif_type == 1)  //if(tmp_sensor > s0 + kappa && in_artif_type == 1)
-            {
-                double nodal_sol[512];//support up to 7th order polynomial in 3D
-                double modal_sol[512];
-
-                for(int k=0; k<in_n_fields; k++)
-                {
-
-                    for(int i=0; i<in_n_upts_per_ele; i++) //assign nodal values
-                    {
-                        nodal_sol[i] = in_disu_upts_ptr[m*in_n_upts_per_ele + k*stride + i];
-                    }
-
-                    // Nodal to modal
-                    for(int i=0; i<in_n_upts_per_ele; i++)
-                    {
-                        modal_sol[i] = 0;
-                        for(int j=0; j<in_n_upts_per_ele; j++)
-                            modal_sol[i] += in_inv_vandermonde2D_ptr[i + j*in_n_upts_per_ele]*nodal_sol[j];
-                        //filtering
-                        modal_sol[i] = modal_sol[i]*sigma[i];
-                        //printf("The exp filter values are %f \n",modal_sol[i]);
-                    }
-
-                    // Change back to nodal
-                    for(int i=0; i<in_n_upts_per_ele; i++)
-                    {
-                        nodal_sol[i] = 0;
-                        for(int j=0; j<in_n_upts_per_ele; j++)
-                            nodal_sol[i] += in_vandermonde2D_ptr[i + j*in_n_upts_per_ele]*modal_sol[j];
-
-                        in_disu_upts_ptr[m*in_n_upts_per_ele + k*stride + i] = nodal_sol[i];
-                    }
-                }
-            }
-        }
-    }
-}
-*/
 // get the type of element
 
 int eles::get_ele_type(void)
@@ -6291,9 +5904,7 @@ void eles::pos_to_loc(hf_array<double>& in_pos,int in_ele,hf_array<double>& out_
     hf_array<double> fx_n(n_dims);
     hf_array<double> dx(n_dims);
     out_loc.initialize_to_zero();
-    dx.initialize_to_value(10.);
-    double tol=1e-6;
-    while(dx.get_max()>tol)
+    do
     {
         //calculate jacobian matrix
         calc_d_pos(out_loc,in_ele,temp_d_pos);
@@ -6311,6 +5922,5 @@ void eles::pos_to_loc(hf_array<double>& in_pos,int in_ele,hf_array<double>& out_
         {
             out_loc(i)+=dx(i);
         }
-    }
-
+    }while(sqrt(inner_product(dx.get_ptr_cpu(), dx.get_ptr_cpu(n_dims), dx.get_ptr_cpu(), 0.)) > 1.e-6);
 }
