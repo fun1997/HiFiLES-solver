@@ -641,8 +641,8 @@ void eles_pris::set_exp_filter(void)
           i = l - k - j;
           if (k <= order && i + j <= order)
           {
-              eta = (double)l / (double)(2*order);
-              exp_filter(mode, mode) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
+            eta = (double)l / (double)(2 * order + 1);
+            exp_filter(mode, mode) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
             mode++;
           }
         }

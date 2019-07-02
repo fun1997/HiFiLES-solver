@@ -728,7 +728,7 @@ void eles_tets::set_exp_filter(void)
     {
       for (i = 0; i < k - j + 1; i++) //i<=sum-j
       {
-        eta = (double)k / (double)(order);
+        eta = (double)k / (double)(order + 1);
         exp_filter(mode, mode) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
         mode++;
       }

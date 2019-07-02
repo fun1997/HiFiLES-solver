@@ -800,7 +800,7 @@ void eles_quads::set_exp_filter(void)
       i = k - j; //i+j=sum
       if (i <= order && j <= order)
       {
-        eta = (double)(k) / (double)(2 * order);
+        eta = (double)(k) / (double)(2 * order + 1);
         exp_filter(mode, mode) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
         mode++;
       }

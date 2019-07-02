@@ -965,7 +965,7 @@ void eles_hexas::set_exp_filter(void)
           i = l - k - j; //i+j+k=l
           if (i <= order && j <= order && k <= order)
           {
-            eta = (double)(l) / (double)(3 * order);
+            eta = (double)(l) / (double)(3 * order + 1);
             exp_filter(mode, mode) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
             mode++;
           }
