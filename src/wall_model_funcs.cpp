@@ -15,31 +15,34 @@ void calc_wall_stress(hf_array<double> &in_u_wm, hf_array<double> &in_uw, double
     int n_dims = in_norm.get_dim(0);
     double rho_wm, inte_wm, v_wm_mag, v_wm_rel_mag, v_wm_n, rt_ratio, ke_wm; //wm params
     double rho_w, inte_w, tw_mag, ke_w, qw, vw_tw;                          //wall params
-    hf_array<double> vw(n_dims), v_wm(n_dims), tw(n_dims);
+    hf_array<double> vw(n_dims), v_wm(n_dims), v_wm_rel(n_dims), tw(n_dims);
 
     //calculate aux params
     rho_wm = in_u_wm(0); //input density
     rho_w = in_uw(0);    //wall density
+
     v_wm_n = 0;
     for (int i = 0; i < n_dims; i++)
-        v_wm_n += in_u_wm(i + 1) / in_u_wm(0) * in_norm(i); //wall normal input velocity
+        v_wm_n += in_u_wm(i + 1) / rho_wm * in_norm(i); //wall normal input velocity
+
     v_wm_mag = 0;
     v_wm_rel_mag = 0;
     for (int i = 0; i < n_dims; i++)
     {
-        v_wm(i) = in_u_wm(i + 1) / in_u_wm(0) - in_norm(i) * v_wm_n; //wall parallel input velocity
-        vw(i) = in_uw(i + 1) / in_uw(0);                             // wall velocity
-        v_wm_rel_mag += pow(v_wm(i) - vw(i), 2);
-        v_wm_mag += v_wm(i) * v_wm(i);
+        v_wm(i) = in_u_wm(i + 1) / rho_wm - in_norm(i) * v_wm_n; //wall parallel input velocity
+        vw(i) = in_uw(i + 1) / rho_w;                            // wall velocity
+        v_wm_rel(i) = v_wm(i) - vw(i);                           //relative velocity
+        v_wm_rel_mag += v_wm_rel(i) * v_wm_rel(i);               //|u_wm-u_w|
+        v_wm_mag += v_wm(i) * v_wm(i);                           //|u_wm|
     }
     v_wm_mag = sqrt(v_wm_mag); //mag of wall parallel input velocity
     v_wm_rel_mag=sqrt(v_wm_rel_mag); //mag of relative wall parallel input velocity
 
     ke_wm = 0.;
-    ke_w = 0;
+    ke_w = 0.;
     for (int i = 0; i < n_dims; i++)
     {
-        ke_wm += 0.5 * pow(in_u_wm(i + 1) / in_u_wm(0), 2);
+        ke_wm += 0.5 * pow(in_u_wm(i + 1) / rho_wm, 2);
         ke_w += 0.5 * pow(vw(i), 2);
     }
     inte_wm = in_u_wm(n_dims + 1) / rho_wm - ke_wm; //internal energy of input point
@@ -54,7 +57,7 @@ void calc_wall_stress(hf_array<double> &in_u_wm, hf_array<double> &in_uw, double
         mu_wm = (run_input.mu_inf) * pow(rt_ratio, 1.5) * (1 + (run_input.c_sth)) / (rt_ratio + (run_input.c_sth));
         mu_wm = mu_wm + run_input.fix_vis * (run_input.mu_inf - mu_wm);
 
-        Rey_c =  11.8 * 11.8;
+        Rey_c =  11.81 * 11.81;
         Rey = rho_wm * v_wm_rel_mag * in_dist / mu_wm;
 
         if (Rey < Rey_c)
@@ -66,13 +69,13 @@ void calc_wall_stress(hf_array<double> &in_u_wm, hf_array<double> &in_uw, double
         tw_mag = rho_wm * utau * utau;
 
         for (int i = 0; i < n_dims; i++)
-            tw(i) = tw_mag * v_wm(i) / v_wm_mag; //stress vector parallel to wall
+            tw(i) = tw_mag * v_wm_rel(i) / v_wm_rel_mag; //stress vector parallel to wall
 
         // Wall heat flux
         if (Rey < Rey_c)
             qw = (inte_w - inte_wm) * run_input.gamma * tw_mag / (run_input.prandtl * v_wm_rel_mag);
         else
-            qw = (inte_w - inte_wm) * run_input.gamma * tw_mag / (run_input.prandtl_t * (v_wm_rel_mag + utau * 11.8 * (run_input.prandtl / run_input.prandtl_t - 1.0)));
+            qw = (inte_w - inte_wm) * run_input.gamma * tw_mag / (run_input.prandtl_t * (v_wm_rel_mag + utau * 11.81 * (run_input.prandtl / run_input.prandtl_t - 1.0)));
     }
     else if (run_input.wall_model == 2) //compressible wall function with Van Driest transformation for adiabatic wall NASA-TM-112910
     {
@@ -95,7 +98,7 @@ void calc_wall_stress(hf_array<double> &in_u_wm, hf_array<double> &in_uw, double
         } while (fabs(dutau)>1.e-6);
         tw_mag = rho_w * utau * utau;
         for (int i = 0; i < n_dims; i++)
-            tw(i) = tw_mag * v_wm(i) / v_wm_mag; //stress vector parallel to wall
+            tw(i) = tw_mag * v_wm_rel(i) / v_wm_rel_mag; //stress vector parallel to wall
         qw = 0.;                                 //adiabatic wall
     }
     else
