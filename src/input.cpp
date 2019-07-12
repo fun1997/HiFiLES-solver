@@ -257,7 +257,8 @@ void input::read_input_file(string fileName, int rank)
         if (shock_cap == 1)                             //exp filter
         {
             opts.getScalarValue("expf_fac", expf_fac, 36.0);
-            opts.getScalarValue("expf_order", expf_order, 4.0);
+            opts.getScalarValue("expf_order", expf_order, 4);
+            opts.getScalarValue("expf_cutoff", expf_cutoff, 0);
         }
         else
             FatalError("Shock capturing method not implemented!")

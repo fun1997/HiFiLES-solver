@@ -121,7 +121,8 @@ public:
     int over_int, over_int_order;
     int shock_cap, shock_det;
     double s0;
-    double expf_fac,expf_order;
+    double expf_fac;
+    int expf_order,expf_cutoff;
 
     /*--- moniter and output ---*/
     int p_res;

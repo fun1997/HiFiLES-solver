@@ -630,6 +630,7 @@ void eles_pris::set_exp_filter(void)
   exp_filter.initialize_to_zero();
   int i, j, k, l, mode;
   double eta;
+  double eta_c= (double)run_input.expf_cutoff / (double)(2 * order);
 
     mode = 0;
     for (l = 0; l < 2 * order + 1; l++) //sum of x,y,z mode
@@ -641,8 +642,11 @@ void eles_pris::set_exp_filter(void)
           i = l - k - j;
           if (k <= order && i + j <= order)
           {
-            eta = (double)l / (double)(2 * order + 1);
-            exp_filter(mode, mode) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
+            eta = (double)l / (double)(2 * order);
+            if (eta <= eta_c)
+              exp_filter(mode, mode) = 1;
+            else
+              exp_filter(mode, mode) = exp(-run_input.expf_fac * pow((eta - eta_c) / (1. - eta_c), run_input.expf_order));
             mode++;
           }
         }

@@ -720,7 +720,8 @@ void eles_tets::set_exp_filter(void)
   exp_filter.initialize_to_zero();
   int i, j, k, mode;
   double eta;
-  
+  double eta_c = (double)run_input.expf_cutoff / (double)order;
+
   mode = 0;
   for (k = 0; k < order + 1; k++) //sum of x,y,z mode
   {
@@ -728,8 +729,11 @@ void eles_tets::set_exp_filter(void)
     {
       for (i = 0; i < k - j + 1; i++) //i<=sum-j
       {
-        eta = (double)k / (double)(order + 1);
-        exp_filter(mode, mode) = exp(-run_input.expf_fac * pow(eta, run_input.expf_order));
+        eta = (double)k / (double)(order);
+      if (eta <= eta_c)
+        exp_filter(mode, mode) = 1;
+      else
+        exp_filter(mode, mode) = exp(-run_input.expf_fac * pow((eta - eta_c) / (1. - eta_c), run_input.expf_order));
         mode++;
       }
     }
