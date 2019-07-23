@@ -79,9 +79,11 @@ void eles_quads::setup_ele_type_specific()
     if (run_input.shock_det == 0)//persson
       calc_norm_basis();
     else//concentration
-      set_concentration_array();
+      FatalError("Shock detector not implemented.");
     if (run_input.shock_cap == 1)//exp filter
       set_exp_filter();
+    else
+      FatalError("Shock capturing method not implemented.");
   }
 
   n_ppts_per_ele=p_res*p_res;
@@ -790,8 +792,8 @@ void eles_quads::set_exp_filter(void)
   exp_filter.setup(n_upts_per_ele, n_upts_per_ele);
   exp_filter.initialize_to_zero();
   int i, j, k, mode;
-  double eta;
-  double eta_c = (double)run_input.expf_cutoff / (double)(2 * order);
+  double eta_x, eta_y;
+  double eta_c = (double)run_input.expf_cutoff / (double)(order);
 
   mode = 0;
   for (k = 0; k < 2 * order + 1; k++) //sum of x,y mode
@@ -801,11 +803,13 @@ void eles_quads::set_exp_filter(void)
       i = k - j; //i+j=sum
       if (i <= order && j <= order)
       {
-        eta = (double)(k) / (double)(2 * order);
-      if (eta <= eta_c)
-        exp_filter(mode, mode) = 1;
-      else
-        exp_filter(mode, mode) = exp(-run_input.expf_fac * pow((eta - eta_c) / (1. - eta_c), run_input.expf_order));
+        eta_x = (double)(i) / (double)(order);
+        eta_y = (double)(j) / (double)(order);
+        exp_filter(mode, mode) = 1.;
+        if (eta_x > eta_c)
+          exp_filter(mode, mode) *= exp(-run_input.expf_fac * pow((eta_x - eta_c) / (1. - eta_c), run_input.expf_order));
+        if (eta_y > eta_c)
+          exp_filter(mode, mode) *= exp(-run_input.expf_fac * pow((eta_y - eta_c) / (1. - eta_c), run_input.expf_order));
         mode++;
       }
     }
@@ -834,12 +838,38 @@ void eles_quads::shock_det_persson(void)
 {
   hf_array<double> temp_modal(n_upts_per_ele, n_eles); //store modal value
 
+  if (run_input.shock_det_field == 0) //density
+  {
 //step 1. convert to modal value
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(), n_upts_per_ele, 0.0, temp_modal.get_ptr_cpu(), n_upts_per_ele);
+    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(), n_upts_per_ele, 0.0, temp_modal.get_ptr_cpu(), n_upts_per_ele);
 #else
-  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_modal.get_ptr_cpu());
+    dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_modal.get_ptr_cpu());
 #endif
+  }
+  else if (run_input.shock_det_field == 1) //pressure
+  {
+    hf_array<double> temp_pressure(n_upts_per_ele);
+    for (int i = 0; i < n_eles; i++) //for each element
+    {
+      //calculate pressure for each solution point
+      for (int j = 0; j < n_upts_per_ele; j++) //for each solution points
+      {
+        double u_sqr = 0;//momentum squared
+        for (int k = 0; k < n_dims; k++)
+          u_sqr += disu_upts(0)(j, i, k + 1) * disu_upts(0)(j, i, k + 1);
+        temp_pressure(j) = (run_input.gamma - 1.) * (disu_upts(0)(j, i, n_dims + 1) - 0.5 * u_sqr / disu_upts(0)(j, i, 0));
+      }
+      ////step 1. convert to modal value
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+      cblas_dgemv(CblasColMajor, CblasNoTrans, n_upts_per_ele, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, temp_pressure.get_ptr_cpu(), 1, 0.0, temp_modal.get_ptr_cpu(0, i), 1);
+#else
+      dgemm(n_upts_per_ele, 1, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), temp_pressure.get_ptr_cpu(), temp_modal.get_ptr_cpu(0, i));
+#endif
+    }
+  }
+  else
+    FatalError("Unrecognized shock detector field");
 
   //step 2. perform inplace \hat{u}^2 store in temp_modal
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS

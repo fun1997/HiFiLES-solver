@@ -123,7 +123,8 @@ public:
     double s0;
     double expf_fac;
     int expf_order,expf_cutoff;
-
+    int shock_det_field;
+    
     /*--- moniter and output ---*/
     int p_res;
     int write_type;

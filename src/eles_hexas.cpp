@@ -76,9 +76,11 @@ void eles_hexas::setup_ele_type_specific()
     if (run_input.shock_det == 0)//persson
       calc_norm_basis();
     else//concentration
-      set_concentration_array();
+      FatalError("Shock detector not implemented.");
     if (run_input.shock_cap == 1) //exp filter
       set_exp_filter();
+    else
+      FatalError("Shock capturing method not implemented.");
   }
 
   set_inters_cubpts();
@@ -953,28 +955,33 @@ void eles_hexas::set_exp_filter(void)
   exp_filter.setup(n_upts_per_ele, n_upts_per_ele);
   exp_filter.initialize_to_zero();
   int i, j, k, l, mode;
-  double eta;
-  double eta_c= (double)run_input.expf_cutoff / (double)(3 * order);
+  double eta_x, eta_y, eta_z;
+  double eta_c = (double)run_input.expf_cutoff / (double)(order);
 
-    mode = 0;
-    for (l = 0; l < 3 * order + 1; l++) //sum of x,y,z mode
+  mode = 0;
+  for (l = 0; l < 3 * order + 1; l++) //sum of x,y,z mode
+  {
+    for (k = 0; k < l + 1; k++) //k no more than sum
     {
-      for (k = 0; k < l + 1; k++) //k no more than sum
+      for (j = 0; j < l - k + 1; j++) //j no more than sum-k
       {
-        for (j = 0; j < l - k + 1; j++) //j no more than sum-k
+        i = l - k - j; //i+j+k=l
+        if (i <= order && j <= order && k <= order)
         {
-          i = l - k - j; //i+j+k=l
-          if (i <= order && j <= order && k <= order)
-          {
-            eta = (double)(l) / (double)(3 * order);
-            if (eta <= eta_c)
-              exp_filter(mode, mode) = 1;
-            else
-              exp_filter(mode, mode) = exp(-run_input.expf_fac * pow((eta - eta_c) / (1. - eta_c), run_input.expf_order));
-            mode++;
-          }
+          eta_x = (double)(i) / (double)(order);
+          eta_y = (double)(j) / (double)(order);
+          eta_z = (double)(k) / (double)(order);
+          exp_filter(mode, mode) = 1.;
+          if (eta_x > eta_c)
+            exp_filter(mode, mode) *= exp(-run_input.expf_fac * pow((eta_x - eta_c) / (1. - eta_c), run_input.expf_order));
+          if (eta_y > eta_c)
+            exp_filter(mode, mode) *= exp(-run_input.expf_fac * pow((eta_y - eta_c) / (1. - eta_c), run_input.expf_order));
+          if (eta_z > eta_c)
+            exp_filter(mode, mode) *= exp(-run_input.expf_fac * pow((eta_z - eta_c) / (1. - eta_c), run_input.expf_order));
+          mode++;
         }
       }
+    }
     }
 
     exp_filter = mult_arrays(exp_filter, inv_vandermonde);
@@ -1001,14 +1008,40 @@ void eles_hexas::shock_det_persson(void)
 {
   hf_array<double> temp_modal(n_upts_per_ele, n_eles);     //store modal value
 
+  if (run_input.shock_det_field == 0) //density
+  {
 //step 1. convert to modal value
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-  cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(), n_upts_per_ele, 0.0, temp_modal.get_ptr_cpu(), n_upts_per_ele);
+    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(), n_upts_per_ele, 0.0, temp_modal.get_ptr_cpu(), n_upts_per_ele);
 #else
-  dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_modal.get_ptr_cpu());
+    dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_modal.get_ptr_cpu());
 #endif
+  }
+  else if (run_input.shock_det_field == 1) //pressure
+  {
+    hf_array<double> temp_pressure(n_upts_per_ele);
+    for (int i = 0; i < n_eles; i++) //for each element
+    {
+      //calculate pressure for each solution point
+      for (int j = 0; j < n_upts_per_ele; j++) //for each solution points
+      {
+        double u_sqr = 0;//momentum squared
+        for (int k = 0; k < n_dims; k++)
+          u_sqr += disu_upts(0)(j, i, k + 1) * disu_upts(0)(j, i, k + 1);
+        temp_pressure(j) = (run_input.gamma - 1.) * (disu_upts(0)(j, i, n_dims + 1) - 0.5 * u_sqr / disu_upts(0)(j, i, 0));
+      }
+      ////step 1. convert to modal value
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+      cblas_dgemv(CblasColMajor, CblasNoTrans, n_upts_per_ele, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, temp_pressure.get_ptr_cpu(), 1, 0.0, temp_modal.get_ptr_cpu(0, i), 1);
+#else
+      dgemm(n_upts_per_ele, 1, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), temp_pressure.get_ptr_cpu(), temp_modal.get_ptr_cpu(0, i));
+#endif
+    }
+  }
+  else
+    FatalError("Unrecognized shock detector field");
 
-  //step 2. perform inplace \hat{u}^2 store in temp_modal
+    //step 2. perform inplace \hat{u}^2 store in temp_modal
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
   vdSqr(n_upts_per_ele * n_eles, temp_modal.get_ptr_cpu(), temp_modal.get_ptr_cpu());
 #else
