@@ -249,10 +249,10 @@ void input::read_input_file(string fileName, int rank)
     if (over_int)
         opts.getScalarValue("over_int_order", over_int_order);
 
-    opts.getScalarValue("shock_cap", shock_cap, 0); //0: off 1: exponential filter 2: LFS filter
+    opts.getScalarValue("shock_cap", shock_cap, 0); //0: off 1: exponential filter
     if (shock_cap)
     {
-        opts.getScalarValue("shock_det", shock_det, 0); //0: persson 1: concentration method
+        opts.getScalarValue("shock_det", shock_det, 0); //0: persson
         opts.getScalarValue("s0", s0);                  //sensor threshold
         if (shock_cap == 1)                             //exp filter
         {

@@ -2921,13 +2921,9 @@ void eles::shock_capture(void)
     {
         //shock detection
         if(run_input.shock_det==0)//persson
-        {
             shock_det_persson();
-        }
-       else if(run_input.shock_det==1)//concentration
-        {
-            //shock_det_concentration();
-        }
+       else
+            FatalError("Shock detector not implemented.");
 
         //shock capturing
         if (run_input.shock_cap == 1) //exponential filter
@@ -2957,10 +2953,8 @@ void eles::shock_capture(void)
                 }
             }
         }
-        else if(run_input.shock_cap==2)//LFS filter
-        {
-FatalError("not implemented yet");
-        }
+        else
+            FatalError("Shock capturing method not implemented yet");
     }
 }
 // get the type of element
