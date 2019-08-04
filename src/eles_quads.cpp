@@ -847,24 +847,24 @@ void eles_quads::shock_det_persson(void)
     dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_modal.get_ptr_cpu());
 #endif
   }
-  else if (run_input.shock_det_field == 1) //pressure
+  else if (run_input.shock_det_field == 1) //specific internal energy
   {
-    hf_array<double> temp_pressure(n_upts_per_ele);
+    hf_array<double> temp_cvT(n_upts_per_ele);
     for (int i = 0; i < n_eles; i++) //for each element
     {
-      //calculate pressure for each solution point
+      //calculate specific internal energy for each solution point
       for (int j = 0; j < n_upts_per_ele; j++) //for each solution points
       {
         double u_sqr = 0;//momentum squared
         for (int k = 0; k < n_dims; k++)
           u_sqr += disu_upts(0)(j, i, k + 1) * disu_upts(0)(j, i, k + 1);
-        temp_pressure(j) = (run_input.gamma - 1.) * (disu_upts(0)(j, i, n_dims + 1) - 0.5 * u_sqr / disu_upts(0)(j, i, 0));
+        temp_cvT(j) = (disu_upts(0)(j, i, n_dims + 1) - 0.5 * u_sqr / disu_upts(0)(j, i, 0)) / disu_upts(0)(j, i, 0);
       }
       ////step 1. convert to modal value
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-      cblas_dgemv(CblasColMajor, CblasNoTrans, n_upts_per_ele, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, temp_pressure.get_ptr_cpu(), 1, 0.0, temp_modal.get_ptr_cpu(0, i), 1);
+      cblas_dgemv(CblasColMajor, CblasNoTrans, n_upts_per_ele, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, temp_cvT.get_ptr_cpu(), 1, 0.0, temp_modal.get_ptr_cpu(0, i), 1);
 #else
-      dgemm(n_upts_per_ele, 1, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), temp_pressure.get_ptr_cpu(), temp_modal.get_ptr_cpu(0, i));
+      dgemm(n_upts_per_ele, 1, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), temp_cvT.get_ptr_cpu(), temp_modal.get_ptr_cpu(0, i));
 #endif
     }
   }
