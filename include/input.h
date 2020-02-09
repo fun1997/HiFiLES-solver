@@ -119,11 +119,10 @@ public:
 
     /* --- Shock Capturing/dealiasing options --- */
     int over_int, over_int_order;
-    int shock_cap, shock_det;
+    int shock_cap, shock_det, shock_det_field;
     double s0;
     double expf_fac;
     int expf_order,expf_cutoff;
-    int shock_det_field;
     
     /*--- moniter and output ---*/
     int p_res;

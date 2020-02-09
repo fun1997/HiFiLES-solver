@@ -750,66 +750,52 @@ void eles_tets::shock_det_persson(void)
 {
   //calculate number of order-1 element
   int n_mode_under = order * (order + 1) * (order + 2) / 6;
+  hf_array<double> temp_modal(n_upts_per_ele); //store modal value
 
-  hf_array<double> temp_modal(n_upts_per_ele, n_eles);     //store modal value
-
-  if (run_input.shock_det_field == 0) //density
+  for (int ic = 0; ic < n_eles; ic++)
   {
+    if (run_input.shock_det_field == 0) //density
+    {
 //step 1. convert to modal value
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-    cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(), n_upts_per_ele, 0.0, temp_modal.get_ptr_cpu(), n_upts_per_ele);
+      cblas_dgemv(CblasColMajor, CblasNoTrans, n_upts_per_ele, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(0, ic, 0), 1, 0.0, temp_modal.get_ptr_cpu(), 1);
 #else
-    dgemm(n_upts_per_ele, n_eles, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(), temp_modal.get_ptr_cpu());
-#endif
-  }
-  else if (run_input.shock_det_field == 1) //specific internal energy
-  {
-    hf_array<double> temp_cvT(n_upts_per_ele);
-    for (int i = 0; i < n_eles; i++) //for each element
-    {
-      //calculate specific internal energy for each solution point
-      for (int j = 0; j < n_upts_per_ele; j++) //for each solution points
-      {
-        double u_sqr = 0;//momentum squared
-        for (int k = 0; k < n_dims; k++)
-          u_sqr += disu_upts(0)(j, i, k + 1) * disu_upts(0)(j, i, k + 1);
-        temp_cvT(j) = (disu_upts(0)(j, i, n_dims + 1) - 0.5 * u_sqr / disu_upts(0)(j, i, 0)) / disu_upts(0)(j, i, 0);
-      }
-      ////step 1. convert to modal value
-#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-      cblas_dgemv(CblasColMajor, CblasNoTrans, n_upts_per_ele, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, temp_cvT.get_ptr_cpu(), 1, 0.0, temp_modal.get_ptr_cpu(0, i), 1);
-#else
-      dgemm(n_upts_per_ele, 1, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), temp_cvT.get_ptr_cpu(), temp_modal.get_ptr_cpu(0, i));
+      dgemm(n_upts_per_ele, 1, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(0, ic, 0), temp_modal.get_ptr_cpu());
 #endif
     }
-  }
-  else
-    FatalError("Unrecognized shock detector field");
-
-  //step 2. perform inplace \hat{u}^2 store in temp_modal
+    else if (run_input.shock_det_field == 1) //total energy
+    {
+//step 1. convert to modal value
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-  vdSqr(n_upts_per_ele * n_eles, temp_modal.get_ptr_cpu(), temp_modal.get_ptr_cpu());
+      cblas_dgemv(CblasColMajor, CblasNoTrans, n_upts_per_ele, n_upts_per_ele, 1.0, inv_vandermonde.get_ptr_cpu(), n_upts_per_ele, disu_upts(0).get_ptr_cpu(0, ic, n_dims + 1), 1, 0.0, temp_modal.get_ptr_cpu(), 1);
 #else
-  transform(temp_modal.get_ptr_cpu(), temp_modal.get_ptr_cpu(n_upts_per_ele * n_eles), temp_modal.get_ptr_cpu(), [](double x) { return x * x; });
+      dgemm(n_upts_per_ele, 1, n_upts_per_ele, 1.0, 0.0, inv_vandermonde.get_ptr_cpu(), disu_upts(0).get_ptr_cpu(0, ic, n_dims + 1), temp_modal.get_ptr_cpu());
+#endif
+    }
+    else
+    {
+      FatalError("Unsupported shock capturing field.")
+    }
+
+    //step 2. perform inplace \hat{u}^2 store in temp_modal
+#if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
+    vdSqr(n_upts_per_ele, temp_modal.get_ptr_cpu(), temp_modal.get_ptr_cpu());
+#else
+    transform(temp_modal.get_ptr_cpu(), temp_modal.get_ptr_cpu(n_upts_per_ele), temp_modal.get_ptr_cpu(), [](double x) { return x * x; });
 #endif
 
-  //step 3. use Parseval's theorem to calculate (u-u_n,u-u_n)
-  for (int i = 0; i < n_eles; i++)
-  {
+    //step 3. use Parseval's theorem to calculate (u-u_n,u-u_n)
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-    sensor(i) = cblas_dasum(n_upts_per_ele - n_mode_under, temp_modal.get_ptr_cpu(n_mode_under, i), 1);
+    sensor(ic) = cblas_dasum(n_upts_per_ele - n_mode_under, temp_modal.get_ptr_cpu(n_mode_under), 1);
 #else
-    sensor(i) = accumulate(temp_modal.get_ptr_cpu(n_mode_under, i), temp_modal.get_ptr_cpu(0, i + 1), 0.);
+    sensor(ic) = accumulate(temp_modal.get_ptr_cpu(n_mode_under), temp_modal.get_ptr_cpu(n_upts_per_ele), 0.);
 #endif
-  }
-  
-  //step 4. use Parseval's theorem to calculate (u,u) and calculate ((u-u_n,u-u_n)/(u,u))
-  for (int i = 0; i < n_eles; i++)
-  {
+
+//step 4. use Parseval's theorem to calculate (u,u),  and calculate ((u-u_n,u-u_n)/(u,u))
 #if defined _ACCELERATE_BLAS || defined _MKL_BLAS || defined _STANDARD_BLAS
-    sensor(i) /= cblas_dasum(n_upts_per_ele, temp_modal.get_ptr_cpu(0, i), 1);
+    sensor(ic) /= cblas_dasum(n_upts_per_ele, temp_modal.get_ptr_cpu(), 1);
 #else
-    sensor(i) /= accumulate(temp_modal.get_ptr_cpu(0, i), temp_modal.get_ptr_cpu(0, i + 1), 0.);
+    sensor(ic) /= accumulate(temp_modal.get_ptr_cpu(), temp_modal.get_ptr_cpu(n_upts_per_ele), 0.);
 #endif
   }
 }

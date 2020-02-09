@@ -259,7 +259,7 @@ void input::read_input_file(string fileName, int rank)
             opts.getScalarValue("expf_fac", expf_fac, 36.0);
             opts.getScalarValue("expf_order", expf_order, 4);
             opts.getScalarValue("expf_cutoff", expf_cutoff, 0);
-            opts.getScalarValue("shock_det_field", shock_det_field, 0); //0: density 1: specific internal energy
+            opts.getScalarValue("shock_det_field", shock_det_field, 0); //0: density 1: total energy
         }
         else
             FatalError("Shock capturing method not implemented!")
