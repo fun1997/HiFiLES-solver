@@ -184,34 +184,34 @@ void int_inters::calculate_common_invFlux(void)
       
 
       // Calling Riemann solver
-      if (run_input.riemann_solve_type==0||run_input.riemann_solve_type==3) // Rusanov or HLLC
-      {
-        // calculate flux from discontinuous solution at flux points
-        if(n_dims==2) {
-          calc_invf_2d(temp_u_l,temp_f_l);
-          calc_invf_2d(temp_u_r,temp_f_r);
-
+        if (run_input.riemann_solve_type == 0 || run_input.riemann_solve_type == 2 || run_input.riemann_solve_type == 3) // Rusanov or RoeM or HLLC
+        {
+          // calculate flux from discontinuous solution at flux points
+          if (n_dims == 2)
+          {
+            calc_invf_2d(temp_u_l, temp_f_l);
+            calc_invf_2d(temp_u_r, temp_f_r);
+          }
+          else if (n_dims == 3)
+          {
+            calc_invf_3d(temp_u_l, temp_f_l);
+            calc_invf_3d(temp_u_r, temp_f_r);
+          }
+          else
+            FatalError("ERROR: Invalid number of dimensions ... ");
+          if (run_input.riemann_solve_type == 0)
+            rusanov_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
+          else if (run_input.riemann_solve_type == 2)
+            roeM_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
+          else
+            hllc_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
         }
-        else if(n_dims==3) {
-          calc_invf_3d(temp_u_l,temp_f_l);
-          calc_invf_3d(temp_u_r,temp_f_r);
-
+        else if (run_input.riemann_solve_type == 1)
+        { // Lax-Friedrich
+          lax_friedrich(temp_u_l, temp_u_r, norm, fn, n_dims, n_fields, run_input.lambda, run_input.wave_speed);
         }
         else
-          FatalError("ERROR: Invalid number of dimensions ... ");
-        if (run_input.riemann_solve_type == 0)
-          rusanov_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
-        else
-          hllc_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
-      }
-      else if (run_input.riemann_solve_type==1) { // Lax-Friedrich
-        lax_friedrich(temp_u_l,temp_u_r,norm,fn,n_dims,n_fields,run_input.lambda,run_input.wave_speed);
-      }
-      else if (run_input.riemann_solve_type==2) { // ROE
-        roe_flux(temp_u_l,temp_u_r,norm,fn,n_dims,n_fields,run_input.gamma);
-      }
-      else
-        FatalError("Riemann solver not implemented");
+          FatalError("Riemann solver not implemented");
 
         // Transform back to reference space from static physical space
         for(int k=0;k<n_fields;k++) {

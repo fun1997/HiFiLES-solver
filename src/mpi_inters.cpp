@@ -418,34 +418,34 @@ void mpi_inters::calculate_common_invFlux(void)
           // Interface unit-normal vector
             for (int m=0;m<n_dims;m++)
               norm(m) = *norm_fpts(j,i,m);
-          
 
-          if (run_input.riemann_solve_type==0||run_input.riemann_solve_type==3)
+            if (run_input.riemann_solve_type == 0 || run_input.riemann_solve_type == 2 || run_input.riemann_solve_type == 3)
             {
               // calculate flux from discontinuous solution at flux points
-              if(n_dims==2) {
-                  calc_invf_2d(temp_u_l,temp_f_l);
-                  calc_invf_2d(temp_u_r,temp_f_r);
-                }
-              else if(n_dims==3) {
-                  calc_invf_3d(temp_u_l,temp_f_l);
-                  calc_invf_3d(temp_u_r,temp_f_r);
-                }
+              if (n_dims == 2)
+              {
+                calc_invf_2d(temp_u_l, temp_f_l);
+                calc_invf_2d(temp_u_r, temp_f_r);
+              }
+              else if (n_dims == 3)
+              {
+                calc_invf_3d(temp_u_l, temp_f_l);
+                calc_invf_3d(temp_u_r, temp_f_r);
+              }
               else
                 FatalError("ERROR: Invalid number of dimensions ... ");
 
               // Calling Riemann solver
               if (run_input.riemann_solve_type == 0)
                 rusanov_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
+              else if (run_input.riemann_solve_type == 2) // ROEM
+                roeM_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
               else
                 hllc_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
             }
-          else if (run_input.riemann_solve_type==1)
+            else if (run_input.riemann_solve_type == 1)
             {
               lax_friedrich(temp_u_l,temp_u_r,norm,fn,n_dims,n_fields,run_input.lambda,run_input.wave_speed);
-            }
-          else if (run_input.riemann_solve_type==2) { // ROE
-              roe_flux(temp_u_l,temp_u_r,norm,fn,n_dims,n_fields,run_input.gamma);
             }
           else
             FatalError("Riemann solver not implemented");

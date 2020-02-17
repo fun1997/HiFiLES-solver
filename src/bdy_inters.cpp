@@ -247,9 +247,9 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(double time_bound)
                 {
                     lax_friedrich(temp_u_l,temp_u_r,norm,fn,n_dims,n_fields,run_input.lambda,run_input.wave_speed);
                 }
-                else if (run_input.riemann_solve_type==2)   // ROE
+                else if (run_input.riemann_solve_type==2)   // ROEM
                 {
-                    roe_flux(temp_u_l,temp_u_r,norm,fn,n_dims,n_fields,run_input.gamma);
+                    roeM_flux(temp_u_l, temp_u_r, temp_f_l, temp_f_r, norm, fn, n_dims, n_fields, run_input.gamma);
                 }
                 else if(run_input.riemann_solve_type==3)//HLLC
                 {
