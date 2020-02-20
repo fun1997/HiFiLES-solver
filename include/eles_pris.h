@@ -91,7 +91,7 @@ public:
   double eval_d_nodal_basis(int in_index, int in_cpnt, hf_array<double> in_loc);
 
   /*! evaluate divergence of vcjh basis */
-  double eval_div_vcjh_basis(int in_index, hf_array<double>& loc);
+  //double eval_div_vcjh_basis(int in_index, hf_array<double>& loc);
 
   void fill_opp_3(hf_array<double>& opp_3);
 

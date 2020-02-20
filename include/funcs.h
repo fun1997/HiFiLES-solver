@@ -32,6 +32,7 @@
 #include "cusparse_v2.h"
 #endif
 
+#include "../include/cubature_1d.h"
 //---------------------------------------------
 //BLAS baseline implementation (low efficiency)
 //---------------------------------------------
@@ -79,7 +80,7 @@ void get_opp_3_tri(hf_array<double>& opp_3, hf_array<double>& loc_upts_tri, hf_a
 void get_opp_3_dg(hf_array<double>& opp_3_dg, hf_array<double>& loc_upts_tri, hf_array<double>& loc_fpts_tri, int n_upts_per_tri, int order);
 
 /*! evaluate divergenge of vcjh basis on triangle */
-double eval_div_dg_tri(hf_array<double> &in_loc , int in_edge, int in_edge_fpt, int in_order, hf_array<double> &in_loc_fpts_1d);
+double eval_div_dg_tri(hf_array<double> &in_loc, int in_edge, int in_edge_fpt, int in_order, hf_array<double> &in_loc_fpts_1d, cubature_1d &cub1d);
 
 /*! helper method to compute eta for vcjh schemes */
 double compute_eta(int vjch_scheme, int order);

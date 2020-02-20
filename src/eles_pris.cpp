@@ -1409,7 +1409,7 @@ void eles_pris::fill_opp_3(hf_array<double>& opp_3)
 }
 
 // evaluate divergence of vcjh basis
-
+/*
 double eles_pris::eval_div_vcjh_basis(int in_index, hf_array<double>& loc)
 {
   double div_vcjh_basis;
@@ -1499,6 +1499,7 @@ double eles_pris::eval_div_vcjh_basis(int in_index, hf_array<double>& loc)
 
   return div_vcjh_basis;
 }
+*/
 
 int eles_pris::face0_map(int index)
 {

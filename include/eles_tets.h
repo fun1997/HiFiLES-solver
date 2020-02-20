@@ -24,6 +24,7 @@
 #pragma once
 
 #include "eles.h"
+#include "../include/cubature_tri.h"
 
 class eles_tets: public eles
 {
@@ -93,13 +94,13 @@ public:
   double eval_d_nodal_basis(int in_index, int in_cpnt, hf_array<double> in_loc);
 
   /*! evaluate divergence of vcjh basis */
-  double eval_div_vcjh_basis(int in_index, hf_array<double>& loc);
+  //double eval_div_vcjh_basis(int in_index, hf_array<double>& loc);
 
   void fill_opp_3(hf_array<double>& opp_3);
 
   void get_opp_3_dg_tet(hf_array<double>& opp_3_dg);
 
-  double eval_div_dg_tet(int in_index, hf_array<double>& loc);
+  double eval_div_dg_tet(int in_index, hf_array<double> &loc, cubature_tri &cub2d);
 
   void compute_filt_matrix_tet(hf_array<double>& Filt, int vcjh_scheme_tet, double c_tet);
 

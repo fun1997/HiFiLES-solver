@@ -40,7 +40,6 @@ extern "C"
 #include "cblas.h"
 }
 #endif
-#include "../include/cubature_1d.h"
 
 using namespace std;
 
@@ -647,6 +646,7 @@ void get_opp_3_dg(hf_array<double>& opp_3_dg, hf_array<double>& loc_upts_tri, hf
 
   int i,j,k;
   hf_array<double> loc(2);
+  cubature_1d cub1d(0,10);  // TODO: CHECK STRENGTH
 
   for(i=0;i<3*(order+1);i++)
     {
@@ -660,7 +660,7 @@ void get_opp_3_dg(hf_array<double>& opp_3_dg, hf_array<double>& loc_upts_tri, hf
           int edge = i/ (order+1);
           int edge_fpt = i%(order+1);
 
-          opp_3_dg(j,i)=eval_div_dg_tri(loc,edge,edge_fpt,order,loc_1d_fpts);
+          opp_3_dg(j, i) = eval_div_dg_tri(loc, edge, edge_fpt, order, loc_1d_fpts, cub1d);
         }
     }
 }
@@ -959,7 +959,7 @@ void compute_filt_matrix_tri(hf_array<double>& Filt, hf_array<double>& vandermon
 }
 
 
-double eval_div_dg_tri(hf_array<double> &in_loc , int in_edge, int in_edge_fpt, int in_order, hf_array<double> &in_loc_fpts_1d)
+double eval_div_dg_tri(hf_array<double> &in_loc , int in_edge, int in_edge_fpt, int in_order, hf_array<double> &in_loc_fpts_1d,cubature_1d &cub1d)
 {
   int n_upts_tri = (in_order+1)*(in_order+2)/2;
 
@@ -971,8 +971,6 @@ double eval_div_dg_tri(hf_array<double> &in_loc , int in_edge, int in_edge_fpt, 
   hf_array<double> gdotn((in_order+1),1);
   hf_array<double> coeff_gdotn((in_order+1),1);
   hf_array<double> coeff_divg(n_upts_tri,1);
-
-  cubature_1d cub1d(0,10);  // TODO: CHECK STRENGTH
 
   if (in_edge==0)
     edge_length=2.;

@@ -27,7 +27,6 @@
 
 #include "../include/global.h"
 #include "../include/eles_tets.h"
-#include "../include/cubature_tri.h"
 #include "../include/cubature_tet.h"
 
 using namespace std;
@@ -1170,6 +1169,7 @@ void eles_tets::get_opp_3_dg_tet(hf_array<double>& opp_3_dg)
 {
   int i,j,k;
   hf_array<double> loc(n_dims);
+  cubature_tri cub2d(0,7); //TODO: Check if strong enough
 
   for(i=0;i<n_fpts_per_ele;i++)
     {
@@ -1180,7 +1180,7 @@ void eles_tets::get_opp_3_dg_tet(hf_array<double>& opp_3_dg)
               loc(k)=loc_upts(k,j);
             }
 
-          opp_3_dg(j,i)=eval_div_dg_tet(i,loc);
+          opp_3_dg(j,i)=eval_div_dg_tet(i,loc,cub2d);
         }
     }
 }
@@ -1188,7 +1188,7 @@ void eles_tets::get_opp_3_dg_tet(hf_array<double>& opp_3_dg)
 
 // evaluate divergence of dg basis
 
-double eles_tets::eval_div_dg_tet(int in_index, hf_array<double>& loc)
+double eles_tets::eval_div_dg_tet(int in_index, hf_array<double> &loc, cubature_tri &cub2d)
 {
   int face, face_fpt;
   double r,s,t;
@@ -1251,7 +1251,6 @@ double eles_tets::eval_div_dg_tet(int in_index, hf_array<double>& loc)
   // 2. Perform the edge integrals to obtain coefficients sigma_i
   for (int i=0;i<n_upts_per_ele;i++)
     {
-      cubature_tri cub2d(0,7); //TODO: Check if strong enough
       integral = 0.;
 
       for (int j=0;j<cub2d.get_n_pts();j++)
