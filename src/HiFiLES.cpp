@@ -194,13 +194,13 @@ int main(int argc, char *argv[]) {
 
       for (j = 0; j < FlowSol.n_ele_types; j++)
         FlowSol.mesh_eles(j)->AdvanceSolution(i, run_input.adv_type);
+    
+        /*! Shock capturing */
+
+      if (run_input.shock_cap)
+        for (j = 0; j < FlowSol.n_ele_types; j++)
+          FlowSol.mesh_eles(j)->shock_capture();
     }
-
-    /*! Shock capturing */
-
-    if (run_input.shock_cap)
-      for (i = 0; i < FlowSol.n_ele_types; i++)
-        FlowSol.mesh_eles(i)->shock_capture();
 
     /*! Update total time, and increase the iteration index. */
 

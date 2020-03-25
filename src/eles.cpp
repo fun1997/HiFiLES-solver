@@ -1786,10 +1786,10 @@ void eles::calculate_corrected_divergence(void)
                 int i, j;
                 j = (ct / n_upts_per_ele) % n_eles; //eles
                 i = ct % n_upts_per_ele;              //upts
-                printf("Residual is NaN at non-dimensionalized position: \n");
+                cout<<"Residual is NaN at non-dimensionalized position:"<<endl;
                 for (int intd=0; intd<n_dims; intd++)
-                    printf("%5.5f, ",pos_upts(i,j,intd));
-                printf("\n");
+                    cout<<pos_upts(i,j,intd);
+                cout<<endl;
                 FatalError("Aborting...");
             }
         }
