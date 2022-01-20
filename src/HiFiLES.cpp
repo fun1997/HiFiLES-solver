@@ -23,6 +23,7 @@
 
 #include <iostream>
 #include <fstream>
+#include<unistd.h>
 
 #include "../include/global.h"
 #include "../include/geometry.h"
@@ -48,6 +49,11 @@ int main(int argc, char *argv[]) {
   ofstream write_hist;                /*!< Output files (forces, statistics, and history) */
   mesh* mesh_data=new mesh();         /*!< Store mesh information*/
 
+// {
+//         int k=0;
+//         while (0 == k)
+//             sleep(5);
+//     }
   /*! Initialize MPI. */
 
 #ifdef _MPI
@@ -88,6 +94,11 @@ int main(int argc, char *argv[]) {
     cout << "██║  ██║██║██║     ██║      ███████╗███████╗███████║" << endl;
     cout << "╚═╝  ╚═╝╚═╝╚═╝     ╚═╝      ╚══════╝╚══════╝╚══════╝" << endl;
     cout << "UF Edition by Theoretical Fluid Dynamics and Turbulence Group" << endl;
+    cout << argc<<endl;
+    for(int i=0;i<argc;i++){
+      cout << "argumen "<<i<<" "<<argv[i]<<endl;
+    }
+    
   }
 
   /////////////////////////////////////////////////

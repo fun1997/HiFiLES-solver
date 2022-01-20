@@ -519,7 +519,7 @@ void eles::set_ics(double& time)
         // Call element specific function to obtain length
         for (int i=0; i<n_eles; i++)
         {
-            h_ref(i) = (*this).calc_h_ref_specific(i);;
+            h_ref(i) = (*this).calc_h_ref_specific(i);
         }
     }
     else
@@ -4078,7 +4078,7 @@ void eles::set_transforms_upts(void)
                 }
 
                 // calculate first derivatives of shape functions at the solution point
-                    calc_d_pos(loc,i,d_pos);
+                calc_d_pos(loc,i,d_pos);
 
 
                 // store quantities at the solution point
@@ -4248,11 +4248,11 @@ void eles::set_transforms_fpts(void)
             {
                 // get coordinates of the flux point
 
-                    for(k=0;k<n_dims;k++)
-                    {
-                        loc(k)=tloc_fpts(k,j);
-                    }
-                    calc_pos(loc,i,pos);
+                for(k=0;k<n_dims;k++)
+                {
+                    loc(k)=tloc_fpts(k,j);
+                }
+                calc_pos(loc,i,pos);
 
 
                 for(k=0; k<n_dims; k++)
@@ -5675,6 +5675,19 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
         for (int l=0; l<n_inters_per_ele; l++)
         {
 
+            if (run_input.bc_list(bcid(ele,l)).get_bc_flag() == SLIP_WALL){
+                coeff_file<<"SLIP_WALL"<<endl;
+            }
+            else if(run_input.bc_list(bcid(ele,l)).get_bc_flag() == ISOTHERM_WALL){
+                coeff_file<<"ISOTHERM_WALL"<<endl;
+            }
+            else if(run_input.bc_list(bcid(ele,l)).get_bc_flag() == ADIABAT_WALL){
+                coeff_file<<"ADIABAT_WALL"<<endl;
+            }
+            else if(run_input.bc_list(bcid(ele,l)).get_bc_flag() == SLIP_WALL_DUAL){
+                coeff_file<<"SLIP_WALL_DUAL"<<endl;
+            }
+
             if (run_input.bc_list(bcid(ele,l)).get_bc_flag() == SLIP_WALL || run_input.bc_list(bcid(ele,l)).get_bc_flag() == ISOTHERM_WALL ||
              run_input.bc_list(bcid(ele,l)).get_bc_flag() == ADIABAT_WALL || run_input.bc_list(bcid(ele,l)).get_bc_flag()==SLIP_WALL_DUAL)
             {
@@ -5778,8 +5791,18 @@ void eles::compute_wall_forces( hf_array<double>& inv_force, hf_array<double>& v
                     }
 
                     // write to file
-                    if (write_forces)
-                        coeff_file << scientific << setw(18) << setprecision(12) << pos(0) << " " << setw(18) << setprecision(12) << cp;
+                    if (write_forces){
+                        if (n_dims==2)
+                    {
+                        coeff_file << scientific << setw(18) << setprecision(12) << pos(0) << " "  << setw(18) << setprecision(12) << pos(1) << " "<< setw(18) << setprecision(12) << cp;
+                    }
+                    else if (n_dims==3)
+                    {
+                        coeff_file << scientific << setw(18) << setprecision(12) << pos(0) << " "  << setw(18) << setprecision(12) << pos(1) << " " << setw(18) << setprecision(12) << pos(2) << " "<< setw(18) << setprecision(12) << cp;
+                    }
+
+                    }
+                        
 
                     if (viscous)
                     {

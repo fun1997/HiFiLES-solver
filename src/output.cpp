@@ -80,7 +80,7 @@ void output::setup_CGNS(void)
   pele_start.initialize_to_zero();
   pele_end.initialize_to_zero();
   pnode_start = 1;//local start index of node
-
+  pelepl_start = 1;
   //initialize global element number
   glob_npeles = 0;//global number of plot elements
   glob_npnodes = 0;//global number of nodes
@@ -142,8 +142,11 @@ void output::setup_CGNS(void)
       if (j == FlowSol->rank)
         pele_end(i) = sum_npele(i); //set local typewise plot element end index despite the existence of other type of element
     }
-    if (j == FlowSol->rank - 1)
+    if (j == FlowSol->rank - 1){
       pnode_start += glob_npnodes; //set start index for local nodes
+      pelepl_start += glob_npeles;
+    }
+      
   }
 
   //transform to local plot element start index, order by element type
@@ -909,6 +912,7 @@ void output::write_CGNS(int in_file_num)
   char fname[256];
   cgsize_t sizes[3];
   cgsize_t temp_ptr, temp_ptr2;
+  cgsize_t temp_ptr_ct,temp_ptr_ct2;
   hf_array<cgsize_t> conn; //connectivity
 
   //temp data arrays for each cell
@@ -919,14 +923,24 @@ void output::write_CGNS(int in_file_num)
   hf_array<double> diag_ppts_temp;
   hf_array<double> sensor_ppts_temp;
 
+  //temp data connection
+  hf_array<int> temp_con;
+
   //data array for each type
   hf_array<double> pos_ppts_wt;
   hf_array<double> disu_ppts_wt;
   hf_array<double> disu_average_ppts_wt;
   hf_array<double> diag_ppts_wt;
 
+  //data array for each type in cell-center
+  hf_array<double> pos_ppts_wt_ct;
+  hf_array<double> disu_ppts_wt_ct;
+  hf_array<double> disu_average_ppts_wt_ct;
+  hf_array<double> diag_ppts_wt_ct;
+
+
   int n_dims = FlowSol->n_dims;
-  int n_eles, n_fields, n_ppts_per_ele;
+  int n_eles, n_fields, n_ppts_per_ele, n_peles_per_ele, n_verts_per_ele;
   int n_diag_fields = run_input.n_diagnostic_fields;
   int n_average_fields = run_input.n_average_fields;
 
@@ -955,8 +969,16 @@ void output::write_CGNS(int in_file_num)
       cgp_error_exit();
 
   /*! create solution nodes */
-  if (cg_sol_write(F, B, Z, "Solution", CGNS_ENUMV(Vertex), &S))
+  // if (cg_sol_write(F, B, Z, "Solution", CGNS_ENUMV(Vertex), &S))
+  //   cgp_error_exit();
+
+  /*! create solution nodes in center*/
+  if (cg_sol_write(F, B, Z, "Solution", CGNS_ENUMV(CellCenter), &S))
     cgp_error_exit();
+
+
+
+
   //default solutions
   if (cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "Density", &Fs_rho) ||
       cgp_field_write(F, B, Z, S, CGNS_ENUMV(RealDouble), "MomentumX", &Fs_rhou) ||
@@ -989,6 +1011,7 @@ void output::write_CGNS(int in_file_num)
 
   /* create data node for elements */
   temp_ptr = 1;          //pointer to next index of each type of element
+
   for (int i = 0; i < FlowSol->n_ele_types; i++)
   {
     if (sum_npele(i)) //if have such type of element globally
@@ -1015,8 +1038,10 @@ void output::write_CGNS(int in_file_num)
     }
   }
 
+
   //write solution data
   temp_ptr = pnode_start;//pointer to the next node index to write the solution
+  temp_ptr_ct = pelepl_start;
 
   for (int i = 0; i < FlowSol->n_ele_types; i++) //for each type of element
   {
@@ -1025,18 +1050,24 @@ void output::write_CGNS(int in_file_num)
     {
       //get params
       n_ppts_per_ele = FlowSol->mesh_eles(i)->get_n_ppts_per_ele();
+      n_peles_per_ele = FlowSol->mesh_eles(i)->get_n_peles_per_ele();
+      n_verts_per_ele = FlowSol->mesh_eles(i)->get_n_verts_per_ele();
       n_fields = FlowSol->mesh_eles(i)->get_n_fields();
+      temp_con = FlowSol->mesh_eles(i)->get_connectivity_plot();
       //initialize arrays to write
       pos_ppts_temp.setup(n_ppts_per_ele, n_dims);
       pos_ppts_wt.setup(n_ppts_per_ele, n_eles, n_dims);
+      pos_ppts_wt_ct.setup(n_peles_per_ele, n_eles, n_dims);
       disu_ppts_temp.setup(n_ppts_per_ele, n_fields);
       disu_ppts_temp.initialize_to_zero();
       disu_ppts_wt.setup(n_ppts_per_ele, n_eles, n_fields);
+      disu_ppts_wt_ct.setup(n_peles_per_ele, n_eles, n_fields);
       if (n_average_fields)
       {
         disu_average_ppts_temp.setup(n_ppts_per_ele, n_average_fields);
         disu_average_ppts_temp.initialize_to_zero();
         disu_average_ppts_wt.setup(n_ppts_per_ele, n_eles, n_average_fields);
+        disu_average_ppts_wt_ct.setup(n_peles_per_ele, n_eles, n_average_fields);
       }
       if (n_diag_fields)
       {
@@ -1047,9 +1078,13 @@ void output::write_CGNS(int in_file_num)
         }
         diag_ppts_temp.setup(n_ppts_per_ele, n_diag_fields);
         diag_ppts_wt.setup(n_ppts_per_ele, n_eles, n_diag_fields);
+        diag_ppts_wt_ct.setup(n_peles_per_ele, n_eles, n_diag_fields);
         if (run_input.shock_cap)
           sensor_ppts_temp.setup(n_ppts_per_ele);
       }
+
+// edit
+
 
       for (int j = 0; j < n_eles; j++) //for each element
       {
@@ -1057,13 +1092,32 @@ void output::write_CGNS(int in_file_num)
         FlowSol->mesh_eles(i)->calc_pos_ppts(j, pos_ppts_temp); //get sub element coord
         for(int k=0;k<n_ppts_per_ele;k++)//copy to array
           for(int l=0;l<n_dims;l++)
-          pos_ppts_wt(k,j,l)=pos_ppts_temp(k,l);
+            pos_ppts_wt(k,j,l)=pos_ppts_temp(k,l);
+        
+        for(int k=0;k<n_peles_per_ele;k++){     
+          for(int l=0;l<n_dims;l++){
+            for(int m=0;m<n_verts_per_ele;m++){
+              pos_ppts_wt_ct(k,j,l)+=pos_ppts_wt(temp_con(m, k),j,l);
+            }
+            pos_ppts_wt_ct(k,j,l)/=n_verts_per_ele;
+          }
+        }   
 
        //default solution
         FlowSol->mesh_eles(i)->calc_disu_ppts(j, disu_ppts_temp);//get deafult solution
         for(int k=0;k<n_ppts_per_ele;k++)//copy to array
           for(int l=0;l<n_fields;l++)
-          disu_ppts_wt(k,j,l)=disu_ppts_temp(k,l);
+            disu_ppts_wt(k,j,l)=disu_ppts_temp(k,l);
+          
+        for(int k=0;k<n_peles_per_ele;k++){     
+          for(int l=0;l<n_fields;l++){
+            for(int m=0;m<n_verts_per_ele;m++){
+              disu_ppts_wt_ct(k,j,l)+=disu_ppts_wt(temp_con(m, k),j,l);
+            }
+            disu_ppts_wt_ct(k,j,l)/=n_verts_per_ele;
+          }
+        }   
+        
 
         /*! Calculate the diagnostic fields at the plot points */
         if (n_diag_fields > 0)
@@ -1077,6 +1131,17 @@ void output::write_CGNS(int in_file_num)
           for (int k = 0; k < n_ppts_per_ele; k++) //copy to array
             for (int l = 0; l < n_diag_fields; l++)
               diag_ppts_wt(k, j, l) = diag_ppts_temp(k, l);
+
+          for(int k=0;k<n_peles_per_ele;k++){     
+            for(int l=0;l<n_diag_fields;l++){
+              for(int m=0;m<n_verts_per_ele;m++){
+                diag_ppts_wt_ct(k,j,l)+=diag_ppts_wt(temp_con(m, k),j,l);
+              }
+              diag_ppts_wt_ct(k,j,l)/=n_verts_per_ele;
+            }
+          }   
+
+
         }
 
         /*! Calculate the time averaged fields at the plot points */
@@ -1086,6 +1151,15 @@ void output::write_CGNS(int in_file_num)
           for (int k = 0; k < n_ppts_per_ele; k++) //copy to array
             for (int l = 0; l < n_average_fields; l++)
               disu_average_ppts_wt(k, j, l) = disu_average_ppts_temp(k, l);
+
+          for(int k=0;k<n_peles_per_ele;k++){     
+            for(int l=0;l<n_average_fields;l++){
+              for(int m=0;m<n_verts_per_ele;m++){
+                disu_average_ppts_wt_ct(k,j,l)+=disu_average_ppts_wt(temp_con(m, k),j,l);
+              }
+              disu_average_ppts_wt_ct(k,j,l)/=n_verts_per_ele;
+            }
+          }   
         }
       }
 
@@ -1093,34 +1167,37 @@ void output::write_CGNS(int in_file_num)
 
       temp_ptr2 = temp_ptr + n_ppts_per_ele*n_eles - 1;
 
+      temp_ptr_ct2 = temp_ptr_ct + n_peles_per_ele*n_eles -1;
+
       //write coordinate
       if (cgp_coord_write_data(F, B, Z, Cx, &temp_ptr, &temp_ptr2, pos_ppts_wt.get_ptr_cpu()) ||
-          cgp_coord_write_data(F, B, Z, Cy, &temp_ptr, &temp_ptr2, pos_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles)))
+          cgp_coord_write_data(F, B, Z, Cy, &temp_ptr, &temp_ptr2, pos_ppts_wt.get_ptr_cpu(n_ppts_per_ele* n_eles)))
         cgp_error_exit();
       if (n_dims == 3)
         if (cgp_coord_write_data(F, B, Z, Cz, &temp_ptr, &temp_ptr2, pos_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 2)))
           cgp_error_exit();
 
+
       //write default solution
-      if (cgp_field_write_data(F, B, Z, S, Fs_rho, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu()) ||
-          cgp_field_write_data(F, B, Z, S, Fs_rhou, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles)) ||
-          cgp_field_write_data(F, B, Z, S, Fs_rhov, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 2)))
+      if (cgp_field_write_data(F, B, Z, S, Fs_rho, &temp_ptr_ct, &temp_ptr_ct2, disu_ppts_wt_ct.get_ptr_cpu()) ||
+          cgp_field_write_data(F, B, Z, S, Fs_rhou, &temp_ptr_ct, &temp_ptr_ct2, disu_ppts_wt_ct.get_ptr_cpu(n_peles_per_ele * n_eles)) ||
+          cgp_field_write_data(F, B, Z, S, Fs_rhov, &temp_ptr_ct, &temp_ptr_ct2, disu_ppts_wt_ct.get_ptr_cpu(n_peles_per_ele * n_eles * 2)))
         cgp_error_exit();
       if (n_dims == 2)
       {
-        if (cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 3)))
+        if (cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr_ct, &temp_ptr_ct2, disu_ppts_wt_ct.get_ptr_cpu(n_peles_per_ele * n_eles * 3)))
           cgp_error_exit();
         if (run_input.RANS)
-          if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 4)))
+          if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr_ct, &temp_ptr_ct2, disu_ppts_wt_ct.get_ptr_cpu(n_peles_per_ele * n_eles * 4)))
             cgp_error_exit();
       }
       else
       {
-        if (cgp_field_write_data(F, B, Z, S, Fs_rhow, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 3)) ||
-            cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 4)))
+        if (cgp_field_write_data(F, B, Z, S, Fs_rhow, &temp_ptr_ct, &temp_ptr_ct2, disu_ppts_wt_ct.get_ptr_cpu(n_ppts_per_ele * n_eles * 3)) ||
+            cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr_ct, &temp_ptr_ct2, disu_ppts_wt_ct.get_ptr_cpu(n_ppts_per_ele * n_eles * 4)))
           cgp_error_exit();
         if (run_input.RANS)
-          if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 5)))
+          if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr_ct, &temp_ptr_ct2, disu_ppts_wt_ct.get_ptr_cpu(n_ppts_per_ele * n_eles * 5)))
             cgp_error_exit();
       }
 
@@ -1128,7 +1205,7 @@ void output::write_CGNS(int in_file_num)
       if (n_diag_fields)
       {
         for (int k = 0; k < n_diag_fields; k++)
-          if (cgp_field_write_data(F, B, Z, S, Fs_diag(k), &temp_ptr, &temp_ptr2, diag_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * k)))
+          if (cgp_field_write_data(F, B, Z, S, Fs_diag(k), &temp_ptr_ct, &temp_ptr_ct2, diag_ppts_wt_ct.get_ptr_cpu(n_peles_per_ele * n_eles * k)))
             cgp_error_exit();
       }
 
@@ -1136,13 +1213,111 @@ void output::write_CGNS(int in_file_num)
       if (n_average_fields)
       {
         for (int k = 0; k < n_average_fields; k++)
-          if (cgp_field_write_data(F, B, Z, S, Fs_avg(k), &temp_ptr, &temp_ptr2, disu_average_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * k)))
+          if (cgp_field_write_data(F, B, Z, S, Fs_avg(k), &temp_ptr_ct, &temp_ptr_ct2, disu_average_ppts_wt_ct.get_ptr_cpu(n_peles_per_ele * n_eles * k)))
             cgp_error_exit();
       }
 
       temp_ptr += n_ppts_per_ele*n_eles; //move pointer to next element type
+      temp_ptr_ct += n_peles_per_ele * n_eles;
 
     }
+
+
+
+
+    //   for (int j = 0; j < n_eles; j++) //for each element
+    //   {
+    //     //coordinates
+    //     FlowSol->mesh_eles(i)->calc_pos_ppts(j, pos_ppts_temp); //get sub element coord
+    //     for(int k=0;k<n_ppts_per_ele;k++)//copy to array
+    //       for(int l=0;l<n_dims;l++)
+    //       pos_ppts_wt(k,j,l)=pos_ppts_temp(k,l);
+
+    //    //default solution
+    //     FlowSol->mesh_eles(i)->calc_disu_ppts(j, disu_ppts_temp);//get deafult solution
+    //     for(int k=0;k<n_ppts_per_ele;k++)//copy to array
+    //       for(int l=0;l<n_fields;l++)
+    //       disu_ppts_wt(k,j,l)=disu_ppts_temp(k,l);
+
+    //     /*! Calculate the diagnostic fields at the plot points */
+    //     if (n_diag_fields > 0)
+    //     {
+    //       if (run_input.viscous)
+    //         FlowSol->mesh_eles(i)->calc_grad_disu_ppts(j, grad_disu_ppts_temp);
+    //       if (run_input.shock_cap)
+    //         /*! Calculate the sensor at the plot points */
+    //         FlowSol->mesh_eles(i)->calc_sensor_ppts(j, sensor_ppts_temp);
+    //       FlowSol->mesh_eles(i)->calc_diagnostic_fields_ppts(j, disu_ppts_temp, grad_disu_ppts_temp, sensor_ppts_temp, diag_ppts_temp, FlowSol->time);//get diagnostic field
+    //       for (int k = 0; k < n_ppts_per_ele; k++) //copy to array
+    //         for (int l = 0; l < n_diag_fields; l++)
+    //           diag_ppts_wt(k, j, l) = diag_ppts_temp(k, l);
+    //     }
+
+    //     /*! Calculate the time averaged fields at the plot points */
+    //     if (n_average_fields > 0)
+    //     {
+    //       FlowSol->mesh_eles(i)->calc_time_average_ppts(j, disu_average_ppts_temp);//get average field
+    //       for (int k = 0; k < n_ppts_per_ele; k++) //copy to array
+    //         for (int l = 0; l < n_average_fields; l++)
+    //           disu_average_ppts_wt(k, j, l) = disu_average_ppts_temp(k, l);
+    //     }
+    //   }
+
+    //   //write arrays to file
+
+    //   temp_ptr2 = temp_ptr + n_ppts_per_ele*n_eles - 1;
+
+    //   //write coordinate
+    //   if (cgp_coord_write_data(F, B, Z, Cx, &temp_ptr, &temp_ptr2, pos_ppts_wt.get_ptr_cpu()) ||
+    //       cgp_coord_write_data(F, B, Z, Cy, &temp_ptr, &temp_ptr2, pos_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles)))
+    //     cgp_error_exit();
+    //   if (n_dims == 3)
+    //     if (cgp_coord_write_data(F, B, Z, Cz, &temp_ptr, &temp_ptr2, pos_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 2)))
+    //       cgp_error_exit();
+
+    //   //write default solution
+    //   if (cgp_field_write_data(F, B, Z, S, Fs_rho, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu()) ||
+    //       cgp_field_write_data(F, B, Z, S, Fs_rhou, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles)) ||
+    //       cgp_field_write_data(F, B, Z, S, Fs_rhov, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 2)))
+    //     cgp_error_exit();
+    //   if (n_dims == 2)
+    //   {
+    //     if (cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 3)))
+    //       cgp_error_exit();
+    //     if (run_input.RANS)
+    //       if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 4)))
+    //         cgp_error_exit();
+    //   }
+    //   else
+    //   {
+    //     if (cgp_field_write_data(F, B, Z, S, Fs_rhow, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 3)) ||
+    //         cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 4)))
+    //       cgp_error_exit();
+    //     if (run_input.RANS)
+    //       if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2, disu_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * 5)))
+    //         cgp_error_exit();
+    //   }
+
+    //   //write diagnostic field
+    //   if (n_diag_fields)
+    //   {
+    //     for (int k = 0; k < n_diag_fields; k++)
+    //       if (cgp_field_write_data(F, B, Z, S, Fs_diag(k), &temp_ptr, &temp_ptr2, diag_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * k)))
+    //         cgp_error_exit();
+    //   }
+
+    //   //write average field
+    //   if (n_average_fields)
+    //   {
+    //     for (int k = 0; k < n_average_fields; k++)
+    //       if (cgp_field_write_data(F, B, Z, S, Fs_avg(k), &temp_ptr, &temp_ptr2, disu_average_ppts_wt.get_ptr_cpu(n_ppts_per_ele * n_eles * k)))
+    //         cgp_error_exit();
+    //   }
+
+    //   temp_ptr += n_ppts_per_ele*n_eles; //move pointer to next element type
+
+    // }
+
     else//write null
     {
       if (cgp_coord_write_data(F, B, Z, Cx, &temp_ptr, &temp_ptr2, NULL) ||
@@ -1151,37 +1326,37 @@ void output::write_CGNS(int in_file_num)
       if (n_dims == 3)
         if (cgp_coord_write_data(F, B, Z, Cz, &temp_ptr, &temp_ptr2,NULL))
           cgp_error_exit();
-      if (cgp_field_write_data(F, B, Z, S, Fs_rho, &temp_ptr, &temp_ptr2, NULL) ||
-          cgp_field_write_data(F, B, Z, S, Fs_rhou, &temp_ptr, &temp_ptr2, NULL) ||
-          cgp_field_write_data(F, B, Z, S, Fs_rhov, &temp_ptr, &temp_ptr2, NULL))
+      if (cgp_field_write_data(F, B, Z, S, Fs_rho, &temp_ptr_ct, &temp_ptr_ct2, NULL) ||
+          cgp_field_write_data(F, B, Z, S, Fs_rhou, &temp_ptr_ct, &temp_ptr_ct2, NULL) ||
+          cgp_field_write_data(F, B, Z, S, Fs_rhov, &temp_ptr_ct, &temp_ptr_ct2, NULL))
         cgp_error_exit();
       if (n_dims == 2)
       {
-        if (cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2, NULL))
+        if (cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr_ct, &temp_ptr_ct2, NULL))
           cgp_error_exit();
         if (run_input.RANS)
-          if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2, NULL))
+          if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr_ct, &temp_ptr_ct2, NULL))
             cgp_error_exit();
       }
       else
       {
-        if (cgp_field_write_data(F, B, Z, S, Fs_rhow, &temp_ptr, &temp_ptr2, NULL) ||
-            cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr, &temp_ptr2,NULL))
+        if (cgp_field_write_data(F, B, Z, S, Fs_rhow, &temp_ptr_ct, &temp_ptr_ct2, NULL) ||
+            cgp_field_write_data(F, B, Z, S, Fs_rhoe, &temp_ptr_ct, &temp_ptr_ct2,NULL))
           cgp_error_exit();
         if (run_input.RANS)
-          if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr, &temp_ptr2,NULL))
+          if (cgp_field_write_data(F, B, Z, S, Fs_mu, &temp_ptr_ct, &temp_ptr_ct2,NULL))
             cgp_error_exit();
       }
       if (n_diag_fields)
       {
         for (int k = 0; k < n_diag_fields; k++)
-          if (cgp_field_write_data(F, B, Z, S, Fs_diag(k), &temp_ptr, &temp_ptr2, NULL))
+          if (cgp_field_write_data(F, B, Z, S, Fs_diag(k), &temp_ptr_ct, &temp_ptr_ct2, NULL))
             cgp_error_exit();
       }
       if (n_average_fields)
       {
         for (int k = 0; k < n_average_fields; k++)
-          if (cgp_field_write_data(F, B, Z, S, Fs_avg(k), &temp_ptr, &temp_ptr2, NULL))
+          if (cgp_field_write_data(F, B, Z, S, Fs_avg(k), &temp_ptr_ct, &temp_ptr_ct2, NULL))
             cgp_error_exit();
       }
     }
@@ -1959,7 +2134,16 @@ void output::CalcForces(int in_file_num, bool write_forces)
     // open file for writing
     coeff_file.open(file_name_s);
     // Add a header to the force file
-    coeff_file << setw(18) << "x" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+    if(FlowSol->n_dims==3){
+      coeff_file << setw(18) << "x"<< setw(18) << "y"<< setw(18) << "z" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+    }
+    else if(FlowSol->n_dims==2){
+      coeff_file << setw(18) << "x"<< setw(18) << "y"<< setw(18) << "Cp" << setw(18) << "Cf" << endl;
+    }
+    else{
+      coeff_file << setw(18) << "x" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+    }
+    
   }
 
   // zero the forces and coeffs
@@ -2010,6 +2194,224 @@ void output::CalcForces(int in_file_num, bool write_forces)
 #endif
   if (write_forces)
     coeff_file.close();
+
+  if (write_forces){
+
+    if (my_rank==0){
+      char walldir_s[256];
+      sprintf(walldir_s, "wall_info");
+      if (stat(walldir_s, &st) == -1)
+        mkdir(walldir_s, 0755);
+
+      struct dirent *fn;
+      string str(forcedir_s);
+      string line;
+      bool wtype[4]={false};
+      ifstream tempfile;
+      ofstream final_file;
+      char file_name_final_path[256];
+      char file_name_SLIP_WALL[256];
+      char file_name_ISOTHERM_WALL[256];
+      char file_name_ADIABAT_WALL[256];
+      char file_name_SLIP_WALL_DUAL[256];
+
+      for (int i = 0; i < run_input.bc_list.get_dim(0); i++){
+        if(run_input.bc_list(i).get_bc_flag() == SLIP_WALL){
+          wtype[0]=true;
+        }
+        else if(run_input.bc_list(i).get_bc_flag() == ISOTHERM_WALL){
+          wtype[1]=true;
+        }
+        else if(run_input.bc_list(i).get_bc_flag() == ADIABAT_WALL){
+          wtype[2]=true;
+        }
+        else if(run_input.bc_list(i).get_bc_flag() == SLIP_WALL_DUAL){
+          wtype[3]=true;
+        }
+      }
+      DIR *dir; // return value for opendir()
+      dir = opendir(str.c_str());
+      sprintf(file_name_SLIP_WALL,"cp_%.09d_SLIP_WALL.dat",in_file_num);
+      sprintf(file_name_ISOTHERM_WALL,"cp_%.09d_ISOTHERM_WALL.dat",in_file_num);
+      sprintf(file_name_ADIABAT_WALL,"cp_%.09d_ADIABAT_WALL.dat",in_file_num);
+      sprintf(file_name_SLIP_WALL_DUAL,"cp_%.09d_SLIP_WALL_DUAL.dat",in_file_num);
+      if(wtype[0]){
+
+        sprintf(file_name_final_path, "%s/cp_%.09d_SLIP_WALL.dat", walldir_s, in_file_num);
+
+        final_file.open(file_name_final_path);
+        if(FlowSol->n_dims==3){
+          final_file << setw(18) << "x"<< setw(18) << "y"<< setw(18) << "z" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+      }
+        else if(FlowSol->n_dims==2){
+          final_file << setw(18) << "x"<< setw(18) << "y"<< setw(18) << "Cp" << setw(18) << "Cf" << endl;
+      }
+        else{
+          final_file << setw(18) << "x" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+      }
+        final_file<<"ZONE"<<" "<<"T=\""<<in_file_num<<"\""<<endl;
+
+        while ((fn = readdir(dir)) != NULL){
+          if (strcmp(fn->d_name, ".") == 0 ||
+                strcmp(fn->d_name, "..") == 0||strcmp(fn->d_name, file_name_SLIP_WALL) == 0
+                ||strcmp(fn->d_name, file_name_ISOTHERM_WALL) == 0||strcmp(fn->d_name, file_name_ADIABAT_WALL) == 0
+                ||strcmp(fn->d_name, file_name_SLIP_WALL_DUAL) == 0)
+              continue;
+          tempfile.open((str + '/' + fn->d_name).c_str());
+          getline(tempfile,line);
+
+          while(getline(tempfile,line)){
+            if(!line.compare("SLIP_WALL")){
+              continue;
+            }
+            else if(!line.compare("ISOTHERM_WALL")||!line.compare("ADIABAT_WALL")||!line.compare("SLIP_WALL_DUAL")){
+              while(getline(tempfile,line)){
+                if(!line.compare("SLIP_WALL")){
+                  getline(tempfile,line);
+                  break;
+                }
+              }
+            }
+
+            final_file<<line<<endl; 
+          }        
+          tempfile.close();
+        }
+        final_file.close();
+      }
+      rewinddir(dir);
+      if(wtype[1]){
+
+        sprintf(file_name_final_path, "%s/cp_%.09d_ISOTHERM_WALL.dat", walldir_s, in_file_num);
+
+        final_file.open(file_name_final_path);
+        if(FlowSol->n_dims==3){
+        final_file << setw(18) << "x"<< setw(18) << "y"<< setw(18) << "z" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+        }
+        else if(FlowSol->n_dims==2){
+        final_file << setw(18) << "x"<< setw(18) << "y"<< setw(18) << "Cp" << setw(18) << "Cf" << endl;
+        }
+        else{
+        final_file << setw(18) << "x" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+        }
+        final_file<<"ZONE"<<" "<<"T=\""<<in_file_num<<"\""<<endl;
+        while ((fn = readdir(dir)) != NULL){
+          if (strcmp(fn->d_name, ".") == 0 ||
+                strcmp(fn->d_name, "..") == 0||strcmp(fn->d_name, file_name_SLIP_WALL) == 0
+                ||strcmp(fn->d_name, file_name_ISOTHERM_WALL) == 0||strcmp(fn->d_name, file_name_ADIABAT_WALL) == 0
+                ||strcmp(fn->d_name, file_name_SLIP_WALL_DUAL) == 0)
+              continue;
+          tempfile.open((str + '/' + fn->d_name).c_str());
+          getline(tempfile,line);
+
+          while(getline(tempfile,line)){
+            if(!line.compare("ISOTHERM_WALL")){
+              continue;
+            }
+            else if(!line.compare("SLIP_WALL")||!line.compare("ADIABAT_WALL")||!line.compare("SLIP_WALL_DUAL")){
+              while(getline(tempfile,line)){
+                if(!line.compare("ISOTHERM_WALL")){
+                  getline(tempfile,line);
+                  break;
+                }
+              }
+            }
+            final_file<<line<<endl; 
+          }
+          tempfile.close();
+        }
+        final_file.close();
+      }
+      rewinddir(dir);
+      if(wtype[2]){
+
+        sprintf(file_name_final_path, "%s/cp_%.09d_ADIABAT_WALL.dat", walldir_s, in_file_num);
+
+        final_file.open(file_name_final_path);
+        if(FlowSol->n_dims==3){
+        final_file << setw(18) << "x"<< setw(18) << "y"<< setw(18) << "z" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+        }
+        else if(FlowSol->n_dims==2){
+        final_file << setw(18) << "x"<< setw(18) << "y"<< setw(18) << "Cp" << setw(18) << "Cf" << endl;
+        }
+        else{
+        final_file << setw(18) << "x" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+        }
+        final_file<<"ZONE"<<" "<<"T=\""<<in_file_num<<"\""<<endl;
+        while ((fn = readdir(dir)) != NULL){
+          if (strcmp(fn->d_name, ".") == 0 ||
+                strcmp(fn->d_name, "..") == 0||strcmp(fn->d_name, file_name_SLIP_WALL) == 0
+                ||strcmp(fn->d_name, file_name_ISOTHERM_WALL) == 0||strcmp(fn->d_name, file_name_ADIABAT_WALL) == 0
+                ||strcmp(fn->d_name, file_name_SLIP_WALL_DUAL) == 0)
+              continue;
+          tempfile.open((str + '/' + fn->d_name).c_str());
+          getline(tempfile,line);
+
+          while(getline(tempfile,line)){
+            if(!line.compare("ADIABAT_WALL")){
+              continue;
+            }
+            else if(!line.compare("SLIP_WALL")||!line.compare("ISOTHERM_WALL")||!line.compare("SLIP_WALL_DUAL")){
+              while(getline(tempfile,line)){
+                if(!line.compare("ADIABAT_WALL")){
+                  getline(tempfile,line);
+                  break;
+                }
+              }
+            }
+            final_file<<line<<endl; 
+          }
+          tempfile.close();
+        }
+        final_file.close();
+      }
+      rewinddir(dir);
+      if(wtype[3]){
+
+        sprintf(file_name_final_path, "%s/cp_%.09d_SLIP_WALL_DUAL.dat", walldir_s, in_file_num);
+
+        final_file.open(file_name_final_path);
+        if(FlowSol->n_dims==3){
+        final_file << setw(18) << "x"<< setw(18) << "y"<< setw(18) << "z" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+        }
+        else if(FlowSol->n_dims==2){
+        final_file << setw(18) << "x"<< setw(18) << "y"<< setw(18) << "Cp" << setw(18) << "Cf" << endl;
+        }
+        else{
+        final_file << setw(18) << "x" << setw(18) << "Cp" << setw(18) << "Cf" << endl;
+        }
+        final_file<<"ZONE"<<" "<<"T=\""<<in_file_num<<"\""<<endl;
+        while ((fn = readdir(dir)) != NULL){
+          if (strcmp(fn->d_name, ".") == 0 ||
+                strcmp(fn->d_name, "..") == 0||strcmp(fn->d_name, file_name_SLIP_WALL) == 0
+                ||strcmp(fn->d_name, file_name_ISOTHERM_WALL) == 0||strcmp(fn->d_name, file_name_ADIABAT_WALL) == 0
+                ||strcmp(fn->d_name, file_name_SLIP_WALL_DUAL) == 0)
+              continue;
+          tempfile.open((str + '/' + fn->d_name).c_str());
+          getline(tempfile,line);
+
+          while(getline(tempfile,line)){
+            if(!line.compare("SLIP_WALL_DUAL")){
+              continue;
+            }
+            else if(!line.compare("SLIP_WALL")||!line.compare("ISOTHERM_WALL")||!line.compare("ADIABAT_WALL")){
+              while(getline(tempfile,line)){
+                if(!line.compare("SLIP_WALL_DUAL")){
+                  getline(tempfile,line);
+                  break;
+                }
+              }
+            }
+            final_file<<line<<endl; 
+          }
+          tempfile.close();
+        }
+        final_file.close();
+      }
+    
+    }
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 // Calculate integral diagnostic quantities
@@ -2159,6 +2561,7 @@ void output::compute_error(int in_file_num)
     write_error.close();
 
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 
 }
 
@@ -2404,6 +2807,7 @@ void output::HistoryOutput(int in_file_num, clock_t init, ofstream *write_hist) 
             final = clock() - init;
             write_hist[0] << ", " << (double)final / (((double)CLOCKS_PER_SEC) * 60.0) << endl;
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void output::check_stability(void)
