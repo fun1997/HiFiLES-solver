@@ -107,14 +107,26 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
       FlowSol->mesh_eles(i)->evaluate_body_force(in_file_num);
     }
   }
+  
+  //add les turbulent inlet
+  if(run_input.LES == 1 && in_rk_stage == 0){
+    for(i=0; i<FlowSol->n_bdy_inter_types; i++){           
+      if(FlowSol->mesh_bdy_inters(i).inlet.type != 0){
+        FlowSol->mesh_bdy_inters(i).update_les_inlet(FlowSol);           
+      }      
+    }
+  }
+      
 
   /*! Compute the transformed normal inviscid numerical fluxes.
    Compute the common solution and solution corrections (viscous only). */
   for(i=0; i<FlowSol->n_int_inter_types; i++)
     FlowSol->mesh_int_inters(i).calculate_common_invFlux();
 
+
+
   for(i=0; i<FlowSol->n_bdy_inter_types; i++)
-    FlowSol->mesh_bdy_inters(i).evaluate_boundaryConditions_invFlux(FlowSol->time);//TODO:use RK_time instead
+    FlowSol->mesh_bdy_inters(i).evaluate_boundaryConditions_invFlux(FlowSol,FlowSol->time);//TODO:use RK_time instead
 
 #ifdef _MPI
   /*! Send the previously computed values across the MPI interfaces. */
@@ -244,6 +256,22 @@ double* get_detjac_fpts_ptr(int in_ele_type, int in_ele, int in_ele_local_inter,
 double* get_tdA_fpts_ptr(int in_ele_type, int in_ele, int in_ele_local_inter, int in_inter_local_fpt, struct solution* FlowSol)
 {
   return FlowSol->mesh_eles(in_ele_type)->get_tdA_fpts_ptr(in_inter_local_fpt,in_ele_local_inter,in_ele);
+
+}
+
+// get pointer to weight at a flux point
+
+double* get_weight_fpts_ptr(int in_ele_type, int in_ele_local_inter, int in_inter_local_fpt, struct solution* FlowSol)
+{
+  return FlowSol->mesh_eles(in_ele_type)->get_weight_fpts_ptr(in_inter_local_fpt,in_ele_local_inter);
+}
+
+// get pointer to magntiude of normal dot inverse of (determinant of jacobian multiplied by jacobian) at a flux point
+
+double* get_inter_detjac_inters_cubpts_ptr(int in_ele_type, int in_ele, int in_ele_local_inter, int in_inter_local_fpt, struct solution* FlowSol)
+{
+  return FlowSol->mesh_eles(in_ele_type)->get_inter_detjac_inters_cubpts_ptr(in_inter_local_fpt,in_ele_local_inter,in_ele);
+
 }
 
 // get pointer to the normal at a flux point
@@ -324,6 +352,10 @@ void InitSolution(struct solution *FlowSol)
   //patch solution after flow field initialized
   if (run_input.patch)
     patch_solution(FlowSol);
+
+  for(int i=0; i<FlowSol->n_bdy_inter_types; i++){
+      FlowSol->mesh_bdy_inters(i).add_les_inlet(FlowSol->ini_iter,FlowSol);
+  }
 
 #ifdef _MPI
   MPI_Barrier(MPI_COMM_WORLD);

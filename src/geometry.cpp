@@ -667,16 +667,37 @@ void GeoPreprocess(struct solution *FlowSol, mesh &mesh_data)
           if (mesh_data.f2nv(i) == 2)
           {
             FlowSol->mesh_bdy_inters(0).set_boundary(i_seg_bdy, bcid_f, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), FlowSol);
+
+            for(int j=0;j<mesh_data.f2nv(i);j++){
+              for(int k=0;k<FlowSol->n_dims;k++){
+                FlowSol->mesh_bdy_inters(0).pos_bdr_face_vtx(j,i_seg_bdy,k)=mesh_data.xv(mesh_data.f2v(i,j),k);
+              }           
+            }
+            
             i_seg_bdy++;
           }
           else if (mesh_data.f2nv(i) == 3)
           {
             FlowSol->mesh_bdy_inters(1).set_boundary(i_tri_bdy, bcid_f, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), FlowSol);
+
+            for(int j=0;j<mesh_data.f2nv(i);j++){
+              for(int k=0;k<FlowSol->n_dims;k++){
+                FlowSol->mesh_bdy_inters(1).pos_bdr_face_vtx(j,i_tri_bdy,k)=mesh_data.xv(mesh_data.f2v(i,j),k);
+              }           
+            }
+
             i_tri_bdy++;
           }
           else if (mesh_data.f2nv(i) == 4)
           {
             FlowSol->mesh_bdy_inters(2).set_boundary(i_quad_bdy, bcid_f, mesh_data.ctype(ic_l), local_c(ic_l), mesh_data.f2loc_f(i, 0), FlowSol);
+
+            for(int j=0;j<mesh_data.f2nv(i);j++){
+              for(int k=0;k<FlowSol->n_dims;k++){
+                FlowSol->mesh_bdy_inters(2).pos_bdr_face_vtx(j,i_quad_bdy,k)=mesh_data.xv(mesh_data.f2v(i,j),k);                 
+              }
+            }
+
             i_quad_bdy++;
           }
         }

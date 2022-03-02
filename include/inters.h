@@ -84,6 +84,7 @@ public:
 	int n_fpts_per_inter;
 	int n_fields;
 	int n_dims;
+  int n_vtx;
 
 	hf_array<double*> disu_fpts_l;
 	hf_array<double*> delta_disu_fpts_l;
@@ -92,6 +93,8 @@ public:
 	hf_array<double*> tdA_fpts_l;
 	hf_array<double*> norm_fpts;
 	hf_array<double*> pos_fpts;
+  hf_array<double*> weight_fpts;
+  hf_array<double*> inter_detjac_inters_cubpts;
 
   hf_array<double> pos_disu_fpts_l;
   hf_array<double*> grad_disu_fpts_l;

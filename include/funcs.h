@@ -256,6 +256,10 @@ hf_array<double> calc_line(hf_array<double>& in_pos);
 /*! method to calculate centroid of a set of points*/
 hf_array<double> calc_centroid(hf_array<double>& in_pos);
 
+hf_array<double> cart2cyl(double x,double y, double z);
+
+hf_array<double> cyl2cart(double r,double theta, double x);
+
 //------------------
 //Others
 //------------------

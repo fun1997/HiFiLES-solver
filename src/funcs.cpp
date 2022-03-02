@@ -2934,6 +2934,29 @@ hf_array<double> calc_centroid(hf_array<double>& in_pos)//in_pos(dim,n_pts)
     return centroid;
 }
 
+hf_array<double> cart2cyl(double x,double y, double z)
+{
+    hf_array<double> pos_cyl(3);
+    pos_cyl.initialize_to_zero();
+    pos_cyl(0)=sqrt(y*y+z*z);
+    pos_cyl(1)=atan2(y,z);
+    pos_cyl(2)=x;
+    
+    return pos_cyl;  
+}
+
+hf_array<double> cyl2cart(double r,double theta, double x)
+{
+    hf_array<double> pos_cart(3);
+    pos_cart.initialize_to_zero();
+    pos_cart(0)=x;
+    pos_cart(1)=r*sin(theta);
+    pos_cart(2)=r*cos(theta);
+    
+    return pos_cart;
+
+}
+
 double trip_prod(hf_array<double> &a,hf_array<double> &b, hf_array<double> &c)
 {
     if(a.get_dim(0)!=3||b.get_dim(0)!=3||c.get_dim(0)!=3)

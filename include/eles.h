@@ -166,6 +166,9 @@ public:
   /*! set bc type */
   void set_bdy_ele2ele(void);
 
+  /*! set bc type */
+  void set_ele2bdy_ele(void);
+
   /*! set number of shape points */
   void set_n_spts(int in_ele, int in_n_spts);
 
@@ -183,6 +186,12 @@ public:
 
   /*! get pointer to the equivalent of 'dA' (face area) at a flux point in static physical space */
   double* get_tdA_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele);
+
+  /*! get pointer to the weight at a flux point  */
+  double* get_weight_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter);
+
+  /*! get pointer to the inter_detjac_inters_cubpts at a flux point  */
+  double* get_inter_detjac_inters_cubpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_ele);
 
   /*! get a pointer to the normal at a flux point */
   double* get_norm_fpts_ptr(int in_inter_local_fpt, int in_ele_local_inter, int in_dim, int in_ele);
@@ -337,7 +346,16 @@ public:
 
   hf_array<double> get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type);
 
-//------------------------
+  //calculate inlet boundary total area
+  double calc_inlet_bdr_area(int in_bc_flag);
+
+  //calculate cut off length scale
+  double calc_inlet_length_scale();
+
+  //calculate inlet weighted velocity
+  void calc_inlet_weighted_vel_c(hf_array<double>& vel_c);
+
+ //------------------------
 // virtual methods
 //------------------------
   virtual void setup_ele_type_specific()=0;
@@ -520,6 +538,9 @@ protected:
 
   /*! Global cell number of element */
   hf_array<int> bdy_ele2ele;
+
+  /*! Global cell number of element */
+  hf_array<int> ele2bdy_ele;
 
   /*! Boundary condition type of faces */
   hf_array<int> bcid;

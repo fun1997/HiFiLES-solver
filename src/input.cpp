@@ -348,6 +348,14 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "u", bc_list(i).velocity(0));
             bdy_r.getScalarValue(bc_paramS + "v", bc_list(i).velocity(1));
             bdy_r.getScalarValue(bc_paramS + "w", bc_list(i).velocity(2));
+            bdy_r.getScalarValue(bc_paramS + "inlet_type", bc_list(i).type,0);
+            bdy_r.getScalarValue(bc_paramS + "mode", bc_list(i).mode,0);
+            bdy_r.getScalarValue(bc_paramS + "vis_y", bc_list(i).vis_y,0.);
+            bdy_r.getScalarValue(bc_paramS + "turb_1", bc_list(i).turb_1,0.);
+            bdy_r.getScalarValue(bc_paramS + "turb_2", bc_list(i).turb_2,0.);
+            bdy_r.getScalarValue(bc_paramS + "n_eddy", bc_list(i).n_eddy,0);
+            
+
         }
         else if (bc_list(i).get_bc_flag() == SUB_IN_CHAR)
         {
@@ -357,6 +365,12 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "nx", bc_list(i).nx, 1.);
             bdy_r.getScalarValue(bc_paramS + "ny", bc_list(i).ny, 0.);
             bdy_r.getScalarValue(bc_paramS + "nz", bc_list(i).nz, 0.);
+            bdy_r.getScalarValue(bc_paramS + "inlet_type", bc_list(i).type,0);
+            bdy_r.getScalarValue(bc_paramS + "mode", bc_list(i).mode,0);
+            bdy_r.getScalarValue(bc_paramS + "vis_y", bc_list(i).vis_y,0.);
+            bdy_r.getScalarValue(bc_paramS + "turb_1", bc_list(i).turb_1,0.);
+            bdy_r.getScalarValue(bc_paramS + "turb_2", bc_list(i).turb_2,0.);
+            bdy_r.getScalarValue(bc_paramS + "n_eddy", bc_list(i).n_eddy,0);
             if (bc_list(i).pressure_ramp)
             {
                 this->pressure_ramp = 1;
@@ -380,6 +394,12 @@ void input::read_boundary_param(void)
             bdy_r.getScalarValue(bc_paramS + "ny", bc_list(i).ny, 0.);
             bdy_r.getScalarValue(bc_paramS + "nz", bc_list(i).nz, 0.);
             bdy_r.getScalarValue(bc_paramS + "T_static", bc_list(i).T_static);
+            bdy_r.getScalarValue(bc_paramS + "inlet_type", bc_list(i).type,0);
+            bdy_r.getScalarValue(bc_paramS + "mode", bc_list(i).mode,0);
+            bdy_r.getScalarValue(bc_paramS + "vis_y", bc_list(i).vis_y,0.);
+            bdy_r.getScalarValue(bc_paramS + "turb_1", bc_list(i).turb_1,0.);
+            bdy_r.getScalarValue(bc_paramS + "turb_2", bc_list(i).turb_2,0.);
+            bdy_r.getScalarValue(bc_paramS + "n_eddy", bc_list(i).n_eddy,0);
         }
         else if (bc_list(i).get_bc_flag() == ISOTHERM_WALL)
         {

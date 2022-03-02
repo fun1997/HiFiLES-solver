@@ -132,6 +132,6 @@ class output
     hf_array<cgsize_t> pele_start, pele_end;//local element list start end index
     hf_array<int> sum_npele;//global number of each type of plot element
     cgsize_t pnode_start;//local node list start index
-    cgsize_t pelepl_start;//local element list start index
+    
 #endif
 };

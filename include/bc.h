@@ -57,6 +57,14 @@ double p_static,T_static;
 hf_array<double> velocity;
 int pressure_ramp;
 int use_wm;
+// turbulent inlet
+int type;
+int mode;
+double vis_y;
+double turb_1;
+double turb_2;
+int n_eddy;
+
 private:
 
 map<string,int> bc_type2flag;

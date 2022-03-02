@@ -67,6 +67,7 @@ void inters::setup_inters(int in_n_inters, int in_inters_type)
         FatalError("Equation not supported");
 
       n_fpts_per_inter=order+1;
+      n_vtx=2;
     }
   else if(inters_type==1) // tris
     {
@@ -80,6 +81,7 @@ void inters::setup_inters(int in_n_inters, int in_inters_type)
         FatalError("Equation not supported");
 
       n_fpts_per_inter=(order+2)*(order+1)/2;
+      n_vtx=3;
     }
   else if(inters_type==2) // quads
     {
@@ -92,6 +94,7 @@ void inters::setup_inters(int in_n_inters, int in_inters_type)
         FatalError("Equation not supported");
 
       n_fpts_per_inter=(order+1)*(order+1);
+      n_vtx=4;
     }
   else
     {
@@ -107,6 +110,8 @@ void inters::setup_inters(int in_n_inters, int in_inters_type)
       tdA_fpts_l.setup(n_fpts_per_inter,n_inters);
       norm_fpts.setup(n_fpts_per_inter,n_inters,n_dims);
       pos_fpts.setup(n_fpts_per_inter,n_inters,n_dims);
+      weight_fpts.setup(n_fpts_per_inter,n_inters);
+      inter_detjac_inters_cubpts.setup(n_fpts_per_inter,n_inters);
 
       if(viscous)
         {

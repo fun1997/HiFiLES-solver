@@ -23,7 +23,7 @@
 
 #include <iostream>
 #include <fstream>
-#include<unistd.h>
+#include <unistd.h>
 
 #include "../include/global.h"
 #include "../include/geometry.h"
@@ -49,11 +49,14 @@ int main(int argc, char *argv[]) {
   ofstream write_hist;                /*!< Output files (forces, statistics, and history) */
   mesh* mesh_data=new mesh();         /*!< Store mesh information*/
 
-// {
-//         int k=0;
-//         while (0 == k)
-//             sleep(5);
-//     }
+  // {
+  //   int k=0;
+  //   while (0 == k){
+  //     sleep(5);
+  //   }
+
+  // }
+  sleep(5);
   /*! Initialize MPI. */
 
 #ifdef _MPI
@@ -297,6 +300,14 @@ int main(int argc, char *argv[]) {
 
         if (i_steps % run_input.restart_dump_freq == 0)
         {
+          if(FlowSol.rank==0){
+            for(int i=0; i<FlowSol.n_bdy_inter_types; i++){ 
+              if(FlowSol.mesh_bdy_inters(i).inlet.type != 0){           
+                FlowSol.mesh_bdy_inters(i).write_sem_restart(FlowSol.ini_iter + i_steps);
+              }
+            }
+          }
+        
 #ifdef _HDF5
           run_output.write_restart_hdf5(FlowSol.ini_iter + i_steps);
 #else

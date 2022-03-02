@@ -26,10 +26,16 @@
 #include "inters.h"
 #include "solution.h"
 #include <vector>
+#include "turbinlet.h"
 
 class bdy_inters: public inters
 {
 public:
+ //the vertex of inter
+  hf_array<double> pos_bdr_face_vtx;
+  int flag=0;
+  int in_ele_type;
+  turbinlet inlet; 
 
   // #### constructors ####
 
@@ -59,13 +65,47 @@ public:
   void mv_all_cpu_gpu(void);
 
   /*! calculate normal transformed continuous inviscid flux at the flux points on boundaries*/
-  void evaluate_boundaryConditions_invFlux(double time_bound);
+  void evaluate_boundaryConditions_invFlux(solution* FlowSol, double time_bound);
 
   /*! calculate delta in transformed discontinuous solution at flux points */
   void calc_delta_disu_fpts_boundary(void);
 
   /*! calculate normal transformed continuous viscous flux at the flux points on boundaries*/
   void evaluate_boundaryConditions_viscFlux(double time_bound);
+
+  // about turbulent inlet
+
+  /*! add LES inlet condition */
+  void add_les_inlet(int in_file_numstruct, solution* FlowSol);
+
+  /*! update the velocity profile */
+  void update_les_inlet(struct solution* FlowSol);
+
+  /*! Generate turbulent fluctuations using synthetic eddy method */
+  void gen_fluc_sem(struct solution* FlowSol);
+
+  /*! Generate turbulent fluctuations with Gaussian random noise */
+  void gen_fluc_random();
+
+  /*! rescale according to r_ij */
+  void rescale_rij();
+
+  /*! Correct mass flux on the inlet interface */
+  void correct_mass(struct solution* FlowSol);
+
+  void cal_inlet_rou_vel(double time_bound);
+
+  void cal_inlet_r_ij();
+
+  void cal_convection_speed(hf_array<double> &vel_c);
+
+  double cal_inlet_area();
+
+  void write_sem_restart(int in_file_num);
+
+  void read_sem_restart(int in_file_num,int & rest_info);
+
+
 
 protected:
 
