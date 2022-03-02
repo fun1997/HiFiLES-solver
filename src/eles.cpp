@@ -6019,77 +6019,11 @@ void eles::pos_to_loc(hf_array<double>& in_pos,int in_ele,hf_array<double>& out_
     }while(sqrt(inner_product(dx.get_ptr_cpu(), dx.get_ptr_cpu(n_dims), dx.get_ptr_cpu(), 0.)) > 1.e-6);
 }
 
-double eles::calc_inlet_bdr_area(int in_bc_flag)
-{
-    int i,j,l,ele;
-    double area, detjac, wgt;
-    cout<<"start"<<endl;
-    cout<<n_bdy_eles<<" "<<n_inters_per_ele<<endl;
-    hf_array<int> inflowinters(n_bdy_eles,n_inters_per_ele);
-    // zero the interface flags
-    for (i=0; i<n_bdy_eles; i++)
-    {
-        for (l=0; l<n_inters_per_ele; l++)
-        {
-            inflowinters(i,l)=0;
-        }
-    }
-    // area on inflow boundary of bc_flag
-    // Integrate density and x-velocity over inflow area
-    for (i=0; i<n_bdy_eles; i++)
-    {
-        ele = bdy_ele2ele(i);
-        for (l=0; l<n_inters_per_ele; l++)
-        {
-            if(inflowinters(i,l)!=1) // only unflagged inters
-            {
-
-                if(run_input.bc_list(bcid(ele,l)).get_bc_flag()==in_bc_flag)
-                {                        
-                    inflowinters(i,l)=1; // Flag this interface                        
-                }
-                
-                
-            }
-        }
-    }
-    // Now loop over flagged inters
-    area=0.;
-    for (i=0; i<n_bdy_eles; i++)
-    {
-        ele = bdy_ele2ele(i);
-        for (l=0; l<n_inters_per_ele; l++)
-        {
-            if(inflowinters(i,l)==1)
-            {
-                for (j=0; j<n_cubpts_per_inter(l); j++)
-                {
-                    wgt = weight_inters_cubpts(l)(j);
-                    detjac = inter_detjac_inters_cubpts(l)(j,i);
-                    
-                    area += wgt*detjac;
-                    
-                }
-            }
-        }
-    }
-    
-    
-
-#ifdef _MPI
-    double total_area;        
-    total_area = 0.;
-    MPI_Allreduce(&area, &total_area, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    area=total_area;     
-#endif
-    return area;
-    
-}
 
 double eles::calc_inlet_length_scale(){
     int i,j,l,ele;
     double detjac;
-    double max_detjac=-__DBL_MAX__;
+    double max_detjac=-100000;
     double vol;
     double delta;
     hf_array <int> infloweles(n_bdy_eles);
@@ -6126,100 +6060,10 @@ double eles::calc_inlet_length_scale(){
     MPI_Allreduce(&max_detjac, &max_detjac_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     max_detjac=max_detjac_global;
 #endif
+    if(max_detjac<0){
+        max_detjac=0;
+    }
     vol = (*this).calc_ele_vol(max_detjac);
     delta = run_input.filter_ratio*pow(vol,1./n_dims)/(order+1.);
     return delta;
-}
-
-void eles::calc_inlet_weighted_vel_c(hf_array<double>& vel_c){
-    int i,j,k,l,m,ele;
-    double detjac,wgt;
-    hf_array <int> inflowinters(n_bdy_eles,n_inters_per_ele);
-    hf_array <double> disu_cubpt(4);
-    hf_array <double> integral(4);
-
-    for (i=0; i<4; i++)
-    {
-        integral(i)=0.0;
-    }
-
-    // zero the interface flags
-    for (i=0; i<n_bdy_eles; i++)
-    {
-        for (l=0; l<n_inters_per_ele; l++)
-        {
-            inflowinters(i,l)=0;
-        }
-    }
-
-    // Mass flux on inflow boundary
-    // Integrate density and x-velocity over inflow area
-    for (i=0; i<n_bdy_eles; i++)
-    {
-        ele = bdy_ele2ele(i);
-        for (l=0; l<n_inters_per_ele; l++)
-        {
-            if(inflowinters(i,l)!=1) // only unflagged inters
-            {
-                int temp_bc_flag=run_input.bc_list(bcid(ele,l)).get_bc_flag();
-                //only the inlet normal_x=1;
-                if(temp_bc_flag==SUB_IN_SIMP||temp_bc_flag==SUB_IN_CHAR||temp_bc_flag==SUP_IN)
-                {
-                    inflowinters(i,l)=1; // Flag this interface
-                    
-                }
-            }
-        }
-    }
-
-    // Now loop over flagged inters
-    for (i=0; i<n_bdy_eles; i++)
-    {
-        ele = bdy_ele2ele(i);
-        for (l=0; l<n_inters_per_ele; l++)
-        {
-            if(inflowinters(i,l)==1)
-            {
-                for (j=0; j<n_cubpts_per_inter(l); j++)
-                {
-                    wgt = weight_inters_cubpts(l)(j);
-                    detjac = inter_detjac_inters_cubpts(l)(j,i);
-
-                    for (m=0; m<4; m++)
-                    {
-                        disu_cubpt(m) = 0.;
-                    }
-
-                    // Get the solution at cubature point
-                    for (k=0; k<n_upts_per_ele; k++)
-                    {
-                        for (m=0; m<4; m++)
-                        {
-                            disu_cubpt(m) += opp_inters_cubpts(l)(j,k)*disu_upts(0)(k,ele,m);
-                        }
-                    }
-                    for (m=0; m<4; m++)
-                    {
-                        integral(m) += wgt*disu_cubpt(m)*detjac;
-                    }
-                }
-            }
-        }
-    }
-
-#ifdef _MPI
-
-    hf_array<double> integral_global(4);
-    for (m=0; m<4; m++)
-    {
-        integral_global(m) = 0.;
-        MPI_Allreduce(&integral(m), &integral_global(m), 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        integral(m) = integral_global(m);
-    }
-
-#endif
-    for(i=0;i<n_dims;i++){
-        vel_c(i)=integral(i+1)/integral(0);           
-    }
-    
 }

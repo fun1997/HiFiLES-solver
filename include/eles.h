@@ -346,14 +346,9 @@ public:
 
   hf_array<double> get_pointwise_error(hf_array<double>& sol, hf_array<double>& grad_sol, hf_array<double>& loc, double& time, int in_norm_type);
 
-  //calculate inlet boundary total area
-  double calc_inlet_bdr_area(int in_bc_flag);
-
   //calculate cut off length scale
   double calc_inlet_length_scale();
 
-  //calculate inlet weighted velocity
-  void calc_inlet_weighted_vel_c(hf_array<double>& vel_c);
 
  //------------------------
 // virtual methods
