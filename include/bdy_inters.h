@@ -33,8 +33,8 @@ class bdy_inters: public inters
 public:
  //the vertex of inter
   hf_array<double> pos_bdr_face_vtx;
-  int flag=0;
-  int in_ele_type;
+  int eleflag=0;
+  int in_ele_type=-1;
   turbinlet inlet; 
 
   // #### constructors ####
@@ -97,7 +97,7 @@ public:
 
   void cal_inlet_r_ij();
 
-  void cal_convection_speed(hf_array<double> &vel_c);
+  hf_array<double> cal_convection_speed();
 
   double cal_inlet_area();
 

@@ -73,10 +73,10 @@ void bdy_inters::setup(int in_n_inters, int in_inters_type)
 void bdy_inters::set_boundary(int in_inter, int bc_id, int in_ele_type_l, int in_ele_l, int in_local_inter_l, struct solution* FlowSol)
 {
     boundary_id(in_inter) = bc_id;
-    if(flag==0)
+    if(eleflag==0)
     {
         in_ele_type=in_ele_type_l;
-        flag=1;
+        eleflag=1;
     }
 
 
@@ -244,13 +244,16 @@ void bdy_inters::evaluate_boundaryConditions_invFlux(solution* FlowSol,double ti
             //calculate inviscid boundary solution
             set_boundary_conditions(0, boundary_id(i), temp_u_l.get_ptr_cpu(), temp_u_r.get_ptr_cpu(),
                                     norm.get_ptr_cpu(), temp_loc.get_ptr_cpu(), run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
+            if(inlet.nbs!=0){
+                if(inlet.ibslst_inv(i)!=-1){
+                    writefile<<"origin  ibs= "<<inlet.ibslst_inv(i)<<" "<<"j= "<<j<<" " << setw(18)<<temp_u_r[0]<<" "<<setw(18)<<temp_u_r[1]<<" "<<setw(18)<<temp_u_r[2]<<" "<<setw(18)<<temp_u_r[3]<<" "<<endl;
+                    for (int m=0; m<n_dims; m++)
+                        temp_u_r[m+1] += temp_u_r[0]*inlet.fluctuations(j,inlet.ibslst_inv(i),m);                
+                    writefile<<"after   ibs= "<<inlet.ibslst_inv(i)<<" "<<"j= "<<j<<" " << setw(18)<<temp_u_r[0]<<" "<<setw(18)<<temp_u_r[1]<<" "<<setw(18)<<temp_u_r[2]<<" "<<setw(18)<<temp_u_r[3]<<" "<<endl;
+                }               
 
-            if(inlet.ibslst_inv(i)!=-1){
-                writefile<<"origin  ibs= "<<inlet.ibslst_inv(i)<<" "<<"j= "<<j<<" " << setw(18)<<temp_u_r[0]<<" "<<setw(18)<<temp_u_r[1]<<" "<<setw(18)<<temp_u_r[2]<<" "<<setw(18)<<temp_u_r[3]<<" "<<endl;
-                for (int m=0; m<n_dims; m++)
-                    temp_u_r[m+1] += temp_u_r[0]*inlet.fluctuations(j,inlet.ibslst_inv(i),m);                
-                writefile<<"after   ibs= "<<inlet.ibslst_inv(i)<<" "<<"j= "<<j<<" " << setw(18)<<temp_u_r[0]<<" "<<setw(18)<<temp_u_r[1]<<" "<<setw(18)<<temp_u_r[2]<<" "<<setw(18)<<temp_u_r[3]<<" "<<endl;
-            }            
+            }
+            
 
             /*! calculate flux from discontinuous solution at flux points */
             if(n_dims==2)
@@ -1052,11 +1055,13 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
                     set_boundary_conditions(1, boundary_id(i), temp_u_l.get_ptr_cpu(), temp_u_r.get_ptr_cpu(),
                                             norm.get_ptr_cpu(), temp_loc.get_ptr_cpu(), run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
 
-                    if(inlet.ibslst_inv(i)!=-1){
-                
-                        for (int m=0; m<n_dims; m++)
-                            temp_u_r[m+1] += temp_u_r[0]*inlet.fluctuations(j,inlet.ibslst_inv(i),m);                
-                        
+                    if(inlet.nbs!=0){
+                        if(inlet.ibslst_inv(i)!=-1){
+                    
+                            for (int m=0; m<n_dims; m++)
+                                temp_u_r[m+1] += temp_u_r[0]*inlet.fluctuations(j,inlet.ibslst_inv(i),m);                
+                            
+                        }
                     }
 
                     set_boundary_gradients(boundary_id(i), temp_u_l, temp_u_r, temp_grad_u_l, temp_grad_u_r,
@@ -1102,12 +1107,14 @@ void bdy_inters::evaluate_boundaryConditions_viscFlux(double time_bound)
                     //calculate viscous boundary solution
                     set_boundary_conditions(2, boundary_id(i), temp_u_l.get_ptr_cpu(), temp_u_r.get_ptr_cpu(),
                                             norm.get_ptr_cpu(), temp_loc.get_ptr_cpu(), run_input.gamma, run_input.R_ref, time_bound, run_input.equation);
-
-                    if(inlet.ibslst_inv(i)!=-1){
-                
-                        for (int m=0; m<n_dims; m++)
-                            temp_u_r[m+1] += temp_u_r[0]*inlet.fluctuations(j,inlet.ibslst_inv(i),m);                
+                    if(inlet.nbs!=0){
                         
+                        if(inlet.ibslst_inv(i)!=-1){
+                    
+                            for (int m=0; m<n_dims; m++)
+                                temp_u_r[m+1] += temp_u_r[0]*inlet.fluctuations(j,inlet.ibslst_inv(i),m);                
+                            
+                        }
                     }
                     /*! obtain wall model input solutions */
                     for (int k = 0; k < n_fields; k++)
@@ -1180,7 +1187,8 @@ void bdy_inters::set_boundary_gradients(int bc_id, hf_array<double> &u_l, hf_arr
 }
 
 void bdy_inters::add_les_inlet(int in_file_num,struct solution* FlowSol)
-{           
+{
+
     int temp_bc_flag;
     int inlet_bc_flag;
     int id;
@@ -1189,8 +1197,9 @@ void bdy_inters::add_les_inlet(int in_file_num,struct solution* FlowSol)
     int rest_info;
     int i,j,k;
 
+    //cal the number of the specified inlet
     count=0;
-    for(i=0; i<n_inters; i++)//loop over boundary interfaces
+    for(i=0; i<n_inters; i++)
     {                  
         temp_bc_flag=run_input.bc_list(boundary_id(i)).get_bc_flag();
         if(temp_bc_flag==SUB_IN_SIMP||temp_bc_flag==SUB_IN_CHAR||temp_bc_flag==SUP_IN){
@@ -1201,24 +1210,27 @@ void bdy_inters::add_les_inlet(int in_file_num,struct solution* FlowSol)
 
     inlet.nbs=count;
 
+    //for process which don't have inlet surface, not needed 
+    if(inlet.nbs!=0){
+
+        inlet.ibslst.setup(inlet.nbs);
+        inlet.ibslst_inv.setup(n_inters);
+        inlet.face_vtx_coord.setup(n_vtx,inlet.nbs,n_dims);
+        inlet.v.setup(n_fpts_per_inter,inlet.nbs,n_dims);
+        inlet.rou.setup(n_fpts_per_inter,inlet.nbs);
+        inlet.fluctuations.setup(n_fpts_per_inter,inlet.nbs,n_dims); 
+        inlet.r_ij.setup(n_fpts_per_inter,inlet.nbs,6);
+
+        inlet.ibslst_inv.initialize_to_value(-1);
+        inlet.r_ij.initialize_to_zero();
+
+    }
     
-
-    inlet.ibslst.setup(inlet.nbs);
-    inlet.ibslst_inv.setup(n_inters);
-    inlet.face_vtx_coord.setup(n_vtx,inlet.nbs,n_dims);
-    inlet.v.setup(n_fpts_per_inter,inlet.nbs,n_dims);
-    inlet.rou.setup(n_fpts_per_inter,inlet.nbs);
-    inlet.fluctuations.setup(n_fpts_per_inter,inlet.nbs,n_dims); 
-    inlet.r_ij.setup(n_fpts_per_inter,inlet.nbs,6);
-
-
-    inlet.ibslst_inv.initialize_to_value(-1);
-    inlet.r_ij.initialize_to_zero();
     
-
+    //get the mapped list
     count=0;
 
-    for(i=0; i<n_inters; i++)//loop over boundary interfaces
+    for(i=0; i<n_inters; i++)
     {
         temp_bc_flag=run_input.bc_list(boundary_id(i)).get_bc_flag();
         if(temp_bc_flag==SUB_IN_SIMP||temp_bc_flag==SUB_IN_CHAR||temp_bc_flag==SUP_IN){
@@ -1228,11 +1240,11 @@ void bdy_inters::add_les_inlet(int in_file_num,struct solution* FlowSol)
         }
     }
 
-
+    //get the mapped face vertex
 
     count=0;
-    for(i=0; i<n_inters; i++)//loop over boundary interfaces
-    {         
+    for(i=0; i<n_inters; i++)
+    {
         temp_bc_flag=run_input.bc_list(boundary_id(i)).get_bc_flag();         
         if(temp_bc_flag==SUB_IN_SIMP||temp_bc_flag==SUB_IN_CHAR||temp_bc_flag==SUP_IN){    
             for(j=0; j<n_vtx; j++){
@@ -1245,7 +1257,7 @@ void bdy_inters::add_les_inlet(int in_file_num,struct solution* FlowSol)
     }
     
 
-    
+    //get the corresponding flag and id
     for(i=0;i<run_input.bc_list.get_dim(0);i++){
         temp_bc_flag=run_input.bc_list(i).get_bc_flag();
         if(temp_bc_flag==SUB_IN_SIMP||temp_bc_flag==SUB_IN_CHAR||temp_bc_flag==SUP_IN){
@@ -1255,17 +1267,19 @@ void bdy_inters::add_les_inlet(int in_file_num,struct solution* FlowSol)
     }
     inlet.id=id;
 
-
+    //cal inlet total_area
     inlet.total_area=cal_inlet_area();
     
 
     if(FlowSol->rank==0){
         cout<<"func1 area= "<<inlet.total_area<<endl;
-        // cout<<"func2 area2= "<<area2<<endl;
     }
 
+    //rank=0 read restart file when a restart flag exists
     if(FlowSol->rank==0){
-        read_sem_restart(in_file_num, rest_info);
+        if(run_input.restart_flag != 0)
+            read_sem_restart(in_file_num, rest_info);
+        rest_info=0;
     }
     #ifdef _MPI
     MPI_Bcast(&rest_info, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -1278,12 +1292,16 @@ void bdy_inters::add_les_inlet(int in_file_num,struct solution* FlowSol)
         inlet.mode=run_input.bc_list(id).mode;
         inlet.vis_y=run_input.bc_list(id).vis_y;            
         inlet.turb_1=run_input.bc_list(id).turb_1;
-        inlet.turb_2=run_input.bc_list(id).turb_2;        
-        inlet.n_eddy=run_input.bc_list(id).n_eddy;            
-        inlet.eddy_pos.setup(inlet.n_eddy,n_dims);                       
-        inlet.sgn.setup(inlet.n_eddy,n_dims);
-        inlet.eddy_pos.initialize_to_zero(); 
-        inlet.sgn.initialize_to_zero();
+        inlet.turb_2=run_input.bc_list(id).turb_2; 
+
+        //only type 2  needed these
+        if(inlet.type==2){                   
+            inlet.n_eddy=run_input.bc_list(id).n_eddy;            
+            inlet.eddy_pos.setup(inlet.n_eddy,n_dims);                       
+            inlet.sgn.setup(inlet.n_eddy,n_dims);
+            inlet.eddy_pos.initialize_to_zero(); 
+            inlet.sgn.initialize_to_zero();
+        }
               
         
     }
@@ -1319,23 +1337,7 @@ void bdy_inters::update_les_inlet(struct solution* FlowSol)
             
     double max_fluc,fluc_bar;    
 
-    // ofstream testw;
 
-    // testw.open("wm_disu_ptr_1.dat");
-
-    
-    // for(i=0;i<wm_disu_ptr.size();i++){
-    //     for(j=0;j<n_fields;j++){
-    //         testw<<i<<" "<<j<<" "<<*wm_disu_ptr[i](j)<<" ";
-    //     }
-            
-    //     testw<<endl;
-    // }
-
-    
-    // testw.close();
-
-    
 
     if(FlowSol->rank==0)
         cout<<"Updateing LES inlet "<<endl;
@@ -1376,7 +1378,7 @@ void bdy_inters::update_les_inlet(struct solution* FlowSol)
 
 
 
-    max_fluc=-100000;
+    max_fluc=-100000.0;
 
     for (i=0; i<inlet.nbs; i++)
     {
@@ -1446,11 +1448,12 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
 
     int i,j,k,m;
     int ibs;
+    int flag=1;
     double ls_min;
     hf_array<double> ls;
     hf_array<double> temp_pos,temp_pos_2;
     double temp_random;
-    hf_array<double> vel_c(n_dims);
+    hf_array<double> vel_c(3);
     hf_array<double> bounding_box_min(3), bounding_box_max(3);
     hf_array<double> bounding_box_dimension(3);
     double bounding_box_vol;
@@ -1460,13 +1463,19 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
     double temp_dist_mag,temp_dist_mag2;
     double alpha,form_func;
 
-    vel_c.initialize_to_zero();    
-    ls.setup(inlet.nbs,3);
-    ls.initialize_to_zero();
-    inlet.fluctuations.initialize_to_zero();
+
+    if(inlet.nbs!=0){
+
+        ls.setup(inlet.nbs,3);
+        ls.initialize_to_zero();
+        inlet.fluctuations.initialize_to_zero();
+
+    }
+
     
-    bounding_box_min(0)=100000;
-    bounding_box_max(0)=-100000;
+    bounding_box_min.initialize_to_value(100000.0);
+    bounding_box_max.initialize_to_value(-100000.0);
+
 
     ofstream sem_output;
 
@@ -1489,7 +1498,7 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
     }
 
     
-
+    ls_min=0;
     // cal cutoff length-scale
     if (in_ele_type == TRI) //tri
     {            
@@ -1512,13 +1521,13 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
     ls_min=FlowSol->mesh_eles_hexas.calc_inlet_length_scale();
     }
 
-    cout.precision(6);
-
     
     for(i=0;i<inlet.nbs;i++){
-        for(j=0;j<3;j++){                
+
+        for(j=0;j<3;j++){          
+
             if(inlet.mode==0){
-            ls(i,j)=max(ls_min, pow(inlet.C_mu,0.75)*pow(inlet.turb_1,1.5)/inlet.turb_2);
+                ls(i,j)=max(ls_min, pow(inlet.C_mu,0.75)*pow(inlet.turb_1,1.5)/inlet.turb_2);
             }
             //need to be added about wall_distance
             else if(inlet.mode==1){
@@ -1534,10 +1543,7 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
     }
     
 
-    bounding_box_min(1)=100000;
-    bounding_box_max(1)=-100000; 
-    bounding_box_min(2)=100000;
-    bounding_box_max(2)=-100000;
+
 
     for(i=0;i<inlet.nbs;i++){
         for(j=0;j<n_vtx;j++){
@@ -1558,8 +1564,11 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
 
     sem_output<<"bounding_box 2"<<setw(18)<<bounding_box_min(2)<<" "<<setw(18)<<bounding_box_max(2)<<endl;
 
+
 #ifdef _MPI
     hf_array<double> min_glob(3), max_glob(3);
+    min_glob.initialize_to_zero();
+    max_glob.initialize_to_zero();
     MPI_Allreduce(bounding_box_min.get_ptr_cpu(), min_glob.get_ptr_cpu(), 3, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
     MPI_Allreduce(bounding_box_max.get_ptr_cpu(), max_glob.get_ptr_cpu(), 3, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     bounding_box_min=min_glob;
@@ -1567,18 +1576,31 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
 #endif
 
    
+    
 
-    for(i=0;i<3;i++){
-        bounding_box_dimension(i)=bounding_box_max(i)-bounding_box_min(i);
+    for(i=0;i<3;i++){    
+
+        bounding_box_dimension(i)=bounding_box_max(i)-bounding_box_min(i);      
+
     }
-    bounding_box_vol=(pow(bounding_box_max(0),2)-pow(bounding_box_min(0),2))*bounding_box_dimension(1)/2*bounding_box_dimension(2);
+    
+    if(bounding_box_dimension(0)<0||bounding_box_dimension(1)<0||bounding_box_dimension(2)<0){
+        flag=0;
+        bounding_box_vol=0;
+    }
+    else{
+        bounding_box_vol=(pow(bounding_box_max(0),2)-pow(bounding_box_min(0),2))*bounding_box_dimension(1)/2*bounding_box_dimension(2);
+    }
+    
 
-     
+
+    
+
     //initialize sem
     srand(time(NULL));
-    if(inlet.initialize == 1){
-
-        if(FlowSol->rank==0){
+    if(inlet.initialize == 1){        
+        
+        if(FlowSol->rank==0&&flag==1){
 
             for(i=0;i<inlet.n_eddy;i++){
 
@@ -1603,32 +1625,29 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
 
             }
         }
-#ifdef _MPI
         
+#ifdef _MPI
         MPI_Bcast(inlet.eddy_pos.get_ptr_cpu(),inlet.n_eddy*3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(inlet.sgn.get_ptr_cpu(),inlet.n_eddy*3, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
         inlet.initialize=0;
     }
 
-    //Estimation of the convection speed
-    cal_convection_speed(vel_c);
-
-
-    for (i=0; i<inlet.nbs; i++)
-    {        
-        for (j=0; j<n_fpts_per_inter; j++)
-        {   sem_output<<"v0= "<<inlet.v(j,i,0)<<" v1= "<<inlet.v(j,i,1)<<" v2= "<<inlet.v(j,i,2)<<endl;
-        }
+    if(FlowSol->rank==0){
+        cout<<"ok1"<<endl;
     }
-    
+    //Estimation of the convection speed
+    vel_c=cal_convection_speed();
+
     
     sem_output<<"vel_c "<<setw(18)<<vel_c(0)<<" "<<setw(18)<<vel_c(1)<<" "<<setw(18)<<vel_c(2)<<endl;
 
 
     //advance eddies
-    if (FlowSol->rank==0)
+    
+    if (FlowSol->rank==0&&flag==1)
     {
         for ( i = 0; i < inlet.n_eddy; i++)
         {
@@ -1671,7 +1690,7 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
             }
             
             if(new_struct==true){
-               // cout<<randomize(0)<<" "<<randomize(1)<<" "<<randomize(2)<<endl;
+            // cout<<randomize(0)<<" "<<randomize(1)<<" "<<randomize(2)<<endl;
                 for(j=0;j<3;j++){
 
                     if(randomize(j)==1)
@@ -1703,12 +1722,14 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
         }
 
     }
+    
 #ifdef _MPI
     MPI_Bcast(inlet.eddy_pos.get_ptr_cpu(),inlet.n_eddy*3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(inlet.sgn.get_ptr_cpu(),inlet.n_eddy*3, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
-    // sem_output.close();
+    sem_output.close();
 
     //calculate fluctuations
 
@@ -1716,7 +1737,7 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
 
     for(i=0;i<inlet.nbs;i++){
 
-        ibs=inlet.ibslst[i];
+        ibs=inlet.ibslst(i);
 
         for(j=0;j<n_fpts_per_inter;j++){
 
@@ -1729,7 +1750,7 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
                 }
                 temp_dist_mag=sqrt(pow(temp_dist(0),2)+pow(temp_dist(1),2)+pow(temp_dist(2),2));
 
-                temp_pos=cart2cyl(inlet.eddy_pos(i,0),inlet.eddy_pos(i,1),inlet.eddy_pos(i,2));
+                temp_pos=cart2cyl(inlet.eddy_pos(k,0),inlet.eddy_pos(k,1),inlet.eddy_pos(k,2));
                 temp_pos(1)+=bounding_box_dimension(1);
                 temp_pos_2=cyl2cart(temp_pos(0),temp_pos(1),temp_pos(2));
 
@@ -1780,7 +1801,10 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
             }
             inlet.fluctuations(j,i,m)*=alpha;
         }
-    }              
+    } 
+#ifdef _MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif             
     
    
 }
@@ -1789,19 +1813,6 @@ void bdy_inters::rescale_rij(){
     int i,j;
     hf_array<double> corr_mat(6);
     double u_corr,v_corr,w_corr;
-
-    // ofstream testw;
-    // testw.open("inlet_fluc_0.dat");
-
-        
-    // for(i=0;i<inlet.nbs;i++){
-    //     for(j=0;j<n_fpts_per_inter;j++){
-    //     testw<<inlet.fluctuations(j,i,0)<<" "<<inlet.fluctuations(j,i,1)<<" "<<inlet.fluctuations(j,i,2)<<" "<<endl;
-    //     }
-    // }
-
-    
-    // testw.close();
 
     for(i=0;i<inlet.nbs;i++){
 
@@ -1826,17 +1837,6 @@ void bdy_inters::rescale_rij(){
     }
         
 
-        // testw.open("inlet_fluc_2.dat");
-
-        
-        // for(i=0;i<inlet.nbs;i++){
-        //     for(j=0;j<n_fpts_per_inter;j++){
-        //     testw<<inlet.fluctuations(j,i,0)<<" "<<inlet.fluctuations(j,i,1)<<" "<<inlet.fluctuations(j,i,2)<<" "<<endl;
-        //     }
-        // }
-
-       
-        // testw.close();
 }
 void bdy_inters::correct_mass(struct solution* FlowSol){
 
@@ -1860,7 +1860,7 @@ void bdy_inters::correct_mass(struct solution* FlowSol){
 
     for (i=0; i<inlet.nbs; i++)
     {
-        ibs=inlet.ibslst[i];
+        ibs=inlet.ibslst(i);
         for (j=0; j<n_fpts_per_inter; j++)
         {
             wgt = *weight_fpts(j,ibs);
@@ -1894,32 +1894,26 @@ void bdy_inters::correct_mass(struct solution* FlowSol){
         cout<<"mass flux err before correct"<<mass_flux<<endl;
     }
 
-#ifdef _MPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
-
-
 
     sprintf(file_name_s, "fluc_mass_flux_2_rank%d.dat", FlowSol->rank);
     mass_in.open(file_name_s);
 
     
-
-
     for (i=0; i<inlet.nbs; i++)
     {
-        ibs=inlet.ibslst[i];
+        ibs=inlet.ibslst(i);
         for (j=0; j<n_fpts_per_inter; j++){
 
             inlet.fluctuations(j,i,0)-=mass_flux/(inlet.total_area*inlet.rou(j,i));
 
         }
     }
+
     
     mass_flux=0;
     for (i=0; i<inlet.nbs; i++)
     {
-        ibs=inlet.ibslst[i];
+        ibs=inlet.ibslst(i);
         for (j=0; j<n_fpts_per_inter; j++)
         {
             wgt = *weight_fpts(j,ibs);
@@ -1931,8 +1925,8 @@ void bdy_inters::correct_mass(struct solution* FlowSol){
         }
     }
 
-   mass_in<<mass_flux;
-   mass_in.close();
+    mass_in<<mass_flux;
+    mass_in.close();
 
 #ifdef _MPI
     double mass_flux_global_2;
@@ -1995,47 +1989,46 @@ void bdy_inters::cal_inlet_rou_vel(double time_bound){
 void bdy_inters::cal_inlet_r_ij(){
     int i,j,k;
     double u_bar;
-    if(n_inters!=0){
-        if(inlet.mode==0){                  
-            for(i=0;i<inlet.nbs;i++){
-                for(j=0;j<n_fpts_per_inter;j++){
-                    for(k=0;k<3;k++){
-                        inlet.r_ij(j,i,k)=2.0/3.0*inlet.turb_1;
-                    }
-                }
-                
-            }
-        }
-        else if(inlet.mode==1){
-            for(i=0;i<inlet.nbs;i++){
-                for(j=0;j<n_fpts_per_inter;j++){                   
-                    u_bar=0.;
-                    for (k=0; k<n_dims; k++){
-                        u_bar+=inlet.v(j,i,k)*inlet.v(j,i,k);
-                    }
-                    u_bar=sqrt(u_bar);
-            
-                    for(k=0;k<3;k++){
-                        inlet.r_ij(j,i,k)=pow(inlet.turb_1*u_bar,2);
-                    }
-                }
-            }
-        }
-
-    }
     
+    if(inlet.mode==0){                  
+        for(i=0;i<inlet.nbs;i++){
+            for(j=0;j<n_fpts_per_inter;j++){
+                for(k=0;k<3;k++){
+                    inlet.r_ij(j,i,k)=2.0/3.0*inlet.turb_1;
+                }
+            }
+            
+        }
+    }
+    else if(inlet.mode==1){
+        for(i=0;i<inlet.nbs;i++){
+            for(j=0;j<n_fpts_per_inter;j++){                   
+                u_bar=0.;
+                for (k=0; k<n_dims; k++){
+                    u_bar+=inlet.v(j,i,k)*inlet.v(j,i,k);
+                }
+                u_bar=sqrt(u_bar);
+        
+                for(k=0;k<3;k++){
+                    inlet.r_ij(j,i,k)=pow(inlet.turb_1*u_bar,2);
+                }
+            }
+        }
+    }
 
 }
-void bdy_inters::cal_convection_speed(hf_array<double> &vel_c){
+hf_array<double> bdy_inters::cal_convection_speed(){
 
     int i,j,k,ibs;
     double area;
     double wgt,detjac;
+    hf_array<double> vel_c(3);
+    vel_c.initialize_to_zero();
 
 
     for (i=0; i<inlet.nbs; i++)
     {
-        ibs=inlet.ibslst[i];
+        ibs=inlet.ibslst(i);
 
         for (j=0; j<n_fpts_per_inter; j++)
         {
@@ -2058,10 +2051,14 @@ void bdy_inters::cal_convection_speed(hf_array<double> &vel_c){
     vel_c=total_vel_c;
 
 #endif
+    if(inlet.nbs==0){
+        return vel_c;
+    }
     for(i=0;i<3;i++){
         vel_c(i)=vel_c(i)/inlet.total_area;
     }
-
+    
+    return vel_c;
 }
 
 
@@ -2075,7 +2072,7 @@ double bdy_inters::cal_inlet_area(){
 
     for (i=0; i<inlet.nbs; i++)
     {
-        ibs=inlet.ibslst[i];
+        ibs=inlet.ibslst(i);
 
         for (j=0; j<n_fpts_per_inter; j++)
         {
