@@ -11,7 +11,7 @@ public:
     // !! - type = 0  not used
     // !! - type = 1  gaussian noise
     // !! - type = 2  synthetic eddy method
-    int type=0;
+    int type;
     // !< operation mode
     // !! - mode = 0  given tke (and dissipation rate)
     // !! - mode = 1  given turbulent intensity (and use pipe/channel law for length scale)
@@ -29,7 +29,7 @@ public:
     int n_eddy; //!< number of eddies
     hf_array<double> eddy_pos;
     hf_array<int> sgn;
-    int initialize = 1;// !< initialize flag
+    int initialize;// !< initialize flag
 
     //!< geometry information
     int id;

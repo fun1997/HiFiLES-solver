@@ -76,7 +76,7 @@ public:
   // about turbulent inlet
 
   /*! add LES inlet condition */
-  void add_les_inlet(int in_file_numstruct, solution* FlowSol);
+  void add_les_inlet(int in_file_num, struct solution* FlowSol);
 
   /*! update the velocity profile */
   void update_les_inlet(struct solution* FlowSol);
@@ -104,6 +104,8 @@ public:
   void write_sem_restart(int in_file_num);
 
   void read_sem_restart(int in_file_num,int & rest_info);
+
+  void cal_fluc(hf_array<double> bounding_box_dimension,hf_array<double> ls,double alpha);
 
 
 

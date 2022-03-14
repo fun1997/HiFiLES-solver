@@ -26,6 +26,7 @@
 #include <random>
 #include <chrono>
 #include <cstdlib>
+#include <time.h>
 #include <fstream>
 
 #include <dirent.h>
@@ -66,6 +67,7 @@ void bdy_inters::setup(int in_n_inters, int in_inters_type)
     boundary_id.setup(in_n_inters);
     if(in_n_inters!=0){
         pos_bdr_face_vtx.setup(n_vtx,in_n_inters,n_dims);
+        pos_bdr_face_vtx.initialize_to_zero();
     }
 
 }
@@ -1221,7 +1223,12 @@ void bdy_inters::add_les_inlet(int in_file_num,struct solution* FlowSol)
         inlet.fluctuations.setup(n_fpts_per_inter,inlet.nbs,n_dims); 
         inlet.r_ij.setup(n_fpts_per_inter,inlet.nbs,6);
 
+        inlet.ibslst.initialize_to_zero();
         inlet.ibslst_inv.initialize_to_value(-1);
+        inlet.face_vtx_coord.initialize_to_zero();
+        inlet.v.initialize_to_zero();
+        inlet.rou.initialize_to_zero();
+        inlet.fluctuations.initialize_to_zero();
         inlet.r_ij.initialize_to_zero();
 
     }
@@ -1293,15 +1300,27 @@ void bdy_inters::add_les_inlet(int in_file_num,struct solution* FlowSol)
         inlet.vis_y=run_input.bc_list(id).vis_y;            
         inlet.turb_1=run_input.bc_list(id).turb_1;
         inlet.turb_2=run_input.bc_list(id).turb_2; 
-
+        
         //only type 2  needed these
         if(inlet.type==2){                   
-            inlet.n_eddy=run_input.bc_list(id).n_eddy;            
+            inlet.n_eddy=run_input.bc_list(inlet.id).n_eddy;            
             inlet.eddy_pos.setup(inlet.n_eddy,n_dims);                       
             inlet.sgn.setup(inlet.n_eddy,n_dims);
             inlet.eddy_pos.initialize_to_zero(); 
             inlet.sgn.initialize_to_zero();
+            inlet.initialize=1;
         }
+        ofstream geo_in;
+        char file_name_s_2[256];  
+        sprintf(file_name_s_2, "geo%d.dat", FlowSol->rank);
+        geo_in.open(file_name_s_2);
+        for(i=0;i<inlet.nbs;i++){
+            for(j=0;j<n_vtx;j++){
+                geo_in<<i<<" "<<j<<" "<<"pos="<<setw(18) <<inlet.face_vtx_coord(j,i,0)<<" "<<setw(18) <<inlet.face_vtx_coord(j,i,1)<<" "<<setw(18) <<inlet.face_vtx_coord(j,i,2)<<endl;
+
+            }
+        }   
+        geo_in.close(); 
               
         
     }
@@ -1335,12 +1354,24 @@ void bdy_inters::update_les_inlet(struct solution* FlowSol)
     
     int i,j,k,ibs;
             
-    double max_fluc,fluc_bar;    
+    double max_fluc,fluc_bar;  
 
+    ofstream geo_in;
+    char file_name_s_2[256];  
+    sprintf(file_name_s_2, "geo_update%d.dat", FlowSol->rank);
+    geo_in.open(file_name_s_2);
+    for(i=0;i<inlet.nbs;i++){
+        for(j=0;j<n_vtx;j++){
+            geo_in<<i<<" "<<j<<" "<<"pos="<<setw(18) <<inlet.face_vtx_coord(j,i,0)<<" "<<setw(18) <<inlet.face_vtx_coord(j,i,1)<<" "<<setw(18) <<inlet.face_vtx_coord(j,i,2)<<endl;
+
+        }
+    }   
+    geo_in.close(); 
 
 
     if(FlowSol->rank==0)
         cout<<"Updateing LES inlet "<<endl;
+
 
 
     cal_inlet_rou_vel(FlowSol->time);
@@ -1459,8 +1490,8 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
     double bounding_box_vol;
     bool new_struct;
     hf_array<int> randomize(3);    
-    hf_array<double> temp_dist(3),temp_dist2(3);
-    double temp_dist_mag,temp_dist_mag2;
+    hf_array<double> temp_dist(3),temp_dist_2(3);
+    double temp_dist_mag,temp_dist_mag_2;
     double alpha,form_func;
 
 
@@ -1468,7 +1499,7 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
 
         ls.setup(inlet.nbs,3);
         ls.initialize_to_zero();
-        inlet.fluctuations.initialize_to_zero();
+        
 
     }
 
@@ -1544,7 +1575,6 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
     
 
 
-
     for(i=0;i<inlet.nbs;i++){
         for(j=0;j<n_vtx;j++){
             temp_pos=cart2cyl(inlet.face_vtx_coord(j,i,0),inlet.face_vtx_coord(j,i,1),inlet.face_vtx_coord(j,i,2));
@@ -1593,11 +1623,11 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
     }
     
 
-
+    cout.precision(9);
     
 
     //initialize sem
-    srand(time(NULL));
+    srand((int)time(0));
     if(inlet.initialize == 1){        
         
         if(FlowSol->rank==0&&flag==1){
@@ -1649,6 +1679,7 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
     
     if (FlowSol->rank==0&&flag==1)
     {
+        cout<<"eddy pos before="<<inlet.eddy_pos(0,0)<<" "<<inlet.eddy_pos(0,1)<<" "<<inlet.eddy_pos(0,2)<<endl;
         for ( i = 0; i < inlet.n_eddy; i++)
         {
             //cout<<"eddy pos before="<<inlet.eddy_pos(i,0)<<" "<<inlet.eddy_pos(i,1)<<" "<<inlet.eddy_pos(i,2)<<endl;
@@ -1657,11 +1688,12 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
                 
                 inlet.eddy_pos(i,j)=inlet.eddy_pos(i,j)+vel_c(j)*run_input.dt;
             }
-            //cout<<"eddy pos after="<<inlet.eddy_pos(i,0)<<" "<<inlet.eddy_pos(i,1)<<" "<<inlet.eddy_pos(i,2)<<endl;
+            //cout<<"eddy pos after ="<<inlet.eddy_pos(i,0)<<" "<<inlet.eddy_pos(i,1)<<" "<<inlet.eddy_pos(i,2)<<endl;
             
         }
         
-        // cout.precision(9);
+        cout<<"eddy pos after ="<<inlet.eddy_pos(0,0)<<" "<<inlet.eddy_pos(0,1)<<" "<<inlet.eddy_pos(0,2)<<endl;
+
     
         for ( i = 0; i < inlet.n_eddy; i++)
         {
@@ -1674,17 +1706,17 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
                 if(temp_pos(j)<bounding_box_min(j)){
                     new_struct=true;
                     randomize(j)=0;
-                    //cout<<"eddy pos cyl bf="<<temp_pos(0)<<" "<<temp_pos(1)<<" "<<temp_pos(2)<<endl;
+                    cout<<"eddy pos cyl bf="<<temp_pos(0)<<" "<<temp_pos(1)<<" "<<temp_pos(2)<<endl;
                     temp_pos(j)+=bounding_box_dimension(j);
-                    //cout<<"eddy pos cyl af="<<temp_pos(0)<<" "<<temp_pos(1)<<" "<<temp_pos(2)<<endl;
+                    cout<<"eddy pos cyl af="<<temp_pos(0)<<" "<<temp_pos(1)<<" "<<temp_pos(2)<<endl;
                 }
 
                 else if(temp_pos(j)>bounding_box_max(j)){
                     new_struct=true;
                     randomize(j)=0;
-                    //cout<<"eddy pos cyl bf="<<temp_pos(0)<<" "<<temp_pos(1)<<" "<<temp_pos(2)<<endl;
+                    cout<<"eddy pos cyl bf="<<temp_pos(0)<<" "<<temp_pos(1)<<" "<<temp_pos(2)<<endl;
                     temp_pos(j)-=bounding_box_dimension(j);
-                    //cout<<"eddy pos cyl af="<<temp_pos(0)<<" "<<temp_pos(1)<<" "<<temp_pos(2)<<endl;
+                    cout<<"eddy pos cyl af="<<temp_pos(0)<<" "<<temp_pos(1)<<" "<<temp_pos(2)<<endl;
                 }
 
             }
@@ -1717,9 +1749,12 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
                 inlet.eddy_pos(i,j)=temp_pos_2(j);
 
             }
+            
 
         
         }
+        cout<<"runinput.dt= "<<run_input.dt<<endl;
+        cout<<"eddy pos after that ="<<inlet.eddy_pos(0,0)<<" "<<inlet.eddy_pos(0,1)<<" "<<inlet.eddy_pos(0,2)<<endl;
 
     }
     
@@ -1732,79 +1767,93 @@ void bdy_inters::gen_fluc_sem(struct solution* FlowSol){
     sem_output.close();
 
     //calculate fluctuations
+    cout<<"eddy pos after that ="<<inlet.eddy_pos(0,0)<<" "<<inlet.eddy_pos(0,1)<<" "<<inlet.eddy_pos(0,2)<<endl;
 
     alpha = sqrt(bounding_box_vol/inlet.n_eddy); 
 
-    for(i=0;i<inlet.nbs;i++){
 
-        ibs=inlet.ibslst(i);
+    cal_fluc(bounding_box_dimension,ls,alpha);
 
-        for(j=0;j<n_fpts_per_inter;j++){
+//     for(i=0;i<inlet.nbs;i++){
 
-            for(k=0;k<inlet.n_eddy;k++){
+//         ibs=inlet.ibslst(i);
 
-                for (m=0; m<n_dims; m++){
+//         for(j=0;j<n_fpts_per_inter;j++){
 
-                    temp_dist(m) = abs((*pos_fpts(j,ibs,m))-inlet.eddy_pos(k,m));
+//             for(k=0;k<inlet.n_eddy;k++){
 
-                }
-                temp_dist_mag=sqrt(pow(temp_dist(0),2)+pow(temp_dist(1),2)+pow(temp_dist(2),2));
+//                 for (m=0; m<n_dims; m++){
 
-                temp_pos=cart2cyl(inlet.eddy_pos(k,0),inlet.eddy_pos(k,1),inlet.eddy_pos(k,2));
-                temp_pos(1)+=bounding_box_dimension(1);
-                temp_pos_2=cyl2cart(temp_pos(0),temp_pos(1),temp_pos(2));
+//                     temp_dist(m) = abs((*pos_fpts(j,ibs,m))-inlet.eddy_pos(k,m));
 
-                for (m=0; m<n_dims; m++){
+//                 }
 
-                    temp_dist2(m) = abs((*pos_fpts(j,ibs,m))-temp_pos_2(m));
+//                 temp_dist_mag=sqrt(pow(temp_dist(0),2)+pow(temp_dist(1),2)+pow(temp_dist(2),2));
 
-                }
-                temp_dist_mag2=sqrt(pow(temp_dist2(0),2)+pow(temp_dist2(1),2)+pow(temp_dist2(2),2));
 
-                if(temp_dist_mag2<temp_dist_mag){
-                    temp_dist=temp_dist2;
-                    temp_dist_mag=temp_dist_mag2;
-                }
-        
-                temp_pos(1)-=2*bounding_box_dimension(1);
-                temp_pos_2=cyl2cart(temp_pos(0),temp_pos(1),temp_pos(2));
+//                 temp_pos=cart2cyl(inlet.eddy_pos(k,0),inlet.eddy_pos(k,1),inlet.eddy_pos(k,2));
 
-                for (m=0; m<n_dims; m++){
+//                 temp_pos(1)+=bounding_box_dimension(1);
+//                 temp_pos_2=cyl2cart(temp_pos(0),temp_pos(1),temp_pos(2));
 
-                    temp_dist2(m) = abs((*pos_fpts(j,ibs,m))-temp_pos_2(m));
+//                 for (m=0; m<n_dims; m++){
 
-                }
-                temp_dist_mag2=sqrt(pow(temp_dist2(0),2)+pow(temp_dist2(1),2)+pow(temp_dist2(2),2));
+//                     temp_dist_2(m) = abs((*pos_fpts(j,ibs,m))-temp_pos_2(m));
 
-                if(temp_dist_mag2<temp_dist_mag){
-                    temp_dist=temp_dist2;                        
-                }
+//                 }
+//                 temp_dist_mag_2=sqrt(pow(temp_dist_2(0),2)+pow(temp_dist_2(1),2)+pow(temp_dist_2(2),2));
 
-                if(temp_dist(0)<ls(i,0) && temp_dist(1)<ls(i,1) && temp_dist(2)<ls(i,2)){
-
-                    form_func=1.0;
-
-                    for(m=0; m<n_dims; m++){
-
-                        form_func=form_func*(1.0-temp_dist(m)/ls(i,m))/sqrt(2.0/3.0*ls(i,m));
-
-                    }
-
-                    for(m=0; m<n_dims; m++){
-
-                        inlet.fluctuations(j,i,m)+=inlet.sgn(k,m)*form_func;
-
-                    }
+//                 if(temp_dist_mag_2<temp_dist_mag){
+//                     for (m=0; m<n_dims; m++){
+//                         temp_dist(m)=temp_dist_2(m);
+//                     }
                     
-                }                  
+//                     temp_dist_mag=temp_dist_mag_2;
+//                 }
+        
+//                 temp_pos(1)-=2*bounding_box_dimension(1);
+//                 temp_pos_2=cyl2cart(temp_pos(0),temp_pos(1),temp_pos(2));
 
-            }
-            inlet.fluctuations(j,i,m)*=alpha;
-        }
-    } 
-#ifdef _MPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif             
+//                 for (m=0; m<n_dims; m++){
+
+//                     temp_dist_2(m) = abs((*pos_fpts(j,ibs,m))-temp_pos_2(m));
+
+//                 }
+//                 temp_dist_mag_2=sqrt(pow(temp_dist_2(0),2)+pow(temp_dist_2(1),2)+pow(temp_dist_2(2),2));
+
+//                 if(temp_dist_mag_2<temp_dist_mag){
+//                     for (m=0; m<n_dims; m++){
+//                         temp_dist(m)=temp_dist_2(m);
+//                     }                      
+//                 }
+                
+//                 if(temp_dist(0)<ls(i,0) && temp_dist(1)<ls(i,1) && temp_dist(2)<ls(i,2)){
+
+//                     form_func=1.0;
+
+//                     for(m=0; m<n_dims; m++){
+
+//                         form_func=form_func*(1.0-temp_dist(m)/ls(i,m))/sqrt(2.0/3.0*ls(i,m));
+
+//                     }
+
+//                     for(m=0; m<n_dims; m++){
+
+//                         inlet.fluctuations(j,i,m)+=inlet.sgn(k,m)*form_func;
+
+//                     }
+                    
+//                 }                  
+
+//             }
+//             cout<<"eddy pos after that test2 ="<<inlet.eddy_pos(0,0)<<" "<<inlet.eddy_pos(0,1)<<" "<<inlet.eddy_pos(0,2)<<endl;
+//             inlet.fluctuations(j,i,m)*=alpha;
+//         }
+//     } 
+//     cout<<"eddy pos after that 2 ="<<inlet.eddy_pos(0,0)<<" "<<inlet.eddy_pos(0,1)<<" "<<inlet.eddy_pos(0,2)<<endl;
+// #ifdef _MPI
+//     MPI_Barrier(MPI_COMM_WORLD);
+// #endif             
     
    
 }
@@ -1846,7 +1895,7 @@ void bdy_inters::correct_mass(struct solution* FlowSol){
 
     double detjac,wgt;
 
-    ofstream mass_in,geo_in;
+    ofstream mass_in;
 
     char file_name_s[256];
 
@@ -1874,15 +1923,6 @@ void bdy_inters::correct_mass(struct solution* FlowSol){
     mass_in<<mass_flux;
     mass_in.close();
 
-    sprintf(file_name_s_2, "geo%d.dat", FlowSol->rank);
-    geo_in.open(file_name_s_2);
-    for(i=0;i<inlet.nbs;i++){
-        for(j=0;j<n_vtx;j++){
-            geo_in<<i<<" "<<j<<" "<<"pos="<<setw(18) <<inlet.face_vtx_coord(j,i,0)<<" "<<setw(18) <<inlet.face_vtx_coord(j,i,1)<<" "<<setw(18) <<inlet.face_vtx_coord(j,i,2)<<endl;
-
-        }
-    }   
-    geo_in.close(); 
 
 #ifdef _MPI
     double mass_flux_global;
@@ -2042,7 +2082,6 @@ hf_array<double> bdy_inters::cal_convection_speed(){
         
     }
 
-    // cout<<"vc ="<<vel_c(0)<<"vc ="<<vel_c(1)<<"vc ="<<vel_c(2)<<endl;
 
 #ifdef _MPI
     hf_array<double> total_vel_c(3);
@@ -2092,7 +2131,98 @@ double bdy_inters::cal_inlet_area(){
     return area;
 
 }
+void bdy_inters::cal_fluc(hf_array<double> bounding_box_dimension,hf_array<double> ls,double alpha){
+    int i,j,k,m;
+    int ibs;
+    hf_array<double> temp_dist(3);
+    hf_array<double> temp_dist_2(3);
+    hf_array<double> temp_pos(3);
+    hf_array<double> temp_pos_2(3);
+    double temp_dist_mag;
+    double temp_dist_mag_2;
+    double form_func;
+    for(i=0;i<inlet.nbs;i++){
 
+        ibs=inlet.ibslst(i);
+
+        for(j=0;j<n_fpts_per_inter;j++){
+
+            for(k=0;k<inlet.n_eddy;k++){
+
+                for (m=0; m<n_dims; m++){
+
+                    temp_dist(m) = abs((*pos_fpts(j,ibs,m))-inlet.eddy_pos(k,m));
+
+                }
+
+                temp_dist_mag=sqrt(pow(temp_dist(0),2)+pow(temp_dist(1),2)+pow(temp_dist(2),2));
+
+
+                temp_pos=cart2cyl(inlet.eddy_pos(k,0),inlet.eddy_pos(k,1),inlet.eddy_pos(k,2));
+
+                temp_pos(1)+=bounding_box_dimension(1);
+                temp_pos_2=cyl2cart(temp_pos(0),temp_pos(1),temp_pos(2));
+
+                for (m=0; m<n_dims; m++){
+
+                    temp_dist_2(m) = abs((*pos_fpts(j,ibs,m))-temp_pos_2(m));
+
+                }
+                temp_dist_mag_2=sqrt(pow(temp_dist_2(0),2)+pow(temp_dist_2(1),2)+pow(temp_dist_2(2),2));
+
+                if(temp_dist_mag_2<temp_dist_mag){
+                    for (m=0; m<n_dims; m++){
+                        temp_dist(m)=temp_dist_2(m);
+                    }
+                    
+                    temp_dist_mag=temp_dist_mag_2;
+                }
+        
+                temp_pos(1)-=2*bounding_box_dimension(1);
+                temp_pos_2=cyl2cart(temp_pos(0),temp_pos(1),temp_pos(2));
+
+                for (m=0; m<n_dims; m++){
+
+                    temp_dist_2(m) = abs((*pos_fpts(j,ibs,m))-temp_pos_2(m));
+
+                }
+                temp_dist_mag_2=sqrt(pow(temp_dist_2(0),2)+pow(temp_dist_2(1),2)+pow(temp_dist_2(2),2));
+
+                if(temp_dist_mag_2<temp_dist_mag){
+                    for (m=0; m<n_dims; m++){
+                        temp_dist(m)=temp_dist_2(m);
+                    }                      
+                }
+                
+                if(temp_dist(0)<ls(i,0) && temp_dist(1)<ls(i,1) && temp_dist(2)<ls(i,2)){
+
+                    form_func=1.0;
+
+                    for(m=0; m<n_dims; m++){
+
+                        form_func=form_func*(1.0-temp_dist(m)/ls(i,m))/sqrt(2.0/3.0*ls(i,m));
+
+                    }
+
+                    for(m=0; m<n_dims; m++){
+
+                        inlet.fluctuations(j,i,m)+=inlet.sgn(k,m)*form_func;
+
+                    }
+                    
+                }                  
+
+            }
+            cout<<"eddy pos after that test2 ="<<inlet.eddy_pos(0,0)<<" "<<inlet.eddy_pos(0,1)<<" "<<inlet.eddy_pos(0,2)<<endl;
+            inlet.fluctuations(j,i,m)*=alpha;
+        }
+    } 
+    cout<<"eddy pos after that 2 ="<<inlet.eddy_pos(0,0)<<" "<<inlet.eddy_pos(0,1)<<" "<<inlet.eddy_pos(0,2)<<endl;
+#ifdef _MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif             
+
+}
 
 void bdy_inters::write_sem_restart(int in_file_num){
     if(n_inters!=0){
@@ -2166,7 +2296,7 @@ void bdy_inters::read_sem_restart(int in_file_num,int &rest_info){
     if(inlet.mode==0){
         sem_in>>inlet.turb_1>>inlet.turb_2;
     }
-        else if(inlet.mode==1){
+    else if(inlet.mode==1){
         sem_in>>inlet.turb_1;
     }
     //read n_eddy

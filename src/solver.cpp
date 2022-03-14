@@ -110,9 +110,10 @@ void CalcResidual(int in_file_num, int in_rk_stage, struct solution* FlowSol) {
   
   //add les turbulent inlet
   if(run_input.LES == 1 && in_rk_stage == 0){
-    for(i=0; i<FlowSol->n_bdy_inter_types; i++){           
-      FlowSol->mesh_bdy_inters(i).update_les_inlet(FlowSol);          
-          
+    for(i=0; i<FlowSol->n_bdy_inter_types; i++){    
+      if(FlowSol->mesh_bdy_inters(i).inlet.type!=0){
+        FlowSol->mesh_bdy_inters(i).update_les_inlet(FlowSol);      
+      }       
     }
   }
       
